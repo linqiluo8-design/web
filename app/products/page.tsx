@@ -75,15 +75,24 @@ export default function ProductsPage() {
         body: JSON.stringify({ productId, quantity: 1 }),
       })
 
+      const data = await res.json()
+
       if (!res.ok) {
-        const error = await res.json()
-        alert(error.error || "添加到购物车失败")
+        // 如果是401未授权，提示用户登录
+        if (res.status === 401) {
+          if (confirm("请先登录后再加入购物车，是否前往登录页面？")) {
+            window.location.href = "/auth/signin"
+          }
+          return
+        }
+        alert(data.error || "添加到购物车失败")
         return
       }
 
-      alert("已添加到购物车")
+      alert("✓ 已成功添加到购物车！")
     } catch (err) {
-      alert("添加到购物车失败，请先登录")
+      console.error("添加到购物车错误:", err)
+      alert("网络错误，请稍后重试")
     }
   }
 

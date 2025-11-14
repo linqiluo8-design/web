@@ -16,7 +16,7 @@
     "bcryptjs": "^3.0.3",
     "dotenv": "^17.2.3",
     "next": "16.0.3",
-    "next-auth": "^5.0.0-beta.30",
+    "next-auth": "^4.24.10",
     "react": "19.2.0",
     "react-dom": "19.2.0",
     "wechatpay-node-v3": "^2.2.1",

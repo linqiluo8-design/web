@@ -176,6 +176,12 @@ export default function AdminPage() {
           >
             分类管理
           </Link>
+          <Link
+            href="/backendmanager/memberships"
+            className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200"
+          >
+            会员管理
+          </Link>
         </div>
       </div>
 

@@ -135,6 +135,28 @@ export default function CartPage() {
 
       const data = await res.json()
 
+      // 保存订单号到localStorage
+      try {
+        const ORDER_STORAGE_KEY = "my_orders"
+        const stored = localStorage.getItem(ORDER_STORAGE_KEY)
+        const orders = stored ? JSON.parse(stored) : []
+
+        orders.unshift({
+          orderNumber: data.order.orderNumber,
+          createdAt: Date.now(),
+          totalAmount: data.order.totalAmount
+        })
+
+        // 只保留最近50个订单
+        if (orders.length > 50) {
+          orders.splice(50)
+        }
+
+        localStorage.setItem(ORDER_STORAGE_KEY, JSON.stringify(orders))
+      } catch (error) {
+        console.error("保存订单记录失败:", error)
+      }
+
       // Clear cart after successful order creation
       clearCart()
 

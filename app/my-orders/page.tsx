@@ -62,6 +62,15 @@ export default function MyOrdersPage() {
       const orderResults = await Promise.all(orderPromises)
       const validOrders = orderResults.filter(order => order !== null)
 
+      // 清理localStorage中不存在的订单记录
+      const validOrderNumbers = validOrders.map(o => o.orderNumber)
+      const cleanedRecords = records.filter(r => validOrderNumbers.includes(r.orderNumber))
+
+      if (cleanedRecords.length !== records.length) {
+        localStorage.setItem(ORDER_STORAGE_KEY, JSON.stringify(cleanedRecords))
+        setOrderRecords(cleanedRecords)
+      }
+
       // 按创建时间倒序排序
       validOrders.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
 

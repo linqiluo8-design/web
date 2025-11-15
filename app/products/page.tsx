@@ -12,6 +12,7 @@ interface Product {
   description: string
   price: number
   coverImage: string | null
+  showImage: boolean
   category: string | null
   tags: string | null
   createdAt: string
@@ -40,14 +41,17 @@ export default function ProductsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState("")
-  const [category, setCategory] = useState("")
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([])
+  const [showOther, setShowOther] = useState(false)
+  const [showCategoryFilter, setShowCategoryFilter] = useState(false)
+  const [showExchangeModal, setShowExchangeModal] = useState(false)
   const [page, setPage] = useState(1)
   const [buyingProductId, setBuyingProductId] = useState<string | null>(null)
 
   useEffect(() => {
     fetchProducts()
     fetchCategories()
-  }, [page, category])
+  }, [page, selectedCategories, showOther])
 
   const fetchProducts = async () => {
     try {
@@ -57,7 +61,20 @@ export default function ProductsPage() {
         limit: "12",
       })
 
-      if (category) params.append("category", category)
+      // 多选分类
+      if (selectedCategories.length > 0) {
+        selectedCategories.forEach(cat => params.append("categories[]", cat))
+      }
+
+      // "其他"分类
+      if (showOther) {
+        params.append("showOther", "true")
+        // 传递所有已知分类名称，用于排除
+        if (categories.length > 0) {
+          categories.forEach(cat => params.append("excludeCategories[]", cat.name))
+        }
+      }
+
       if (search) params.append("search", search)
 
       const res = await fetch(`/api/products?${params}`)
@@ -129,6 +146,28 @@ export default function ProductsPage() {
     }
   }
 
+  const toggleCategory = (categoryName: string) => {
+    setSelectedCategories(prev => {
+      if (prev.includes(categoryName)) {
+        return prev.filter(c => c !== categoryName)
+      } else {
+        return [...prev, categoryName]
+      }
+    })
+    setPage(1)
+  }
+
+  const toggleOther = () => {
+    setShowOther(prev => !prev)
+    setPage(1)
+  }
+
+  const clearFilters = () => {
+    setSelectedCategories([])
+    setShowOther(false)
+    setPage(1)
+  }
+
   if (loading) {
     return (
       <div className="container mx-auto px-4 py-8">
@@ -145,13 +184,29 @@ export default function ProductsPage() {
     )
   }
 
+  // 判断是否选择了"课程"分类
+  const hasCourseCategory = selectedCategories.includes("课程")
+
   return (
     <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-8">商品列表</h1>
+      <div className="flex items-center justify-between mb-8">
+        <h1 className="text-3xl font-bold">商品列表</h1>
+        {hasCourseCategory && (
+          <button
+            onClick={() => setShowExchangeModal(true)}
+            className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors flex items-center gap-2"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+            </svg>
+            课程互换
+          </button>
+        )}
+      </div>
 
       {/* 搜索和筛选 */}
-      <div className="mb-8 flex flex-col md:flex-row gap-4">
-        <form onSubmit={handleSearch} className="flex-1 flex gap-2">
+      <div className="mb-8 space-y-4">
+        <form onSubmit={handleSearch} className="flex gap-2">
           <input
             type="text"
             placeholder="搜索商品..."
@@ -167,21 +222,61 @@ export default function ProductsPage() {
           </button>
         </form>
 
-        <select
-          value={category}
-          onChange={(e) => {
-            setCategory(e.target.value)
-            setPage(1)
-          }}
-          className="px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          <option value="">全部分类</option>
-          {categories.map((cat) => (
-            <option key={cat.id} value={cat.name}>
-              {cat.name}
-            </option>
-          ))}
-        </select>
+        {/* 分类筛选 */}
+        <div className="bg-white border rounded-lg p-4">
+          <div className="flex items-center justify-between mb-3">
+            <button
+              onClick={() => setShowCategoryFilter(!showCategoryFilter)}
+              className="flex items-center gap-2 text-gray-700 font-medium hover:text-blue-600"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+              </svg>
+              <span>分类筛选</span>
+              {(selectedCategories.length > 0 || showOther) && (
+                <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full">
+                  {selectedCategories.length + (showOther ? 1 : 0)}
+                </span>
+              )}
+            </button>
+            {(selectedCategories.length > 0 || showOther) && (
+              <button
+                onClick={clearFilters}
+                className="text-sm text-gray-500 hover:text-red-600"
+              >
+                清除筛选
+              </button>
+            )}
+          </div>
+
+          {showCategoryFilter && (
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2 pt-3 border-t">
+              {categories.map((cat) => (
+                <label
+                  key={cat.id}
+                  className="flex items-center gap-2 px-3 py-2 border rounded-md hover:bg-gray-50 cursor-pointer transition-colors"
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedCategories.includes(cat.name)}
+                    onChange={() => toggleCategory(cat.name)}
+                    className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                  />
+                  <span className="text-sm text-gray-700">{cat.name}</span>
+                </label>
+              ))}
+              <label className="flex items-center gap-2 px-3 py-2 border rounded-md hover:bg-gray-50 cursor-pointer transition-colors bg-yellow-50 border-yellow-300">
+                <input
+                  type="checkbox"
+                  checked={showOther}
+                  onChange={toggleOther}
+                  className="w-4 h-4 text-yellow-600 rounded focus:ring-yellow-500"
+                />
+                <span className="text-sm text-gray-700">其他</span>
+              </label>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* 商品网格 */}
@@ -199,7 +294,7 @@ export default function ProductsPage() {
               >
                 <Link href={`/products/${product.id}`}>
                   <div className="relative h-48 bg-gray-200">
-                    {product.coverImage ? (
+                    {product.showImage && product.coverImage ? (
                       <Image
                         src={product.coverImage}
                         alt={product.title}
@@ -281,6 +376,79 @@ export default function ProductsPage() {
             </div>
           )}
         </>
+      )}
+
+      {/* 课程互换弹窗 */}
+      {showExchangeModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-md w-full p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-gray-900">课程互换</h3>
+              <button
+                onClick={() => setShowExchangeModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="mb-6">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                <p className="text-blue-900 text-sm leading-relaxed">
+                  💡 如果您购买的课程不满意或想要其他课程，我们提供课程互换或高价回收服务！
+                </p>
+              </div>
+
+              <div className="space-y-3 text-sm text-gray-700">
+                <div className="flex items-start gap-2">
+                  <svg className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span>支持同等价值课程互换</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <svg className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span>支持高价回收您不需要的课程</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <svg className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span>专业客服一对一服务</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-gray-100 rounded-lg p-4 mb-4">
+              <p className="text-sm text-gray-700 mb-2 font-semibold">联系客服：</p>
+              <div className="space-y-2 text-sm">
+                <a href="mailto:support@example.com" className="flex items-center gap-2 text-blue-600 hover:text-blue-700">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
+                  support@example.com
+                </a>
+                <a href="tel:+8618888888888" className="flex items-center gap-2 text-blue-600 hover:text-blue-700">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                  </svg>
+                  188-8888-8888
+                </a>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setShowExchangeModal(false)}
+              className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+            >
+              我知道了
+            </button>
+          </div>
+        </div>
       )}
     </div>
   )

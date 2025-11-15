@@ -13,6 +13,7 @@ const updateProductSchema = z.object({
   description: z.string().optional(),
   content: z.string().optional(),
   coverImage: z.string().optional(),
+  showImage: z.boolean().optional(),
 })
 
 export async function PATCH(

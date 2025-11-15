@@ -58,10 +58,6 @@ export default function PaymentSuccessPage() {
             继续购物
           </Link>
         </div>
-
-        <p className="text-xs text-gray-500 mt-6">
-          购买的商品将在24小时内发送到您的邮箱
-        </p>
       </div>
     </div>
   )

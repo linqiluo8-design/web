@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Navbar } from "@/components/Navbar";
 import { Providers } from "@/components/Providers";
+import CustomerChat from "@/components/CustomerChat";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -39,6 +40,7 @@ export default function RootLayout({
               <p>&copy; 2024 知识付费平台. All rights reserved.</p>
             </div>
           </footer>
+          <CustomerChat />
         </Providers>
       </body>
     </html>

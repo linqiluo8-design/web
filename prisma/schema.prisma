@@ -92,6 +92,7 @@ model Product {
   content     String?  // 商品详细内容
   price       Float
   coverImage  String?
+  showImage   Boolean  @default(true) // 是否显示图片
   categoryId  String?
   category    String?  // 保留兼容旧数据
   tags        String?  // JSON字符串存储标签
@@ -123,14 +124,18 @@ model CartItem {
 model Order {
   id            String   @id @default(cuid())
   userId        String?  // 可选，支持匿名订单
+  membershipId  String?  // 可选，使用会员码购买
   orderNumber   String   @unique
   totalAmount   Float
+  originalAmount Float?  // 原价（使用会员折扣前）
+  discount      Float?   // 使用的折扣率
   status        String   @default("pending") // pending, paid, cancelled, refunded
   paymentMethod String?  // alipay, wechat, paypal
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
   user        User?       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  membership  Membership? @relation(fields: [membershipId], references: [id], onDelete: SetNull)
   orderItems  OrderItem[]
   payment     Payment?
 }
@@ -162,4 +167,56 @@ model Payment {
   updatedAt       DateTime @updatedAt
 
   order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+}
+
+// 会员方案模型
+model MembershipPlan {
+  id          String   @id @default(cuid())
+  name        String   // 会员名称，如"年度会员"
+  price       Float    // 价格
+  duration    Int      // 有效期（天数），-1表示终身
+  discount    Float    // 折扣率，如0.8表示8折
+  dailyLimit  Int      // 每日折扣次数限制
+  status      String   @default("active") // active, inactive
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  memberships Membership[]
+}
+
+// 会员购买记录模型
+model Membership {
+  id              String   @id @default(cuid())
+  membershipCode  String   @unique // 唯一会员码（哈希）
+  planId          String
+  planSnapshot    String   // JSON字符串，保存购买时的方案配置
+  purchasePrice   Float    // 购买时的价格
+  discount        Float    // 购买时的折扣率
+  dailyLimit      Int      // 购买时的每日限制
+  duration        Int      // 购买时的有效期（天数）
+  startDate       DateTime @default(now())
+  endDate         DateTime? // 过期时间，null表示终身
+  status          String   @default("active") // active, expired, cancelled
+  orderNumber     String?  // 关联订单号
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  plan            MembershipPlan @relation(fields: [planId], references: [id])
+  usageRecords    MembershipUsage[]
+  orders          Order[]
+}
+
+// 会员使用记录模型（每日统计）
+model MembershipUsage {
+  id            String   @id @default(cuid())
+  membershipId  String
+  usageDate     DateTime // 使用日期（只记录日期部分）
+  count         Int      @default(0) // 当天使用次数
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  membership    Membership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+
+  @@unique([membershipId, usageDate])
 }

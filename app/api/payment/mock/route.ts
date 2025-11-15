@@ -154,7 +154,7 @@ export async function GET(request: Request) {
           button.textContent = '支付成功！';
           button.style.background = '#27ae60';
           setTimeout(() => {
-            window.location.href = '/payment/success?orderNumber=${orderNumber}';
+            window.location.href = '/payment/success?orderNumber=${orderNumber}&amount=${amount}';
           }, 1000);
         } else {
           alert('支付失败，请重试');

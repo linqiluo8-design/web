@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { useSearchParams } from "next/navigation"
 import Link from "next/link"
+import { saveOrderToLocal } from "@/app/my-orders/page"
 
 export default function PaymentSuccessPage() {
   const searchParams = useSearchParams()
@@ -10,8 +11,11 @@ export default function PaymentSuccessPage() {
 
   useEffect(() => {
     const number = searchParams.get("orderNumber")
+    const amount = searchParams.get("amount")
     if (number) {
       setOrderNumber(number)
+      // 保存到"我的订单"
+      saveOrderToLocal(number, parseFloat(amount || "0"))
     }
   }, [searchParams])
 
@@ -41,10 +45,10 @@ export default function PaymentSuccessPage() {
 
         <div className="space-y-3">
           <Link
-            href={`/order-lookup?orderNumber=${orderNumber}`}
+            href="/my-orders"
             className="block w-full py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
           >
-            查看订单详情
+            查看我的订单
           </Link>
 
           <Link

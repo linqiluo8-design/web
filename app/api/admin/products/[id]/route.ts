@@ -14,11 +14,11 @@ const updateProductSchema = z.object({
 
 export async function PATCH(
   request: Request,
-  context: { params: Promise<{ id: string }> | { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
-    // 等待params解析（兼容Next.js 15+）
-    const params = await Promise.resolve(context.params)
+    // 等待params解析（Next.js 16+要求）
+    const params = await context.params
 
     // 验证用户登录和权限
     const session = await getServerSession(authOptions)

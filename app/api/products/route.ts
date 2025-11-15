@@ -16,7 +16,9 @@ const productSchema = z.object({
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url)
-    const category = searchParams.get("category")
+    const selectedCategories = searchParams.getAll("categories[]")
+    const showOther = searchParams.get("showOther") === "true"
+    const excludeCategories = searchParams.getAll("excludeCategories[]")
     const search = searchParams.get("search")
     const page = parseInt(searchParams.get("page") || "1")
     const limit = parseInt(searchParams.get("limit") || "10")
@@ -26,15 +28,54 @@ export async function GET(req: Request) {
       status: "active"
     }
 
-    if (category) {
-      where.category = category
+    // 多分类筛选
+    if (selectedCategories.length > 0 && !showOther) {
+      where.category = { in: selectedCategories }
+    }
+
+    // "其他"分类：显示不属于已知分类的商品
+    if (showOther && !selectedCategories.length) {
+      if (excludeCategories.length > 0) {
+        where.OR = [
+          { category: { notIn: excludeCategories } },
+          { category: null }
+        ]
+      } else {
+        where.category = null
+      }
+    }
+
+    // 同时选择了具体分类和"其他"
+    if (selectedCategories.length > 0 && showOther) {
+      if (excludeCategories.length > 0) {
+        where.OR = [
+          { category: { in: selectedCategories } },
+          { category: { notIn: excludeCategories.filter(c => !selectedCategories.includes(c)) } },
+          { category: null }
+        ]
+      } else {
+        // 如果没有排除分类，就显示选中的分类 + null
+        where.OR = [
+          { category: { in: selectedCategories } },
+          { category: null }
+        ]
+      }
     }
 
     if (search) {
-      where.OR = [
-        { title: { contains: search } },
-        { description: { contains: search } },
-      ]
+      const searchCondition = {
+        OR: [
+          { title: { contains: search } },
+          { description: { contains: search } },
+        ]
+      }
+
+      if (where.OR) {
+        where.AND = [{ OR: where.OR }, searchCondition]
+        delete where.OR
+      } else {
+        where.OR = searchCondition.OR
+      }
     }
 
     const [products, total] = await Promise.all([
@@ -49,6 +90,7 @@ export async function GET(req: Request) {
           description: true,
           price: true,
           coverImage: true,
+          showImage: true,
           category: true,
           tags: true,
           createdAt: true,

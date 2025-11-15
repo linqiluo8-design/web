@@ -41,14 +41,16 @@ export default function ProductsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState("")
-  const [category, setCategory] = useState("")
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([])
+  const [showOther, setShowOther] = useState(false)
+  const [showCategoryFilter, setShowCategoryFilter] = useState(false)
   const [page, setPage] = useState(1)
   const [buyingProductId, setBuyingProductId] = useState<string | null>(null)
 
   useEffect(() => {
     fetchProducts()
     fetchCategories()
-  }, [page, category])
+  }, [page, selectedCategories, showOther])
 
   const fetchProducts = async () => {
     try {
@@ -58,7 +60,20 @@ export default function ProductsPage() {
         limit: "12",
       })
 
-      if (category) params.append("category", category)
+      // 多选分类
+      if (selectedCategories.length > 0) {
+        selectedCategories.forEach(cat => params.append("categories[]", cat))
+      }
+
+      // "其他"分类
+      if (showOther) {
+        params.append("showOther", "true")
+        // 传递所有已知分类名称，用于排除
+        if (categories.length > 0) {
+          categories.forEach(cat => params.append("excludeCategories[]", cat.name))
+        }
+      }
+
       if (search) params.append("search", search)
 
       const res = await fetch(`/api/products?${params}`)
@@ -130,6 +145,28 @@ export default function ProductsPage() {
     }
   }
 
+  const toggleCategory = (categoryName: string) => {
+    setSelectedCategories(prev => {
+      if (prev.includes(categoryName)) {
+        return prev.filter(c => c !== categoryName)
+      } else {
+        return [...prev, categoryName]
+      }
+    })
+    setPage(1)
+  }
+
+  const toggleOther = () => {
+    setShowOther(prev => !prev)
+    setPage(1)
+  }
+
+  const clearFilters = () => {
+    setSelectedCategories([])
+    setShowOther(false)
+    setPage(1)
+  }
+
   if (loading) {
     return (
       <div className="container mx-auto px-4 py-8">
@@ -151,8 +188,8 @@ export default function ProductsPage() {
       <h1 className="text-3xl font-bold mb-8">商品列表</h1>
 
       {/* 搜索和筛选 */}
-      <div className="mb-8 flex flex-col md:flex-row gap-4">
-        <form onSubmit={handleSearch} className="flex-1 flex gap-2">
+      <div className="mb-8 space-y-4">
+        <form onSubmit={handleSearch} className="flex gap-2">
           <input
             type="text"
             placeholder="搜索商品..."
@@ -168,21 +205,61 @@ export default function ProductsPage() {
           </button>
         </form>
 
-        <select
-          value={category}
-          onChange={(e) => {
-            setCategory(e.target.value)
-            setPage(1)
-          }}
-          className="px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          <option value="">全部分类</option>
-          {categories.map((cat) => (
-            <option key={cat.id} value={cat.name}>
-              {cat.name}
-            </option>
-          ))}
-        </select>
+        {/* 分类筛选 */}
+        <div className="bg-white border rounded-lg p-4">
+          <div className="flex items-center justify-between mb-3">
+            <button
+              onClick={() => setShowCategoryFilter(!showCategoryFilter)}
+              className="flex items-center gap-2 text-gray-700 font-medium hover:text-blue-600"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+              </svg>
+              <span>分类筛选</span>
+              {(selectedCategories.length > 0 || showOther) && (
+                <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full">
+                  {selectedCategories.length + (showOther ? 1 : 0)}
+                </span>
+              )}
+            </button>
+            {(selectedCategories.length > 0 || showOther) && (
+              <button
+                onClick={clearFilters}
+                className="text-sm text-gray-500 hover:text-red-600"
+              >
+                清除筛选
+              </button>
+            )}
+          </div>
+
+          {showCategoryFilter && (
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2 pt-3 border-t">
+              {categories.map((cat) => (
+                <label
+                  key={cat.id}
+                  className="flex items-center gap-2 px-3 py-2 border rounded-md hover:bg-gray-50 cursor-pointer transition-colors"
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedCategories.includes(cat.name)}
+                    onChange={() => toggleCategory(cat.name)}
+                    className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                  />
+                  <span className="text-sm text-gray-700">{cat.name}</span>
+                </label>
+              ))}
+              <label className="flex items-center gap-2 px-3 py-2 border rounded-md hover:bg-gray-50 cursor-pointer transition-colors bg-yellow-50 border-yellow-300">
+                <input
+                  type="checkbox"
+                  checked={showOther}
+                  onChange={toggleOther}
+                  className="w-4 h-4 text-yellow-600 rounded focus:ring-yellow-500"
+                />
+                <span className="text-sm text-gray-700">其他</span>
+              </label>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* 商品网格 */}

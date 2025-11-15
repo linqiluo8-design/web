@@ -19,10 +19,10 @@ export default function Home() {
             立即浏览商品
           </Link>
           <Link
-            href="/order-lookup"
-            className="px-8 py-3 border-2 border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-50 transition"
+            href="/membership"
+            className="px-8 py-3 border-2 border-blue-600 text-blue-600 rounded-lg font-semibold hover:bg-blue-50 transition"
           >
-            查询订单
+            购买会员
           </Link>
         </div>
       </section>

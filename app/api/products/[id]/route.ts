@@ -4,10 +4,12 @@ import { prisma } from "@/lib/prisma"
 // 获取单个商品详情（公开访问，无需登录）
 export async function GET(
   req: Request,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const product = await prisma.product.findUnique({
+    const params = await context.params
+
+    const product = await prisma.product.findFirst({
       where: {
         id: params.id,
         status: "active"
@@ -34,9 +36,10 @@ export async function GET(
 // 更新商品（管理员功能）
 export async function PUT(
   req: Request,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const params = await context.params
     const body = await req.json()
 
     const product = await prisma.product.update({
@@ -57,9 +60,11 @@ export async function PUT(
 // 删除商品（管理员功能）
 export async function DELETE(
   req: Request,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const params = await context.params
+
     await prisma.product.update({
       where: { id: params.id },
       data: { status: "archived" }

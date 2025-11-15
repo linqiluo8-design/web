@@ -18,22 +18,34 @@ interface Product {
   createdAt: string
 }
 
-export default function ProductDetailPage({ params }: { params: { id: string } }) {
+export default function ProductDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter()
   const { addToCart: addToCartHook } = useCart()
   const [product, setProduct] = useState<Product | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [quantity, setQuantity] = useState(1)
+  const [productId, setProductId] = useState<string | null>(null)
 
   useEffect(() => {
-    fetchProduct()
-  }, [params.id])
+    // Resolve params promise in Next.js 16
+    params.then((resolvedParams) => {
+      setProductId(resolvedParams.id)
+    })
+  }, [params])
+
+  useEffect(() => {
+    if (productId) {
+      fetchProduct()
+    }
+  }, [productId])
 
   const fetchProduct = async () => {
+    if (!productId) return
+
     try {
       setLoading(true)
-      const res = await fetch(`/api/products/${params.id}`)
+      const res = await fetch(`/api/products/${productId}`)
 
       if (!res.ok) {
         if (res.status === 404) {

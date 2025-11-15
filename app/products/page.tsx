@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import Image from "next/image"
+import { useCart } from "@/hooks/useCart"
 
 interface Product {
   id: string
@@ -26,6 +27,7 @@ interface ProductsResponse {
 }
 
 export default function ProductsPage() {
+  const { addToCart: addToCartHook } = useCart()
   const [data, setData] = useState<ProductsResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -67,33 +69,14 @@ export default function ProductsPage() {
     fetchProducts()
   }
 
-  const addToCart = async (productId: string) => {
-    try {
-      const res = await fetch("/api/cart", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ productId, quantity: 1 }),
-      })
-
-      const data = await res.json()
-
-      if (!res.ok) {
-        // 如果是401未授权，提示用户登录
-        if (res.status === 401) {
-          if (confirm("请先登录后再加入购物车，是否前往登录页面？")) {
-            window.location.href = "/auth/signin"
-          }
-          return
-        }
-        alert(data.error || "添加到购物车失败")
-        return
-      }
-
-      alert("✓ 已成功添加到购物车！")
-    } catch (err) {
-      console.error("添加到购物车错误:", err)
-      alert("网络错误，请稍后重试")
-    }
+  const addToCart = (product: Product) => {
+    addToCartHook({
+      id: product.id,
+      title: product.title,
+      price: product.price,
+      coverImage: product.coverImage
+    }, 1)
+    alert("✓ 已成功添加到购物车！")
   }
 
   if (loading) {
@@ -210,7 +193,7 @@ export default function ProductsPage() {
                       查看详情
                     </Link>
                     <button
-                      onClick={() => addToCart(product.id)}
+                      onClick={() => addToCart(product)}
                       className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
                     >
                       加入购物车

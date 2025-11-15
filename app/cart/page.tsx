@@ -1,101 +1,21 @@
 "use client"
 
-import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import Image from "next/image"
 import Link from "next/link"
-
-interface CartItem {
-  id: string
-  quantity: number
-  product: {
-    id: string
-    title: string
-    price: number
-    coverImage: string | null
-    category: string | null
-  }
-}
+import { useCart } from "@/hooks/useCart"
 
 export default function CartPage() {
   const router = useRouter()
-  const [cartItems, setCartItems] = useState<CartItem[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const { cart, updateQuantity, removeFromCart, clearCart, total, isLoaded } = useCart()
 
-  useEffect(() => {
-    fetchCart()
-  }, [])
-
-  const fetchCart = async () => {
-    try {
-      setLoading(true)
-      const res = await fetch("/api/cart")
-
-      if (!res.ok) {
-        if (res.status === 401) {
-          throw new Error("请先登录")
-        }
-        throw new Error("获取购物车失败")
-      }
-
-      const data = await res.json()
-      setCartItems(data.cartItems || [])
-      setError(null)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "获取购物车失败")
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const updateQuantity = async (itemId: string, quantity: number) => {
-    if (quantity < 1) return
-
-    try {
-      const res = await fetch(`/api/cart/${itemId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ quantity }),
-      })
-
-      if (!res.ok) {
-        throw new Error("更新数量失败")
-      }
-
-      // 更新本地状态
-      setCartItems((prev) =>
-        prev.map((item) =>
-          item.id === itemId ? { ...item, quantity } : item
-        )
-      )
-    } catch (err) {
-      alert(err instanceof Error ? err.message : "更新数量失败")
-    }
-  }
-
-  const removeItem = async (itemId: string) => {
+  const handleRemoveItem = (productId: string) => {
     if (!confirm("确定要删除这个商品吗？")) return
-
-    try {
-      const res = await fetch(`/api/cart/${itemId}`, {
-        method: "DELETE",
-      })
-
-      if (!res.ok) {
-        throw new Error("删除失败")
-      }
-
-      // 更新本地状态
-      setCartItems((prev) => prev.filter((item) => item.id !== itemId))
-      alert("已删除")
-    } catch (err) {
-      alert(err instanceof Error ? err.message : "删除失败")
-    }
+    removeFromCart(productId)
   }
 
   const checkout = async () => {
-    if (cartItems.length === 0) {
+    if (cart.length === 0) {
       alert("购物车是空的")
       return
     }
@@ -104,7 +24,13 @@ export default function CartPage() {
       const res = await fetch("/api/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type: "cart" }),
+        body: JSON.stringify({
+          items: cart.map(item => ({
+            productId: item.productId,
+            quantity: item.quantity,
+            price: item.price
+          }))
+        }),
       })
 
       if (!res.ok) {
@@ -112,35 +38,24 @@ export default function CartPage() {
         throw new Error(error.error || "创建订单失败")
       }
 
-      alert("订单创建成功")
-      router.push("/orders")
+      const data = await res.json()
+
+      // Clear cart after successful order
+      clearCart()
+
+      // Show order number in modal
+      alert(`订单创建成功！\n\n您的订单号是: ${data.orderNumber}\n\n请妥善保管此订单号，可用于查询订单状态。`)
+
+      router.push("/order-lookup")
     } catch (err) {
       alert(err instanceof Error ? err.message : "创建订单失败")
     }
   }
 
-  const totalAmount = cartItems.reduce(
-    (sum, item) => sum + item.product.price * item.quantity,
-    0
-  )
-
-  if (loading) {
+  if (!isLoaded) {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="text-center">加载中...</div>
-      </div>
-    )
-  }
-
-  if (error) {
-    return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="text-center">
-          <p className="text-red-600 mb-4">{error}</p>
-          <Link href="/auth/signin" className="text-blue-600 hover:underline">
-            去登录
-          </Link>
-        </div>
       </div>
     )
   }
@@ -149,7 +64,7 @@ export default function CartPage() {
     <div className="container mx-auto px-4 py-8">
       <h1 className="text-3xl font-bold mb-8">购物车</h1>
 
-      {cartItems.length === 0 ? (
+      {cart.length === 0 ? (
         <div className="text-center py-12">
           <p className="text-gray-500 mb-4">购物车是空的</p>
           <Link
@@ -164,20 +79,20 @@ export default function CartPage() {
           {/* 购物车列表 */}
           <div className="lg:col-span-2">
             <div className="bg-white rounded-lg shadow">
-              {cartItems.map((item) => (
+              {cart.map((item) => (
                 <div
-                  key={item.id}
+                  key={item.productId}
                   className="flex gap-4 p-4 border-b last:border-b-0"
                 >
                   {/* 商品图片 */}
                   <Link
-                    href={`/products/${item.product.id}`}
+                    href={`/products/${item.productId}`}
                     className="relative w-24 h-24 bg-gray-100 rounded flex-shrink-0"
                   >
-                    {item.product.coverImage ? (
+                    {item.coverImage ? (
                       <Image
-                        src={item.product.coverImage}
-                        alt={item.product.title}
+                        src={item.coverImage}
+                        alt={item.title}
                         fill
                         className="object-cover rounded"
                       />
@@ -191,27 +106,21 @@ export default function CartPage() {
                   {/* 商品信息 */}
                   <div className="flex-1 min-w-0">
                     <Link
-                      href={`/products/${item.product.id}`}
+                      href={`/products/${item.productId}`}
                       className="font-semibold hover:text-blue-600 block mb-1"
                     >
-                      {item.product.title}
+                      {item.title}
                     </Link>
 
-                    {item.product.category && (
-                      <span className="text-xs px-2 py-1 bg-gray-100 rounded">
-                        {item.product.category}
-                      </span>
-                    )}
-
                     <div className="mt-2 text-lg font-bold text-blue-600">
-                      ¥{item.product.price.toFixed(2)}
+                      ¥{item.price.toFixed(2)}
                     </div>
                   </div>
 
                   {/* 数量控制 */}
                   <div className="flex flex-col items-end justify-between">
                     <button
-                      onClick={() => removeItem(item.id)}
+                      onClick={() => handleRemoveItem(item.productId)}
                       className="text-red-600 hover:text-red-700 text-sm"
                     >
                       删除
@@ -220,7 +129,7 @@ export default function CartPage() {
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() =>
-                          updateQuantity(item.id, item.quantity - 1)
+                          updateQuantity(item.productId, item.quantity - 1)
                         }
                         className="w-8 h-8 flex items-center justify-center border rounded hover:bg-gray-50"
                       >
@@ -229,7 +138,7 @@ export default function CartPage() {
                       <span className="w-12 text-center">{item.quantity}</span>
                       <button
                         onClick={() =>
-                          updateQuantity(item.id, item.quantity + 1)
+                          updateQuantity(item.productId, item.quantity + 1)
                         }
                         className="w-8 h-8 flex items-center justify-center border rounded hover:bg-gray-50"
                       >
@@ -238,7 +147,7 @@ export default function CartPage() {
                     </div>
 
                     <div className="text-sm text-gray-600">
-                      小计: ¥{(item.product.price * item.quantity).toFixed(2)}
+                      小计: ¥{(item.price * item.quantity).toFixed(2)}
                     </div>
                   </div>
                 </div>
@@ -254,12 +163,12 @@ export default function CartPage() {
               <div className="space-y-2 mb-4">
                 <div className="flex justify-between">
                   <span className="text-gray-600">商品数量</span>
-                  <span>{cartItems.length} 件</span>
+                  <span>{cart.length} 件</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">总计数量</span>
                   <span>
-                    {cartItems.reduce((sum, item) => sum + item.quantity, 0)} 个
+                    {cart.reduce((sum, item) => sum + item.quantity, 0)} 个
                   </span>
                 </div>
               </div>
@@ -268,7 +177,7 @@ export default function CartPage() {
                 <div className="flex justify-between items-center">
                   <span className="text-lg font-semibold">总金额</span>
                   <span className="text-2xl font-bold text-blue-600">
-                    ¥{totalAmount.toFixed(2)}
+                    ¥{total.toFixed(2)}
                   </span>
                 </div>
               </div>

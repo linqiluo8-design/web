@@ -8,8 +8,11 @@ const updateProductSchema = z.object({
   status: z.enum(["active", "inactive", "archived"]).optional(),
   price: z.number().positive().optional(),
   category: z.string().optional(),
+  categoryId: z.string().optional(),
   title: z.string().optional(),
   description: z.string().optional(),
+  content: z.string().optional(),
+  coverImage: z.string().optional(),
 })
 
 export async function PATCH(

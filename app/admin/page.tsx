@@ -22,6 +22,8 @@ export default function AdminPage() {
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editForm, setEditForm] = useState<Partial<Product>>({})
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -68,13 +70,54 @@ export default function AdminPage() {
       })
 
       if (!response.ok) {
-        throw new Error("更新商品状态失败")
+        const data = await response.json()
+        throw new Error(data.error || "更新商品状态失败")
       }
 
       // 重新获取商品列表
       await fetchProducts()
+      alert("✓ 商品状态已更新")
     } catch (err) {
+      console.error("更新失败:", err)
       alert(err instanceof Error ? err.message : "更新失败")
+    }
+  }
+
+  const startEdit = (product: Product) => {
+    setEditingId(product.id)
+    setEditForm({
+      price: product.price,
+      category: product.category || "",
+    })
+  }
+
+  const cancelEdit = () => {
+    setEditingId(null)
+    setEditForm({})
+  }
+
+  const saveEdit = async (productId: string) => {
+    try {
+      const response = await fetch(`/api/admin/products/${productId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(editForm),
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || "更新商品失败")
+      }
+
+      await fetchProducts()
+      setEditingId(null)
+      setEditForm({})
+      alert("✓ 商品信息已更新")
+    } catch (err) {
+      console.error("保存失败:", err)
+      alert(err instanceof Error ? err.message : "保存失败")
     }
   }
 
@@ -103,7 +146,7 @@ export default function AdminPage() {
           暂无商品
         </div>
       ) : (
-        <div className="bg-white rounded-lg shadow overflow-hidden">
+        <div className="bg-white rounded-lg shadow overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
@@ -150,14 +193,37 @@ export default function AdminPage() {
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="text-sm text-gray-900">
-                      {product.category || "-"}
-                    </span>
+                    {editingId === product.id ? (
+                      <input
+                        type="text"
+                        value={editForm.category || ""}
+                        onChange={(e) => setEditForm({ ...editForm, category: e.target.value })}
+                        className="border rounded px-2 py-1 w-24 text-sm"
+                        placeholder="分类"
+                      />
+                    ) : (
+                      <span className="text-sm text-gray-900">
+                        {product.category || "-"}
+                      </span>
+                    )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="text-sm font-medium text-gray-900">
-                      ¥{product.price.toFixed(2)}
-                    </span>
+                    {editingId === product.id ? (
+                      <div className="flex items-center">
+                        <span className="mr-1">¥</span>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={editForm.price || 0}
+                          onChange={(e) => setEditForm({ ...editForm, price: parseFloat(e.target.value) })}
+                          className="border rounded px-2 py-1 w-20 text-sm"
+                        />
+                      </div>
+                    ) : (
+                      <span className="text-sm font-medium text-gray-900">
+                        ¥{product.price.toFixed(2)}
+                      </span>
+                    )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span
@@ -170,17 +236,42 @@ export default function AdminPage() {
                       {product.status === "active" ? "已上架" : "已下架"}
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <button
-                      onClick={() => toggleProductStatus(product.id, product.status)}
-                      className={`${
-                        product.status === "active"
-                          ? "text-red-600 hover:text-red-900"
-                          : "text-green-600 hover:text-green-900"
-                      }`}
-                    >
-                      {product.status === "active" ? "下架" : "上架"}
-                    </button>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
+                    {editingId === product.id ? (
+                      <>
+                        <button
+                          onClick={() => saveEdit(product.id)}
+                          className="text-blue-600 hover:text-blue-900"
+                        >
+                          保存
+                        </button>
+                        <button
+                          onClick={cancelEdit}
+                          className="text-gray-600 hover:text-gray-900"
+                        >
+                          取消
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          onClick={() => toggleProductStatus(product.id, product.status)}
+                          className={`${
+                            product.status === "active"
+                              ? "text-red-600 hover:text-red-900"
+                              : "text-green-600 hover:text-green-900"
+                          }`}
+                        >
+                          {product.status === "active" ? "下架" : "上架"}
+                        </button>
+                        <button
+                          onClick={() => startEdit(product)}
+                          className="text-blue-600 hover:text-blue-900"
+                        >
+                          编辑
+                        </button>
+                      </>
+                    )}
                   </td>
                 </tr>
               ))}

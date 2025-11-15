@@ -5,14 +5,21 @@ import { prisma } from "@/lib/prisma"
 import { z } from "zod"
 
 const updateProductSchema = z.object({
-  status: z.enum(["active", "inactive", "archived"]),
+  status: z.enum(["active", "inactive", "archived"]).optional(),
+  price: z.number().positive().optional(),
+  category: z.string().optional(),
+  title: z.string().optional(),
+  description: z.string().optional(),
 })
 
 export async function PATCH(
   request: Request,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> | { id: string } }
 ) {
   try {
+    // 等待params解析（兼容Next.js 15+）
+    const params = await Promise.resolve(context.params)
+
     // 验证用户登录和权限
     const session = await getServerSession(authOptions)
 
@@ -32,7 +39,7 @@ export async function PATCH(
 
     // 解析请求数据
     const body = await request.json()
-    const { status } = updateProductSchema.parse(body)
+    const updateData = updateProductSchema.parse(body)
 
     // 检查商品是否存在
     const product = await prisma.product.findUnique({
@@ -46,20 +53,23 @@ export async function PATCH(
       )
     }
 
-    // 更新商品状态
+    // 更新商品（只更新提供的字段）
     const updatedProduct = await prisma.product.update({
       where: { id: params.id },
-      data: { status },
+      data: updateData,
       select: {
         id: true,
         title: true,
+        description: true,
+        price: true,
+        category: true,
         status: true,
         updatedAt: true,
       },
     })
 
     return NextResponse.json({
-      message: "商品状态更新成功",
+      message: "商品更新成功",
       product: updatedProduct,
     })
   } catch (error) {

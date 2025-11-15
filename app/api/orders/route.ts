@@ -13,6 +13,8 @@ const createOrderSchema = z.object({
   })).min(1, "订单至少需要一个商品"),
   // 支付方式（暂时可选，创建订单后选择）
   paymentMethod: z.enum(["alipay", "wechat", "paypal"]).optional(),
+  // 会员码（可选）
+  membershipCode: z.string().optional(),
 })
 
 // 生成安全的唯一订单号
@@ -69,9 +71,12 @@ export async function POST(req: Request) {
     const body = await req.json()
     const data = createOrderSchema.parse(body)
 
+    let originalAmount = 0
     let totalAmount = 0
+    let membership = null
+    let membershipDiscount = null
 
-    // 验证所有商品是否存在且可用
+    // 验证所有商品是否存在且可用，计算原价
     for (const item of data.items) {
       const product = await prisma.product.findUnique({
         where: { id: item.productId }
@@ -92,7 +97,99 @@ export async function POST(req: Request) {
         )
       }
 
-      totalAmount += item.price * item.quantity
+      originalAmount += item.price * item.quantity
+    }
+
+    // 如果提供了会员码，验证并应用折扣
+    if (data.membershipCode) {
+      membership = await prisma.membership.findUnique({
+        where: { membershipCode: data.membershipCode.toUpperCase() }
+      })
+
+      if (!membership) {
+        return NextResponse.json(
+          { error: "会员码不存在" },
+          { status: 400 }
+        )
+      }
+
+      // 检查会员是否过期
+      if (membership.endDate && new Date() > membership.endDate) {
+        await prisma.membership.update({
+          where: { id: membership.id },
+          data: { status: "expired" }
+        })
+        return NextResponse.json(
+          { error: "会员已过期" },
+          { status: 400 }
+        )
+      }
+
+      if (membership.status !== "active") {
+        return NextResponse.json(
+          { error: "会员已失效" },
+          { status: 400 }
+        )
+      }
+
+      // 检查今日使用次数
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+
+      let usageRecord = await prisma.membershipUsage.findUnique({
+        where: {
+          membershipId_usageDate: {
+            membershipId: membership.id,
+            usageDate: today
+          }
+        }
+      })
+
+      const todayUsed = usageRecord?.count || 0
+      const remainingToday = Math.max(0, membership.dailyLimit - todayUsed)
+
+      if (remainingToday === 0) {
+        return NextResponse.json(
+          { error: "今日会员优惠次数已用完" },
+          { status: 400 }
+        )
+      }
+
+      // 计算可以享受折扣的商品数量
+      const totalItems = data.items.reduce((sum, item) => sum + item.quantity, 0)
+      const discountableCount = Math.min(totalItems, remainingToday)
+
+      // 计算折扣金额
+      let remaining = discountableCount
+      let discountAmount = 0
+
+      for (const item of data.items) {
+        if (remaining <= 0) break
+        const itemCount = Math.min(item.quantity, remaining)
+        discountAmount += item.price * itemCount * (1 - membership.discount)
+        remaining -= itemCount
+      }
+
+      totalAmount = originalAmount - discountAmount
+      membershipDiscount = membership.discount
+
+      // 更新会员使用次数
+      if (usageRecord) {
+        await prisma.membershipUsage.update({
+          where: { id: usageRecord.id },
+          data: { count: usageRecord.count + discountableCount }
+        })
+      } else {
+        await prisma.membershipUsage.create({
+          data: {
+            membershipId: membership.id,
+            usageDate: today,
+            count: discountableCount
+          }
+        })
+      }
+    } else {
+      totalAmount = originalAmount
     }
 
     // 生成安全的唯一订单号
@@ -103,6 +200,9 @@ export async function POST(req: Request) {
       data: {
         orderNumber,
         totalAmount,
+        originalAmount: membership ? originalAmount : null,
+        discount: membershipDiscount,
+        membershipId: membership?.id,
         status: "pending",
         paymentMethod: data.paymentMethod,
         orderItems: {
@@ -129,7 +229,13 @@ export async function POST(req: Request) {
     return NextResponse.json({
       order,
       orderNumber,
-      message: "订单创建成功"
+      message: "订单创建成功",
+      appliedDiscount: membership ? {
+        discount: membershipDiscount,
+        originalAmount,
+        finalAmount: totalAmount,
+        saved: originalAmount - totalAmount
+      } : null
     }, { status: 201 })
 
   } catch (error: any) {

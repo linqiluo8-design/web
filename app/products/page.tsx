@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { useRouter } from "next/navigation"
@@ -36,6 +36,7 @@ interface Category {
 export default function ProductsPage() {
   const router = useRouter()
   const { addToCart: addToCartHook } = useCart()
+  const categoryFilterRef = useRef<HTMLDivElement>(null)
   const [data, setData] = useState<ProductsResponse | null>(null)
   const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
@@ -52,6 +53,23 @@ export default function ProductsPage() {
     fetchProducts()
     fetchCategories()
   }, [page, selectedCategories, showOther])
+
+  // 点击外部关闭下拉框
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (categoryFilterRef.current && !categoryFilterRef.current.contains(event.target as Node)) {
+        setShowCategoryFilter(false)
+      }
+    }
+
+    if (showCategoryFilter) {
+      document.addEventListener("mousedown", handleClickOutside)
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside)
+    }
+  }, [showCategoryFilter])
 
   const fetchProducts = async () => {
     try {
@@ -205,7 +223,7 @@ export default function ProductsPage() {
       </div>
 
       {/* 搜索和筛选 */}
-      <div className="mb-8 space-y-4">
+      <div className="mb-8">
         <form onSubmit={handleSearch} className="flex gap-2">
           <input
             type="text"
@@ -214,6 +232,96 @@ export default function ProductsPage() {
             onChange={(e) => setSearch(e.target.value)}
             className="flex-1 px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
+
+          {/* 分类筛选下拉框 */}
+          <div className="relative" ref={categoryFilterRef}>
+            <button
+              type="button"
+              onClick={() => setShowCategoryFilter(!showCategoryFilter)}
+              className="px-4 py-2 border rounded-md bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 flex items-center gap-2 min-w-[140px]"
+            >
+              <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+              </svg>
+              <span className="text-gray-700">
+                分类筛选
+                {(selectedCategories.length > 0 || showOther) && (
+                  <span className="ml-1 px-1.5 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full">
+                    {selectedCategories.length + (showOther ? 1 : 0)}
+                  </span>
+                )}
+              </span>
+              <svg className={`w-4 h-4 text-gray-600 transition-transform ${showCategoryFilter ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+
+            {/* 下拉菜单 */}
+            {showCategoryFilter && (
+              <div className="absolute right-0 mt-2 w-72 bg-white border rounded-lg shadow-lg z-10 max-h-96 overflow-y-auto">
+                <div className="p-3 border-b bg-gray-50 flex items-center justify-between sticky top-0">
+                  <span className="text-sm font-semibold text-gray-700">选择分类</span>
+                  {(selectedCategories.length > 0 || showOther) && (
+                    <button
+                      type="button"
+                      onClick={clearFilters}
+                      className="text-xs text-red-600 hover:text-red-700 font-medium"
+                    >
+                      清除全部
+                    </button>
+                  )}
+                </div>
+                <div className="p-2">
+                  {categories.map((cat) => (
+                    <label
+                      key={cat.id}
+                      className={`flex items-center gap-3 px-3 py-2.5 rounded-md hover:bg-blue-50 cursor-pointer transition-colors ${
+                        selectedCategories.includes(cat.name) ? 'bg-blue-50' : ''
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedCategories.includes(cat.name)}
+                        onChange={() => toggleCategory(cat.name)}
+                        className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500 focus:ring-2"
+                      />
+                      <span className={`text-sm flex-1 ${
+                        selectedCategories.includes(cat.name) ? 'text-blue-700 font-medium' : 'text-gray-700'
+                      }`}>
+                        {cat.name}
+                      </span>
+                      {selectedCategories.includes(cat.name) && (
+                        <svg className="w-4 h-4 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                      )}
+                    </label>
+                  ))}
+                  <label className={`flex items-center gap-3 px-3 py-2.5 rounded-md hover:bg-yellow-50 cursor-pointer transition-colors ${
+                    showOther ? 'bg-yellow-50' : ''
+                  }`}>
+                    <input
+                      type="checkbox"
+                      checked={showOther}
+                      onChange={toggleOther}
+                      className="w-4 h-4 text-yellow-600 rounded focus:ring-yellow-500 focus:ring-2"
+                    />
+                    <span className={`text-sm flex-1 ${
+                      showOther ? 'text-yellow-700 font-medium' : 'text-gray-700'
+                    }`}>
+                      其他
+                    </span>
+                    {showOther && (
+                      <svg className="w-4 h-4 text-yellow-600" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                      </svg>
+                    )}
+                  </label>
+                </div>
+              </div>
+            )}
+          </div>
+
           <button
             type="submit"
             className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
@@ -221,62 +329,6 @@ export default function ProductsPage() {
             搜索
           </button>
         </form>
-
-        {/* 分类筛选 */}
-        <div className="bg-white border rounded-lg p-4">
-          <div className="flex items-center justify-between mb-3">
-            <button
-              onClick={() => setShowCategoryFilter(!showCategoryFilter)}
-              className="flex items-center gap-2 text-gray-700 font-medium hover:text-blue-600"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-              </svg>
-              <span>分类筛选</span>
-              {(selectedCategories.length > 0 || showOther) && (
-                <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full">
-                  {selectedCategories.length + (showOther ? 1 : 0)}
-                </span>
-              )}
-            </button>
-            {(selectedCategories.length > 0 || showOther) && (
-              <button
-                onClick={clearFilters}
-                className="text-sm text-gray-500 hover:text-red-600"
-              >
-                清除筛选
-              </button>
-            )}
-          </div>
-
-          {showCategoryFilter && (
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2 pt-3 border-t">
-              {categories.map((cat) => (
-                <label
-                  key={cat.id}
-                  className="flex items-center gap-2 px-3 py-2 border rounded-md hover:bg-gray-50 cursor-pointer transition-colors"
-                >
-                  <input
-                    type="checkbox"
-                    checked={selectedCategories.includes(cat.name)}
-                    onChange={() => toggleCategory(cat.name)}
-                    className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
-                  />
-                  <span className="text-sm text-gray-700">{cat.name}</span>
-                </label>
-              ))}
-              <label className="flex items-center gap-2 px-3 py-2 border rounded-md hover:bg-gray-50 cursor-pointer transition-colors bg-yellow-50 border-yellow-300">
-                <input
-                  type="checkbox"
-                  checked={showOther}
-                  onChange={toggleOther}
-                  className="w-4 h-4 text-yellow-600 rounded focus:ring-yellow-500"
-                />
-                <span className="text-sm text-gray-700">其他</span>
-              </label>
-            </div>
-          )}
-        </div>
       </div>
 
       {/* 商品网格 */}

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Image from "next/image"
 import Link from "next/link"
 
@@ -38,10 +38,21 @@ export default function OrderLookupPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault()
+  // 支持从URL参数获取订单号
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const urlOrderNumber = params.get('orderNumber')
+    if (urlOrderNumber) {
+      setOrderNumber(urlOrderNumber)
+      // 自动查询
+      setTimeout(() => {
+        handleSearchWithNumber(urlOrderNumber)
+      }, 100)
+    }
+  }, [])
 
-    if (!orderNumber.trim()) {
+  const handleSearchWithNumber = async (number: string) => {
+    if (!number.trim()) {
       setError("请输入订单号")
       return
     }
@@ -51,7 +62,7 @@ export default function OrderLookupPage() {
       setError(null)
       setOrder(null)
 
-      const res = await fetch(`/api/orders/lookup?orderNumber=${encodeURIComponent(orderNumber.trim())}`)
+      const res = await fetch(`/api/orders/lookup?orderNumber=${encodeURIComponent(number.trim())}`)
       const data = await res.json()
 
       if (!res.ok) {
@@ -64,6 +75,11 @@ export default function OrderLookupPage() {
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleSearch = async (e: React.FormEvent) => {
+    e.preventDefault()
+    await handleSearchWithNumber(orderNumber)
   }
 
   const getStatusText = (status: string) => {

@@ -9,20 +9,20 @@ export default function Home() {
           欢迎来到知识付费平台
         </h1>
         <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
-          发现优质知识内容，提升自我价值。我们提供各类专业课程、电子书、教程等知识产品。
+          发现优质知识内容，提升自我价值。无需注册，即可购买各类专业课程、电子书、教程等知识产品。
         </p>
         <div className="flex gap-4 justify-center">
           <Link
             href="/products"
-            className="px-8 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition"
+            className="px-8 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition shadow-md hover:shadow-lg"
           >
-            浏览商品
+            立即浏览商品
           </Link>
           <Link
-            href="/auth/signup"
-            className="px-8 py-3 border-2 border-blue-600 text-blue-600 rounded-lg font-semibold hover:bg-blue-50 transition"
+            href="/order-lookup"
+            className="px-8 py-3 border-2 border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-50 transition"
           >
-            立即注册
+            查询订单
           </Link>
         </div>
       </section>
@@ -34,10 +34,10 @@ export default function Home() {
         </h2>
         <div className="grid md:grid-cols-3 gap-8">
           <div className="p-6 bg-white rounded-lg shadow-sm border">
-            <div className="text-blue-600 text-4xl mb-4">📚</div>
-            <h3 className="text-xl font-semibold mb-2">优质内容</h3>
+            <div className="text-blue-600 text-4xl mb-4">🚀</div>
+            <h3 className="text-xl font-semibold mb-2">无需注册</h3>
             <p className="text-gray-600">
-              精选优质知识产品，涵盖各个领域，满足不同学习需求
+              匿名购物，保护隐私。无需填写复杂信息，点击购买即可下单
             </p>
           </div>
           <div className="p-6 bg-white rounded-lg shadow-sm border">
@@ -48,10 +48,10 @@ export default function Home() {
             </p>
           </div>
           <div className="p-6 bg-white rounded-lg shadow-sm border">
-            <div className="text-blue-600 text-4xl mb-4">🔒</div>
-            <h3 className="text-xl font-semibold mb-2">安全可靠</h3>
+            <div className="text-blue-600 text-4xl mb-4">📦</div>
+            <h3 className="text-xl font-semibold mb-2">订单查询</h3>
             <p className="text-gray-600">
-              采用业界领先的安全技术，保护您的个人信息和交易安全
+              获得唯一订单号，随时查询订单状态，安全便捷
             </p>
           </div>
         </div>

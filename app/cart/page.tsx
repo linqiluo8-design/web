@@ -40,13 +40,11 @@ export default function CartPage() {
 
       const data = await res.json()
 
-      // Clear cart after successful order
+      // Clear cart after successful order creation
       clearCart()
 
-      // Show order number in modal
-      alert(`订单创建成功！\n\n您的订单号是: ${data.orderNumber}\n\n请妥善保管此订单号，可用于查询订单状态。`)
-
-      router.push("/order-lookup")
+      // 跳转到支付页面（产品思维：不要立即弹出订单号，而是引导用户完成支付）
+      router.push(`/payment/${data.order.id}`)
     } catch (err) {
       alert(err instanceof Error ? err.message : "创建订单失败")
     }

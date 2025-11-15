@@ -103,9 +103,8 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
 
       const data = await res.json()
 
-      // 显示订单号并跳转到订单查询页
-      alert(`订单创建成功！\n\n您的订单号是: ${data.orderNumber}\n\n请妥善保管此订单号，可用于查询订单状态。`)
-      router.push("/order-lookup")
+      // 产品思维：直接跳转到支付页面，引导用户完成支付流程
+      router.push(`/payment/${data.order.id}`)
     } catch (err) {
       alert("创建订单失败，请稍后重试")
     }

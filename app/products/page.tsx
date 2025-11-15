@@ -12,6 +12,7 @@ interface Product {
   description: string
   price: number
   coverImage: string | null
+  showImage: boolean
   category: string | null
   tags: string | null
   createdAt: string
@@ -199,7 +200,7 @@ export default function ProductsPage() {
               >
                 <Link href={`/products/${product.id}`}>
                   <div className="relative h-48 bg-gray-200">
-                    {product.coverImage ? (
+                    {product.showImage && product.coverImage ? (
                       <Image
                         src={product.coverImage}
                         alt={product.title}

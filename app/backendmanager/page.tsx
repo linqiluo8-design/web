@@ -13,6 +13,7 @@ interface Product {
   content: string | null
   price: number
   coverImage: string | null
+  showImage: boolean
   category: string | null
   categoryId: string | null
   status: string
@@ -114,6 +115,7 @@ export default function AdminPage() {
       price: product.price,
       categoryId: product.categoryId || "",
       coverImage: product.coverImage || "",
+      showImage: product.showImage,
     })
   }
 
@@ -169,7 +171,7 @@ export default function AdminPage() {
         <h1 className="text-3xl font-bold mb-4">后台管理 - 商品管理</h1>
         <div className="flex gap-4">
           <Link
-            href="/admin/categories"
+            href="/backendmanager/categories"
             className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200"
           >
             分类管理
@@ -284,6 +286,26 @@ export default function AdminPage() {
                             className="w-full px-3 py-2 border rounded-md"
                             placeholder="https://example.com/image.jpg"
                           />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            图片显示设置
+                          </label>
+                          <div className="flex items-center gap-2 mt-2">
+                            <input
+                              type="checkbox"
+                              id="showImage"
+                              checked={editForm.showImage ?? true}
+                              onChange={(e) => setEditForm({ ...editForm, showImage: e.target.checked })}
+                              className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                            />
+                            <label htmlFor="showImage" className="text-sm text-gray-700">
+                              在商品列表中显示图片
+                            </label>
+                          </div>
+                          <p className="text-xs text-gray-500 mt-1">
+                            关闭后，商品列表将显示"暂无图片"占位符
+                          </p>
                         </div>
                         {editForm.coverImage && (
                           <div className="md:col-span-2">

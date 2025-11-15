@@ -92,6 +92,7 @@ model Product {
   content     String?  // 商品详细内容
   price       Float
   coverImage  String?
+  showImage   Boolean  @default(true) // 是否显示图片
   categoryId  String?
   category    String?  // 保留兼容旧数据
   tags        String?  // JSON字符串存储标签

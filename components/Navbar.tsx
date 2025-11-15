@@ -53,8 +53,8 @@ export function Navbar() {
               {session?.user?.role === "ADMIN" && (
                 <>
                   <Link
-                    href="/admin"
-                    className={isActive("/admin") ? "px-3 py-2 rounded-md text-sm font-medium text-blue-600 bg-blue-50" : "px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50"}
+                    href="/backendmanager"
+                    className={isActive("/backendmanager") ? "px-3 py-2 rounded-md text-sm font-medium text-blue-600 bg-blue-50" : "px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50"}
                   >
                     后台管理
                   </Link>

@@ -171,7 +171,7 @@ export default function CategoriesAdminPage() {
         <div>
           <h1 className="text-3xl font-bold mb-2">分类管理</h1>
           <div className="flex gap-4 text-sm">
-            <Link href="/admin" className="text-gray-600 hover:text-blue-600">
+            <Link href="/backendmanager" className="text-gray-600 hover:text-blue-600">
               ← 返回商品管理
             </Link>
           </div>

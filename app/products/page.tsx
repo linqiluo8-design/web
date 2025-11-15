@@ -27,10 +27,16 @@ interface ProductsResponse {
   }
 }
 
+interface Category {
+  id: string
+  name: string
+}
+
 export default function ProductsPage() {
   const router = useRouter()
   const { addToCart: addToCartHook } = useCart()
   const [data, setData] = useState<ProductsResponse | null>(null)
+  const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState("")
@@ -40,6 +46,7 @@ export default function ProductsPage() {
 
   useEffect(() => {
     fetchProducts()
+    fetchCategories()
   }, [page, category])
 
   const fetchProducts = async () => {
@@ -110,6 +117,18 @@ export default function ProductsPage() {
     }
   }
 
+  const fetchCategories = async () => {
+    try {
+      const res = await fetch("/api/categories")
+      if (res.ok) {
+        const data = await res.json()
+        setCategories(data.categories)
+      }
+    } catch (err) {
+      console.error("获取分类失败:", err)
+    }
+  }
+
   if (loading) {
     return (
       <div className="container mx-auto px-4 py-8">
@@ -157,10 +176,11 @@ export default function ProductsPage() {
           className="px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
           <option value="">全部分类</option>
-          <option value="课程">课程</option>
-          <option value="电子书">电子书</option>
-          <option value="工具">工具</option>
-          <option value="其他">其他</option>
+          {categories.map((cat) => (
+            <option key={cat.id} value={cat.name}>
+              {cat.name}
+            </option>
+          ))}
         </select>
       </div>
 

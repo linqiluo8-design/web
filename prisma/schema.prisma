@@ -71,6 +71,19 @@ model VerificationToken {
   @@unique([identifier, token])
 }
 
+// 分类模型
+model Category {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  coverImage  String?
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  products    Product[]
+}
+
 // 商品模型（知识付费产品）
 model Product {
   id          String   @id @default(cuid())
@@ -79,12 +92,14 @@ model Product {
   content     String?  // 商品详细内容
   price       Float
   coverImage  String?
-  category    String?
+  categoryId  String?
+  category    String?  // 保留兼容旧数据
   tags        String?  // JSON字符串存储标签
   status      String   @default("active") // active, inactive, archived
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  categoryRef Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   cartItems   CartItem[]
   orderItems  OrderItem[]
 }

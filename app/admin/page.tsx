@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 import Image from "next/image"
 
 interface Product {
@@ -139,7 +140,17 @@ export default function AdminPage() {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-8">后台管理 - 商品管理</h1>
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold mb-4">后台管理 - 商品管理</h1>
+        <div className="flex gap-4">
+          <Link
+            href="/admin/categories"
+            className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200"
+          >
+            分类管理
+          </Link>
+        </div>
+      </div>
 
       {products.length === 0 ? (
         <div className="text-center text-gray-500 py-12">

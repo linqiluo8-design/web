@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import Image from "next/image"
+import { useRouter } from "next/navigation"
 import { useCart } from "@/hooks/useCart"
 
 interface Product {
@@ -27,6 +28,7 @@ interface ProductsResponse {
 }
 
 export default function ProductsPage() {
+  const router = useRouter()
   const { addToCart: addToCartHook } = useCart()
   const [data, setData] = useState<ProductsResponse | null>(null)
   const [loading, setLoading] = useState(true)
@@ -34,6 +36,7 @@ export default function ProductsPage() {
   const [search, setSearch] = useState("")
   const [category, setCategory] = useState("")
   const [page, setPage] = useState(1)
+  const [buyingProductId, setBuyingProductId] = useState<string | null>(null)
 
   useEffect(() => {
     fetchProducts()
@@ -77,6 +80,34 @@ export default function ProductsPage() {
       coverImage: product.coverImage
     }, 1)
     alert("✓ 已成功添加到购物车！")
+  }
+
+  const buyNow = async (product: Product) => {
+    try {
+      setBuyingProductId(product.id)
+
+      const res = await fetch("/api/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          items: [{
+            productId: product.id,
+            quantity: 1,
+            price: product.price
+          }]
+        }),
+      })
+
+      if (!res.ok) {
+        throw new Error("创建订单失败")
+      }
+
+      const data = await res.json()
+      router.push(`/payment/${data.order.id}`)
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "创建订单失败，请重试")
+      setBuyingProductId(null)
+    }
   }
 
   if (loading) {
@@ -186,17 +217,18 @@ export default function ProductsPage() {
                   </div>
 
                   <div className="flex gap-2">
-                    <Link
-                      href={`/products/${product.id}`}
-                      className="flex-1 px-4 py-2 text-center bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
-                    >
-                      查看详情
-                    </Link>
                     <button
                       onClick={() => addToCart(product)}
                       className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
                     >
                       加入购物车
+                    </button>
+                    <button
+                      onClick={() => buyNow(product)}
+                      disabled={buyingProductId === product.id}
+                      className="flex-1 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {buyingProductId === product.id ? "处理中..." : "立即购买"}
                     </button>
                   </div>
                 </div>

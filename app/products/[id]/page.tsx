@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import Image from "next/image"
 import Link from "next/link"
+import { useCart } from "@/hooks/useCart"
 
 interface Product {
   id: string
@@ -19,6 +20,7 @@ interface Product {
 
 export default function ProductDetailPage({ params }: { params: { id: string } }) {
   const router = useRouter()
+  const { addToCart: addToCartHook } = useCart()
   const [product, setProduct] = useState<Product | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -50,36 +52,34 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
     }
   }
 
-  const addToCart = async () => {
-    try {
-      const res = await fetch("/api/cart", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ productId: params.id, quantity }),
-      })
+  const addToCart = () => {
+    if (!product) return
 
-      if (!res.ok) {
-        const error = await res.json()
-        alert(error.error || "添加到购物车失败")
-        return
-      }
+    addToCartHook({
+      id: product.id,
+      title: product.title,
+      price: product.price,
+      coverImage: product.coverImage
+    }, quantity)
 
-      alert("已添加到购物车")
+    if (confirm("✓ 已成功添加到购物车！\n\n是否前往购物车查看？")) {
       router.push("/cart")
-    } catch (err) {
-      alert("添加到购物车失败，请先登录")
     }
   }
 
   const buyNow = async () => {
+    if (!product) return
+
     try {
       const res = await fetch("/api/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          type: "direct",
-          productId: params.id,
-          quantity,
+          items: [{
+            productId: product.id,
+            quantity: quantity,
+            price: product.price
+          }]
         }),
       })
 
@@ -90,9 +90,12 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
       }
 
       const data = await res.json()
-      router.push(`/orders`)
+
+      // 显示订单号并跳转到订单查询页
+      alert(`订单创建成功！\n\n您的订单号是: ${data.orderNumber}\n\n请妥善保管此订单号，可用于查询订单状态。`)
+      router.push("/order-lookup")
     } catch (err) {
-      alert("创建订单失败，请先登录")
+      alert("创建订单失败，请稍后重试")
     }
   }
 

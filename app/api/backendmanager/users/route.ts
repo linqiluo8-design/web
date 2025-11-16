@@ -6,7 +6,7 @@ import { prisma } from '@/lib/prisma'
 import { requireAdmin } from '@/lib/permissions'
 
 /**
- * GET /api/admin/users - 获取所有用户列表
+ * GET /api/backendmanager/users - 获取所有用户列表
  * 查询参数：
  * - status: 筛选账号状态 (PENDING, APPROVED, REJECTED)
  */

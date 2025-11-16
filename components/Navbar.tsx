@@ -71,8 +71,8 @@ export function Navbar() {
                     订单查询
                   </Link>
                   <Link
-                    href="/admin/users"
-                    className={isActive("/admin/users") ? "px-3 py-2 rounded-md text-sm font-medium text-blue-600 bg-blue-50" : "px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50"}
+                    href="/backendmanager/users"
+                    className={isActive("/backendmanager/users") ? "px-3 py-2 rounded-md text-sm font-medium text-blue-600 bg-blue-50" : "px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50"}
                   >
                     用户管理
                   </Link>

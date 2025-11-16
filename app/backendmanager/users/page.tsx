@@ -76,7 +76,7 @@ export default function UserManagementPage() {
 
   const loadUsers = async () => {
     try {
-      const url = filter === 'all' ? '/api/admin/users' : `/api/admin/users?status=${filter}`
+      const url = filter === 'all' ? '/api/backendmanager/users' : `/api/backendmanager/users?status=${filter}`
       const response = await fetch(url)
       const data = await response.json()
 
@@ -97,7 +97,7 @@ export default function UserManagementPage() {
     if (!confirm('确认批准该用户？')) return
 
     try {
-      const response = await fetch(`/api/admin/users/${userId}/approve`, {
+      const response = await fetch(`/api/backendmanager/users/${userId}/approve`, {
         method: 'POST',
       })
 
@@ -119,7 +119,7 @@ export default function UserManagementPage() {
     if (!confirm('确认拒绝该用户？')) return
 
     try {
-      const response = await fetch(`/api/admin/users/${userId}/reject`, {
+      const response = await fetch(`/api/backendmanager/users/${userId}/reject`, {
         method: 'POST',
       })
 
@@ -162,7 +162,7 @@ export default function UserManagementPage() {
         level,
       }))
 
-      const response = await fetch(`/api/admin/users/${userId}/permissions`, {
+      const response = await fetch(`/api/backendmanager/users/${userId}/permissions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ permissions: permissionsArray }),

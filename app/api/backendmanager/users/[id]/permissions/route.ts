@@ -16,7 +16,7 @@ const permissionSchema = z.object({
 })
 
 /**
- * GET /api/admin/users/[id]/permissions - 获取用户权限
+ * GET /api/backendmanager/users/[id]/permissions - 获取用户权限
  */
 export async function GET(
   req: Request,
@@ -46,7 +46,7 @@ export async function GET(
 }
 
 /**
- * POST /api/admin/users/[id]/permissions - 设置用户权限
+ * POST /api/backendmanager/users/[id]/permissions - 设置用户权限
  * Body: {
  *   permissions: [
  *     { module: 'CATEGORIES', level: 'READ' },

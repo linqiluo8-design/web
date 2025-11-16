@@ -68,7 +68,7 @@ export default function OrderManagementPage() {
 
   const fetchStats = async () => {
     try {
-      const response = await fetch("/api/admin/orders")
+      const response = await fetch("/api/backendmanager/orders")
       if (response.ok) {
         const data = await response.json()
         const orders = data.orders || []
@@ -147,7 +147,7 @@ export default function OrderManagementPage() {
       }
 
       // 下载文件
-      const response = await fetch(`/api/admin/orders/export?${params}`)
+      const response = await fetch(`/api/backendmanager/orders/export?${params}`)
 
       if (!response.ok) {
         throw new Error("导出失败")
@@ -183,7 +183,7 @@ export default function OrderManagementPage() {
     try {
       setLoading(true)
 
-      const response = await fetch("/api/admin/orders/cleanup", {
+      const response = await fetch("/api/backendmanager/orders/cleanup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

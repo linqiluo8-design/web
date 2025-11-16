@@ -305,7 +305,7 @@ export default function CartPage() {
                     <p className="text-red-600 text-xs mt-1">{membershipError}</p>
                   )}
                   <Link
-                    href="/membership"
+                    href="/membership?from=cart"
                     className="text-xs text-blue-600 hover:underline mt-2 inline-block"
                   >
                     还没有会员？立即购买

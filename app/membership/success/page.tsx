@@ -1,31 +1,46 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useSearchParams } from "next/navigation"
+import { useSearchParams, useRouter } from "next/navigation"
 import Link from "next/link"
 
 export default function MembershipSuccessPage() {
   const searchParams = useSearchParams()
+  const router = useRouter()
   const [membershipCode, setMembershipCode] = useState<string>("")
   const [amount, setAmount] = useState<string>("")
   const [showCopySuccess, setShowCopySuccess] = useState(false)
+  const [countdown, setCountdown] = useState(5)
+  const [fromCart, setFromCart] = useState(false)
 
   useEffect(() => {
     const code = searchParams.get("code")
     const amt = searchParams.get("amount")
+    const from = searchParams.get("from")
     if (code) setMembershipCode(code)
     if (amt) setAmount(amt)
+    if (from === "cart") setFromCart(true)
   }, [searchParams])
 
   const copyToClipboard = () => {
     navigator.clipboard.writeText(membershipCode)
     setShowCopySuccess(true)
-
-    // 5秒后自动关闭
-    setTimeout(() => {
-      setShowCopySuccess(false)
-    }, 5000)
+    setCountdown(5)
   }
+
+  // 倒计时逻辑
+  useEffect(() => {
+    if (!showCopySuccess) return
+
+    if (countdown > 0) {
+      const timer = setTimeout(() => {
+        setCountdown(countdown - 1)
+      }, 1000)
+      return () => clearTimeout(timer)
+    } else {
+      setShowCopySuccess(false)
+    }
+  }, [showCopySuccess, countdown])
 
   const closeSuccessMessage = () => {
     setShowCopySuccess(false)
@@ -66,7 +81,7 @@ export default function MembershipSuccessPage() {
                 确定
               </button>
               <p className="text-xs text-gray-500 mt-2">
-                5秒后自动关闭
+                {countdown}秒后自动退出
               </p>
             </div>
           </div>
@@ -144,18 +159,37 @@ export default function MembershipSuccessPage() {
 
         {/* 操作按钮 */}
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
-          <Link
-            href="/products"
-            className="px-8 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors"
-          >
-            立即购物
-          </Link>
-          <Link
-            href="/membership"
-            className="px-8 py-3 border-2 border-gray-300 text-gray-700 rounded-lg font-semibold hover:border-blue-600 hover:text-blue-600 transition-colors"
-          >
-            查看会员方案
-          </Link>
+          {fromCart ? (
+            <>
+              <Link
+                href="/cart"
+                className="px-8 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors"
+              >
+                返回购物车
+              </Link>
+              <Link
+                href="/products"
+                className="px-8 py-3 border-2 border-gray-300 text-gray-700 rounded-lg font-semibold hover:border-blue-600 hover:text-blue-600 transition-colors"
+              >
+                继续购物
+              </Link>
+            </>
+          ) : (
+            <>
+              <Link
+                href="/products"
+                className="px-8 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors"
+              >
+                立即购物
+              </Link>
+              <Link
+                href="/membership"
+                className="px-8 py-3 border-2 border-gray-300 text-gray-700 rounded-lg font-semibold hover:border-blue-600 hover:text-blue-600 transition-colors"
+              >
+                查看会员方案
+              </Link>
+            </>
+          )}
         </div>
 
         {/* 联系客服 */}

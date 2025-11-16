@@ -547,9 +547,94 @@ useEffect(() => {
 
 ### 待优化 📋
 - [ ] 客服聊天功能更换
-- [ ] 添加更多支付方式
+- [ ] 轮播图完整管理后台页面
+- [ ] 支付页面动态支付方式实现
 - [ ] 订单导出优化
 - [ ] 邮件通知功能
+
+---
+
+## 🎨 网站功能管理（2025-11）
+
+### 轮播图系统
+
+**功能说明**：
+- 首页顶部展示轮播图，用于宣传活动、新品推广等
+- 管理员可在后台控制是否启用轮播图功能
+- 支持添加、编辑、删除轮播图
+- 自动轮播，每5秒切换一次
+
+**数据模型** (`Banner`):
+- `title` - 轮播图标题
+- `image` - 图片URL
+- `link` - 点击跳转链接（可选）
+- `description` - 描述
+- `sortOrder` - 排序顺序，数字越小越靠前
+- `status` - active/inactive
+
+**API端点**:
+- `GET /api/banners` - 获取启用的轮播图（公开）
+- `GET /api/backendmanager/banners` - 管理员获取所有轮播图
+- `POST /api/backendmanager/banners` - 创建轮播图
+- `PATCH /api/backendmanager/banners/[id]` - 更新轮播图
+- `DELETE /api/backendmanager/banners/[id]` - 删除轮播图
+
+**实现位置**:
+- 轮播图组件: `components/BannerCarousel.tsx`
+- 首页集成: `app/page.tsx`
+- 后台设置: `app/backendmanager/settings/page.tsx`
+
+**特性**:
+- 响应式设计，支持移动端
+- 自动轮播 + 手动切换
+- 支持链接跳转
+- 显示标题和描述
+- 可通过后台开关控制显示/隐藏
+
+---
+
+### 系统配置管理
+
+**功能说明**：
+- 统一的系统配置管理，支持动态启用/禁用功能
+- 管理员可在后台设置页面管理所有配置
+
+**支持的配置项**:
+
+1. **轮播图配置**:
+   - `banner_enabled` (boolean) - 是否启用首页轮播图
+
+2. **支付方式配置** (2025-11):
+   - `payment_alipay_enabled` (boolean) - 是否启用支付宝支付
+   - `payment_wechat_enabled` (boolean) - 是否启用微信支付
+   - `payment_paypal_enabled` (boolean) - 是否启用PayPal支付
+
+**API端点**:
+- `GET /api/system-config?keys=...` - 获取公开配置（前端使用）
+- `GET /api/backendmanager/system-config` - 管理员获取所有配置
+- `POST /api/backendmanager/system-config` - 创建/更新单个配置
+- `PUT /api/backendmanager/system-config` - 批量更新配置
+
+**实现位置**:
+- 管理后台设置: `app/backendmanager/settings/page.tsx`
+- API路由(公开): `app/api/system-config/route.ts`
+- API路由(管理员): `app/api/backendmanager/system-config/route.ts`
+
+**使用方式**:
+```typescript
+// 前端获取配置
+const res = await fetch('/api/system-config?keys=banner_enabled,payment_alipay_enabled')
+const config = await res.json()
+// config = { banner_enabled: true, payment_alipay_enabled: true, ... }
+```
+
+**数据库迁移**:
+```bash
+# 需要运行数据库迁移以创建新表
+npx prisma db push
+# 或
+npx prisma migrate dev
+```
 
 ---
 

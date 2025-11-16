@@ -1,8 +1,14 @@
 import Link from "next/link"
+import BannerCarousel from "@/components/BannerCarousel"
 
 export default function Home() {
   return (
     <div className="container mx-auto px-4 py-12">
+      {/* 轮播图 */}
+      <section className="mb-12">
+        <BannerCarousel />
+      </section>
+
       {/* Hero Section */}
       <section className="text-center py-20">
         <h1 className="text-5xl font-bold text-gray-900 mb-6">

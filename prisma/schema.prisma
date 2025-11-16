@@ -275,3 +275,28 @@ model PageView {
   @@index([path])      // 按路径索引，用于统计各页面访问量
   @@index([userId])    // 按用户ID索引
 }
+
+// 轮播图模型（首页广告/活动展示）
+model Banner {
+  id          String   @id @default(cuid())
+  title       String   // 轮播图标题
+  image       String   // 图片URL
+  link        String?  // 点击跳转链接（可选）
+  description String?  // 描述
+  sortOrder   Int      @default(0) // 排序顺序，数字越小越靠前
+  status      String   @default("active") // active, inactive
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// 系统配置模型（全局设置）
+model SystemConfig {
+  id        String   @id @default(cuid())
+  key       String   @unique // 配置键，如 "banner_enabled", "payment_alipay_enabled"
+  value     String   // 配置值（JSON字符串或简单值）
+  type      String   // 配置类型：boolean, string, number, json
+  category  String   // 配置分类：banner, payment, general
+  description String? // 配置描述
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

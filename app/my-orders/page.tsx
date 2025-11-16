@@ -70,7 +70,7 @@ export default function MyOrdersPage() {
       )
 
       const orderResults = await Promise.all(orderPromises)
-      const validOrders = orderResults.filter(order => order !== null)
+      const validOrders = orderResults.filter(order => order != null) // Filter both null and undefined
 
       // 清理localStorage中不存在的订单记录
       const validOrderNumbers = validOrders.map(o => o.orderNumber)

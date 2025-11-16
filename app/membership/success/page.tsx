@@ -8,6 +8,7 @@ export default function MembershipSuccessPage() {
   const searchParams = useSearchParams()
   const [membershipCode, setMembershipCode] = useState<string>("")
   const [amount, setAmount] = useState<string>("")
+  const [showCopySuccess, setShowCopySuccess] = useState(false)
 
   useEffect(() => {
     const code = searchParams.get("code")
@@ -18,11 +19,60 @@ export default function MembershipSuccessPage() {
 
   const copyToClipboard = () => {
     navigator.clipboard.writeText(membershipCode)
-    alert("会员码已复制到剪贴板！")
+    setShowCopySuccess(true)
+
+    // 5秒后自动关闭
+    setTimeout(() => {
+      setShowCopySuccess(false)
+    }, 5000)
+  }
+
+  const closeSuccessMessage = () => {
+    setShowCopySuccess(false)
   }
 
   return (
     <div className="container mx-auto px-4 py-16 max-w-2xl">
+      {/* 复制成功提示框 */}
+      {showCopySuccess && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl p-6 max-w-sm mx-4">
+            <div className="text-center">
+              <div className="w-16 h-16 bg-green-500 rounded-full mx-auto mb-4 flex items-center justify-center">
+                <svg
+                  className="w-10 h-10 text-white"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={3}
+                    d="M5 13l4 4L19 7"
+                  />
+                </svg>
+              </div>
+              <h3 className="text-xl font-bold text-gray-800 mb-2">
+                复制成功！
+              </h3>
+              <p className="text-gray-600 mb-4">
+                会员码已复制到剪贴板
+              </p>
+              <button
+                onClick={closeSuccessMessage}
+                className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+              >
+                确定
+              </button>
+              <p className="text-xs text-gray-500 mt-2">
+                5秒后自动关闭
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="bg-white rounded-lg shadow-lg p-8 text-center">
         {/* 成功图标 */}
         <div className="w-20 h-20 bg-green-500 rounded-full mx-auto mb-6 flex items-center justify-center">

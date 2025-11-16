@@ -102,8 +102,18 @@ export async function POST(req: Request) {
       // 批量创建
       const validatedData = bulkProductSchema.parse(body)
 
+      // 处理每个商品的数据，将空字符串的categoryId转为undefined
+      const productsToCreate = validatedData.products.map((product) => {
+        const data: any = { ...product }
+        // 如果categoryId是空字符串，设为undefined（数据库会存null）
+        if (data.categoryId === "") {
+          delete data.categoryId
+        }
+        return data
+      })
+
       const createdProducts = await prisma.$transaction(
-        validatedData.products.map((product) =>
+        productsToCreate.map((product) =>
           prisma.product.create({
             data: product,
           })
@@ -122,8 +132,14 @@ export async function POST(req: Request) {
       // 单个创建
       const validatedData = productSchema.parse(body)
 
+      // 处理数据，将空字符串的categoryId转为undefined
+      const data: any = { ...validatedData }
+      if (data.categoryId === "") {
+        delete data.categoryId
+      }
+
       const product = await prisma.product.create({
-        data: validatedData,
+        data,
       })
 
       return NextResponse.json(

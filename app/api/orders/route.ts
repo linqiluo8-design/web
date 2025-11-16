@@ -24,31 +24,66 @@ function generateOrderNumber(): string {
   return `ORD${timestamp}${randomBytes}`
 }
 
-// 获取用户订单列表
+// 获取用户订单列表（支持分页和搜索）
 export async function GET(req: Request) {
   try {
     const user = await requireAuth()
+    const { searchParams } = new URL(req.url)
 
-    const orders = await prisma.order.findMany({
-      where: { userId: user.id },
-      include: {
-        orderItems: {
-          include: {
-            product: {
-              select: {
-                id: true,
-                title: true,
-                coverImage: true,
+    // 分页参数
+    const page = parseInt(searchParams.get("page") || "1")
+    const limit = parseInt(searchParams.get("limit") || "10")
+    const skip = (page - 1) * limit
+
+    // 搜索参数
+    const search = searchParams.get("search") // 订单号搜索
+    const status = searchParams.get("status") // 状态筛选
+
+    // 构建查询条件
+    const where: any = { userId: user.id }
+
+    if (search) {
+      where.orderNumber = { contains: search }
+    }
+
+    if (status && status !== "all") {
+      where.status = status
+    }
+
+    // 查询订单和总数
+    const [orders, total] = await Promise.all([
+      prisma.order.findMany({
+        where,
+        skip,
+        take: limit,
+        include: {
+          orderItems: {
+            include: {
+              product: {
+                select: {
+                  id: true,
+                  title: true,
+                  coverImage: true,
+                }
               }
             }
-          }
+          },
+          payment: true,
         },
-        payment: true,
-      },
-      orderBy: { createdAt: "desc" }
-    })
+        orderBy: { createdAt: "desc" }
+      }),
+      prisma.order.count({ where })
+    ])
 
-    return NextResponse.json({ orders })
+    return NextResponse.json({
+      orders,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit)
+      }
+    })
   } catch (error: any) {
     if (error.message === "未授权，请先登录") {
       return NextResponse.json(

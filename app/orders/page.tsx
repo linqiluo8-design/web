@@ -36,19 +36,47 @@ const statusMap: Record<string, { label: string; color: string }> = {
   refunded: { label: "已退款", color: "text-red-600 bg-red-50" },
 }
 
+interface Pagination {
+  total: number
+  page: number
+  limit: number
+  totalPages: number
+}
+
 export default function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [pagination, setPagination] = useState<Pagination>({
+    total: 0,
+    page: 1,
+    limit: 10,
+    totalPages: 0
+  })
+  const [search, setSearch] = useState("")
+  const [statusFilter, setStatusFilter] = useState("all")
 
   useEffect(() => {
     fetchOrders()
-  }, [])
+  }, [pagination.page, statusFilter])
 
   const fetchOrders = async () => {
     try {
       setLoading(true)
-      const res = await fetch("/api/orders")
+      const params = new URLSearchParams({
+        page: pagination.page.toString(),
+        limit: pagination.limit.toString(),
+      })
+
+      if (search) {
+        params.append("search", search)
+      }
+
+      if (statusFilter !== "all") {
+        params.append("status", statusFilter)
+      }
+
+      const res = await fetch(`/api/orders?${params}`)
 
       if (!res.ok) {
         if (res.status === 401) {
@@ -59,12 +87,22 @@ export default function OrdersPage() {
 
       const data = await res.json()
       setOrders(data.orders || [])
+      setPagination(data.pagination)
       setError(null)
     } catch (err) {
       setError(err instanceof Error ? err.message : "获取订单列表失败")
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleSearch = () => {
+    setPagination({ ...pagination, page: 1 })
+    fetchOrders()
+  }
+
+  const handlePageChange = (newPage: number) => {
+    setPagination({ ...pagination, page: newPage })
   }
 
   const createPayment = async (orderId: string) => {
@@ -125,8 +163,52 @@ export default function OrdersPage() {
     <div className="container mx-auto px-4 py-8">
       <h1 className="text-3xl font-bold mb-8">我的订单</h1>
 
+      {/* 搜索和筛选 */}
+      <div className="bg-white rounded-lg shadow p-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              搜索订单号
+            </label>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                onKeyPress={(e) => e.key === "Enter" && handleSearch()}
+                className="flex-1 px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="输入订单号搜索..."
+              />
+              <button
+                onClick={handleSearch}
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+              >
+                搜索
+              </button>
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              订单状态
+            </label>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="all">全部状态</option>
+              <option value="pending">待支付</option>
+              <option value="paid">已支付</option>
+              <option value="completed">已完成</option>
+              <option value="cancelled">已取消</option>
+              <option value="refunded">已退款</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
       {orders.length === 0 ? (
-        <div className="text-center py-12">
+        <div className="text-center py-12 bg-white rounded-lg shadow">
           <p className="text-gray-500 mb-4">暂无订单</p>
           <Link
             href="/products"
@@ -136,6 +218,7 @@ export default function OrdersPage() {
           </Link>
         </div>
       ) : (
+        <>
         <div className="space-y-4">
           {orders.map((order) => {
             const statusInfo = statusMap[order.status] || statusMap.pending
@@ -210,6 +293,64 @@ export default function OrdersPage() {
             )
           })}
         </div>
+
+          {/* 分页 */}
+          {pagination.totalPages > 1 && (
+            <div className="mt-6 flex justify-center items-center gap-2">
+              <button
+                onClick={() => handlePageChange(pagination.page - 1)}
+                disabled={pagination.page === 1}
+                className="px-4 py-2 border rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                上一页
+              </button>
+
+              <div className="flex gap-1">
+                {Array.from({ length: pagination.totalPages }, (_, i) => i + 1).map((page) => {
+                  // 只显示当前页附近的页码
+                  if (
+                    page === 1 ||
+                    page === pagination.totalPages ||
+                    (page >= pagination.page - 2 && page <= pagination.page + 2)
+                  ) {
+                    return (
+                      <button
+                        key={page}
+                        onClick={() => handlePageChange(page)}
+                        className={`px-3 py-2 border rounded-md ${
+                          page === pagination.page
+                            ? "bg-blue-600 text-white"
+                            : "hover:bg-gray-50"
+                        }`}
+                      >
+                        {page}
+                      </button>
+                    )
+                  } else if (
+                    page === pagination.page - 3 ||
+                    page === pagination.page + 3
+                  ) {
+                    return <span key={page} className="px-2">...</span>
+                  }
+                  return null
+                })}
+              </div>
+
+              <button
+                onClick={() => handlePageChange(pagination.page + 1)}
+                disabled={pagination.page === pagination.totalPages}
+                className="px-4 py-2 border rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                下一页
+              </button>
+            </div>
+          )}
+
+          {/* 分页信息 */}
+          <div className="mt-4 text-center text-sm text-gray-600">
+            共 {pagination.total} 条订单，当前第 {pagination.page}/{pagination.totalPages} 页
+          </div>
+        </>
       )}
     </div>
   )

@@ -57,7 +57,7 @@ export default function MembershipsAdminPage() {
 
       const data = await response.json()
       // 获取所有方案（包括inactive的）
-      const allResponse = await fetch("/api/admin/membership-plans")
+      const allResponse = await fetch("/api/backendmanager/membership-plans")
       const allData = allResponse.ok ? await allResponse.json() : data
 
       setPlans(allData.plans || data.plans)

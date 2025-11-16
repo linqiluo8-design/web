@@ -1,6 +1,6 @@
 "use client"
 
-import { createContext, useContext, useState, useCallback, ReactNode } from "react"
+import { createContext, useContext, useState, useCallback, ReactNode, useEffect } from "react"
 
 export type ToastType = "success" | "error" | "info" | "warning"
 
@@ -32,7 +32,7 @@ interface ToastProviderProps {
   defaultDuration?: number
 }
 
-export function ToastProvider({ children, defaultDuration = 5000 }: ToastProviderProps) {
+export function ToastProvider({ children, defaultDuration = 3000 }: ToastProviderProps) {
   const [toasts, setToasts] = useState<Toast[]>([])
 
   const showToast = useCallback((message: string, type: ToastType = "info", duration?: number) => {
@@ -89,6 +89,24 @@ interface ToastItemProps {
 }
 
 function ToastItem({ toast, onClose }: ToastItemProps) {
+  const [countdown, setCountdown] = useState(Math.ceil((toast.duration || 0) / 1000))
+
+  useEffect(() => {
+    if (!toast.duration || toast.duration <= 0) return
+
+    const interval = setInterval(() => {
+      setCountdown((prev) => {
+        if (prev <= 1) {
+          clearInterval(interval)
+          return 0
+        }
+        return prev - 1
+      })
+    }, 1000)
+
+    return () => clearInterval(interval)
+  }, [toast.duration])
+
   const getIcon = () => {
     switch (toast.type) {
       case "success":
@@ -158,6 +176,9 @@ function ToastItem({ toast, onClose }: ToastItemProps) {
         <div className="flex-shrink-0">{getIcon()}</div>
         <div className="flex-1 min-w-0">
           <p className={`text-sm font-medium ${getTextColor()}`}>{toast.message}</p>
+          {toast.duration && toast.duration > 0 && countdown > 0 && (
+            <p className="text-xs text-gray-500 mt-1">{countdown}秒后自动关闭</p>
+          )}
         </div>
         <button
           onClick={onClose}

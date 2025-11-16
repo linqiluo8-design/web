@@ -29,23 +29,28 @@ export async function POST(req: Request) {
     // 加密密码
     const hashedPassword = await bcrypt.hash(password, 10)
 
-    // 创建用户
+    // 创建用户（默认状态为 PENDING，需要管理员审核）
     const user = await prisma.user.create({
       data: {
         name,
         email,
         password: hashedPassword,
+        // accountStatus 默认为 PENDING（在 schema 中定义）
       },
       select: {
         id: true,
         name: true,
         email: true,
+        accountStatus: true,
         createdAt: true,
       }
     })
 
     return NextResponse.json(
-      { user, message: "注册成功" },
+      {
+        user,
+        message: "注册成功！您的账号需要管理员审核后才能登录，请耐心等待。"
+      },
       { status: 201 }
     )
   } catch (error) {

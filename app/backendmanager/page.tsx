@@ -78,7 +78,7 @@ export default function AdminPage() {
   const fetchProducts = async () => {
     try {
       setLoading(true)
-      const response = await fetch("/api/admin/products")
+      const response = await fetch("/api/backendmanager/products")
 
       if (!response.ok) {
         throw new Error("获取商品列表失败")
@@ -109,7 +109,7 @@ export default function AdminPage() {
     try {
       const newStatus = currentStatus === "active" ? "inactive" : "active"
 
-      const response = await fetch(`/api/admin/products/${productId}`, {
+      const response = await fetch(`/api/backendmanager/products/${productId}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -151,7 +151,7 @@ export default function AdminPage() {
 
   const saveEdit = async (productId: string) => {
     try {
-      const response = await fetch(`/api/admin/products/${productId}`, {
+      const response = await fetch(`/api/backendmanager/products/${productId}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -218,7 +218,7 @@ export default function AdminPage() {
 
   const handleCreateSingle = async () => {
     try {
-      const response = await fetch("/api/admin/products", {
+      const response = await fetch("/api/backendmanager/products", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(createForm)
@@ -247,7 +247,7 @@ export default function AdminPage() {
         return
       }
 
-      const response = await fetch("/api/admin/products", {
+      const response = await fetch("/api/backendmanager/products", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ products: validProducts })

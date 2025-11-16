@@ -24,7 +24,8 @@ async function main() {
       email,
       password: hashedPassword,
       name: '管理员',
-      role: 'ADMIN'
+      role: 'ADMIN',
+      accountStatus: 'APPROVED'  // 管理员账号自动审核通过
     }
   })
   

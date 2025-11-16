@@ -37,18 +37,20 @@ export const authOptions: NextAuthOptions = {
           throw new Error("邮箱或密码错误")
         }
 
-        // 检查账号审核状态
-        if (user.accountStatus === 'PENDING') {
-          throw new Error("您的账号正在等待管理员审核，请耐心等待")
-        }
+        // 检查账号审核状态（管理员账号跳过审核）
+        if (user.role !== 'ADMIN') {
+          if (user.accountStatus === 'PENDING') {
+            throw new Error("您的账号正在等待管理员审核，请耐心等待")
+          }
 
-        if (user.accountStatus === 'REJECTED') {
-          throw new Error("您的账号申请已被拒绝，如有疑问请联系管理员")
-        }
+          if (user.accountStatus === 'REJECTED') {
+            throw new Error("您的账号申请已被拒绝，如有疑问请联系管理员")
+          }
 
-        // 只有 APPROVED 状态的用户可以登录
-        if (user.accountStatus !== 'APPROVED') {
-          throw new Error("账号状态异常，请联系管理员")
+          // 只有 APPROVED 状态的用户可以登录
+          if (user.accountStatus !== 'APPROVED') {
+            throw new Error("账号状态异常，请联系管理员")
+          }
         }
 
         return {

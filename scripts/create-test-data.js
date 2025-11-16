@@ -218,63 +218,15 @@ async function main() {
   }
   console.log(`   ✓ 创建了 ${createdCount} 个商品\n`)
 
-  // 5. 创建会员方案
-  console.log('5️⃣ 创建会员方案...')
-  const planData = [
-    {
-      name: '月度会员',
-      price: 29.00,
-      duration: 30,
-      discount: 0.9, // 9折
-      dailyLimit: 5,
-      status: 'active',
-      sortOrder: 1
-    },
-    {
-      name: '季度会员',
-      price: 79.00,
-      duration: 90,
-      discount: 0.85, // 8.5折
-      dailyLimit: 10,
-      status: 'active',
-      sortOrder: 2
-    },
-    {
-      name: '年度会员',
-      price: 299.00,
-      duration: 365,
-      discount: 0.8, // 8折
-      dailyLimit: 20,
-      status: 'active',
-      sortOrder: 3
-    }
-  ]
-
-  const plans = []
-  for (const plan of planData) {
-    // 检查是否已存在
-    const existing = await prisma.membershipPlan.findFirst({
-      where: { name: plan.name }
-    })
-
-    if (!existing) {
-      const created = await prisma.membershipPlan.create({
-        data: plan
-      })
-      plans.push(created)
-    } else {
-      plans.push(existing)
-    }
-  }
-  console.log(`   ✓ 创建了 ${plans.length} 个会员方案\n`)
-
   console.log('✅ 所有测试数据创建完成!\n')
   console.log('📊 数据统计:')
   console.log(`   - 管理员: 1 个`)
   console.log(`   - 用户: 1 个`)
   console.log(`   - 分类: ${categories.length} 个`)
-  console.log(`   - 商品: ${createdCount} 个`)
-  console.log(`   - 会员方案: ${plans.length} 个\n`)
+  console.log(`   - 商品: ${createdCount} 个\n`)
+
+  console.log('💡 提示:')
+  console.log(`   如需创建会员方案，请运行: npx tsx scripts/init-membership-plans.ts\n`)
 
   console.log('🔑 登录信息:')
   console.log(`   管理员: admin@example.com / admin123`)

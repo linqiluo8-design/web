@@ -17,7 +17,8 @@ async function main() {
       email: 'admin@example.com',
       password: hashedPassword,
       role: 'ADMIN',
-      name: 'Admin User'
+      name: 'Admin User',
+      accountStatus: 'APPROVED' // 管理员账号自动批准
     }
   })
   console.log(`   ✓ 管理员创建成功: ${admin.email} (密码: admin123)\n`)
@@ -31,7 +32,8 @@ async function main() {
       email: 'user@example.com',
       password: await bcrypt.hash('user123', 10),
       role: 'USER',
-      name: 'Test User'
+      name: 'Test User',
+      accountStatus: 'APPROVED' // 测试用户自动批准
     }
   })
   console.log(`   ✓ 测试用户创建成功: ${testUser.email} (密码: user123)\n`)

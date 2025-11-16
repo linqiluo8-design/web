@@ -12,25 +12,60 @@ datasource db {
 
 // 用户模型
 model User {
-  id            String    @id @default(cuid())
+  id            String        @id @default(cuid())
   name          String?
-  email         String    @unique
+  email         String        @unique
   emailVerified DateTime?
   password      String?
   image         String?
-  role          UserRole  @default(USER)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  role          UserRole      @default(USER)
+  accountStatus AccountStatus @default(PENDING) // 账号审核状态
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
 
   accounts      Account[]
   sessions      Session[]
   cartItems     CartItem[]
   orders        Order[]
+  permissions   Permission[]  // 用户权限
 }
 
 enum UserRole {
   USER
   ADMIN
+}
+
+enum AccountStatus {
+  PENDING   // 待审核
+  APPROVED  // 已批准
+  REJECTED  // 已拒绝
+}
+
+// 用户权限模型
+model Permission {
+  id        String          @id @default(cuid())
+  userId    String
+  module    PermissionModule  // 权限模块
+  level     PermissionLevel   // 权限级别
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+
+  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, module])
+}
+
+enum PermissionModule {
+  CATEGORIES   // 分类管理
+  MEMBERSHIPS  // 会员管理
+  ORDERS       // 订单数据管理
+  PRODUCTS     // 商品管理
+}
+
+enum PermissionLevel {
+  NONE   // 无权限
+  READ   // 只读
+  WRITE  // 读写
 }
 
 // NextAuth账户模型

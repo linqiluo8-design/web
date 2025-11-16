@@ -20,6 +20,9 @@ interface Order {
   id: string
   orderNumber: string
   totalAmount: number
+  originalAmount: number | null
+  discount: number | null
+  membershipId: string | null
   status: string
   orderItems: OrderItem[]
 }
@@ -32,6 +35,12 @@ export default function PaymentPage({ params }: { params: Promise<{ orderId: str
   const [error, setError] = useState<string | null>(null)
   const [selectedMethod, setSelectedMethod] = useState<string>("")
   const [processing, setProcessing] = useState(false)
+
+  // 会员码相关状态
+  const [membershipCode, setMembershipCode] = useState("")
+  const [membershipPreview, setMembershipPreview] = useState<any>(null)
+  const [applyingMembership, setApplyingMembership] = useState(false)
+  const [membershipError, setMembershipError] = useState<string | null>(null)
 
   useEffect(() => {
     params.then((resolvedParams) => {
@@ -63,6 +72,103 @@ export default function PaymentPage({ params }: { params: Promise<{ orderId: str
       setError(err instanceof Error ? err.message : "获取订单失败")
     } finally {
       setLoading(false)
+    }
+  }
+
+  // 验证会员码（预览折扣）
+  const verifyMembership = async () => {
+    if (!membershipCode.trim()) {
+      setMembershipError("请输入会员码")
+      return
+    }
+
+    setApplyingMembership(true)
+    setMembershipError(null)
+
+    try {
+      const res = await fetch("/api/memberships/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ membershipCode: membershipCode.trim() })
+      })
+
+      const data = await res.json()
+
+      if (!res.ok) {
+        setMembershipError(data.error || "验证失败")
+        setMembershipPreview(null)
+        return
+      }
+
+      // 计算预览折扣
+      if (order) {
+        const totalItems = order.orderItems.reduce((sum, item) => sum + item.quantity, 0)
+        const discountableCount = Math.min(totalItems, data.remainingToday)
+
+        const originalAmount = order.orderItems.reduce(
+          (sum, item) => sum + item.price * item.quantity,
+          0
+        )
+
+        let remaining = discountableCount
+        let discountAmount = 0
+
+        for (const item of order.orderItems) {
+          if (remaining <= 0) break
+          const itemCount = Math.min(item.quantity, remaining)
+          discountAmount += item.price * itemCount * (1 - data.membership.discount)
+          remaining -= itemCount
+        }
+
+        const finalAmount = originalAmount - discountAmount
+
+        setMembershipPreview({
+          membership: data.membership,
+          originalAmount,
+          finalAmount,
+          saved: originalAmount - finalAmount,
+          discountableCount,
+          remainingToday: data.remainingToday
+        })
+      }
+    } catch (err) {
+      setMembershipError("验证失败，请重试")
+      setMembershipPreview(null)
+    } finally {
+      setApplyingMembership(false)
+    }
+  }
+
+  // 应用会员码
+  const applyMembership = async () => {
+    if (!order || !membershipCode.trim()) return
+
+    setApplyingMembership(true)
+    setMembershipError(null)
+
+    try {
+      const res = await fetch(`/api/orders/${order.id}/apply-membership`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ membershipCode: membershipCode.trim() })
+      })
+
+      const data = await res.json()
+
+      if (!res.ok) {
+        setMembershipError(data.error || "应用失败")
+        return
+      }
+
+      // 更新订单信息
+      setOrder(data.order)
+      setMembershipCode("")
+      setMembershipPreview(null)
+      alert(`会员码应用成功！节省 ¥${data.appliedDiscount.saved.toFixed(2)}`)
+    } catch (err) {
+      setMembershipError("应用失败，请重试")
+    } finally {
+      setApplyingMembership(false)
     }
   }
 
@@ -195,7 +301,92 @@ export default function PaymentPage({ params }: { params: Promise<{ orderId: str
             ))}
           </div>
 
+          {/* 会员码输入（仅当订单未应用会员码时显示） */}
+          {!order.membershipId && (
+            <div className="border-t pt-4 mb-4">
+              <h3 className="font-semibold mb-3">会员码优惠</h3>
+              <div className="space-y-3">
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={membershipCode}
+                    onChange={(e) => {
+                      setMembershipCode(e.target.value.toUpperCase())
+                      setMembershipError(null)
+                      setMembershipPreview(null)
+                    }}
+                    placeholder="输入会员码"
+                    className="flex-1 px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    disabled={applyingMembership}
+                  />
+                  <button
+                    onClick={verifyMembership}
+                    disabled={!membershipCode.trim() || applyingMembership}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
+                  >
+                    {applyingMembership ? "验证中..." : "验证"}
+                  </button>
+                </div>
+
+                {membershipError && (
+                  <p className="text-sm text-red-600">{membershipError}</p>
+                )}
+
+                {membershipPreview && (
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-3 space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">会员折扣:</span>
+                      <span className="font-medium text-green-700">
+                        {(membershipPreview.membership.discount * 100).toFixed(0)}折
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">原价:</span>
+                      <span className="line-through text-gray-500">
+                        ¥{membershipPreview.originalAmount.toFixed(2)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">优惠后:</span>
+                      <span className="font-bold text-green-700">
+                        ¥{membershipPreview.finalAmount.toFixed(2)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">节省:</span>
+                      <span className="font-bold text-red-600">
+                        ¥{membershipPreview.saved.toFixed(2)}
+                      </span>
+                    </div>
+                    <div className="text-xs text-gray-600 border-t pt-2">
+                      可优惠 {membershipPreview.discountableCount} 件商品（今日剩余 {membershipPreview.remainingToday} 次）
+                    </div>
+                    <button
+                      onClick={applyMembership}
+                      disabled={applyingMembership}
+                      className="w-full mt-2 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed font-medium"
+                    >
+                      {applyingMembership ? "应用中..." : "应用会员码"}
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           <div className="border-t pt-4">
+            {order.membershipId && order.originalAmount && (
+              <div className="mb-3 text-sm space-y-1">
+                <div className="flex justify-between text-gray-600">
+                  <span>原价:</span>
+                  <span className="line-through">¥{order.originalAmount.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-green-600">
+                  <span>会员折扣 ({(order.discount! * 100).toFixed(0)}折):</span>
+                  <span>-¥{(order.originalAmount - order.totalAmount).toFixed(2)}</span>
+                </div>
+              </div>
+            )}
             <div className="flex justify-between items-center">
               <span className="text-lg font-semibold">支付金额</span>
               <span className="text-2xl font-bold text-red-600">

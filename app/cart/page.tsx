@@ -5,6 +5,7 @@ import Image from "next/image"
 import Link from "next/link"
 import { useCart } from "@/hooks/useCart"
 import { useState } from "react"
+import { useToast } from "@/components/Toast"
 
 interface MembershipInfo {
   id: string
@@ -26,14 +27,16 @@ interface MembershipInfo {
 export default function CartPage() {
   const router = useRouter()
   const { cart, updateQuantity, removeFromCart, clearCart, total, isLoaded } = useCart()
+  const { showToast } = useToast()
   const [membershipCode, setMembershipCode] = useState("")
   const [membership, setMembership] = useState<MembershipInfo | null>(null)
   const [verifying, setVerifying] = useState(false)
   const [membershipError, setMembershipError] = useState<string | null>(null)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null)
 
   const handleRemoveItem = (productId: string) => {
-    if (!confirm("确定要删除这个商品吗？")) return
     removeFromCart(productId)
+    showToast("商品已从购物车移除", "success")
   }
 
   const verifyMembership = async () => {
@@ -104,7 +107,7 @@ export default function CartPage() {
 
   const checkout = async () => {
     if (cart.length === 0) {
-      alert("购物车是空的")
+      showToast("购物车是空的", "warning")
       return
     }
 
@@ -163,7 +166,7 @@ export default function CartPage() {
       // 跳转到支付页面（产品思维：不要立即弹出订单号，而是引导用户完成支付）
       router.push(`/payment/${data.order.id}`)
     } catch (err) {
-      alert(err instanceof Error ? err.message : "创建订单失败")
+      showToast(err instanceof Error ? err.message : "创建订单失败", "error")
     }
   }
 

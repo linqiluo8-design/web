@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import Image from "next/image"
 import Link from "next/link"
 import { useCart } from "@/hooks/useCart"
+import { useToast } from "@/components/Toast"
 
 interface Product {
   id: string
@@ -18,14 +19,30 @@ interface Product {
   createdAt: string
 }
 
+interface MembershipInfo {
+  id: string
+  code: string
+  discount: number
+  dailyLimit: number
+  todayUsed: number
+  remainingToday: number
+  endDate: string | null
+}
+
 export default function ProductDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter()
   const { addToCart: addToCartHook } = useCart()
+  const { showToast } = useToast()
   const [product, setProduct] = useState<Product | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [quantity, setQuantity] = useState(1)
   const [productId, setProductId] = useState<string | null>(null)
+  const [membershipCode, setMembershipCode] = useState("")
+  const [membership, setMembership] = useState<MembershipInfo | null>(null)
+  const [verifying, setVerifying] = useState(false)
+  const [membershipError, setMembershipError] = useState<string | null>(null)
+  const [showMembershipInput, setShowMembershipInput] = useState(false)
 
   useEffect(() => {
     // Resolve params promise in Next.js 16
@@ -64,6 +81,57 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
     }
   }
 
+  const verifyMembership = async () => {
+    if (!membershipCode.trim()) {
+      setMembershipError("请输入会员码")
+      return
+    }
+
+    setVerifying(true)
+    setMembershipError(null)
+
+    try {
+      const res = await fetch("/api/memberships/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ membershipCode: membershipCode.trim() })
+      })
+
+      const data = await res.json()
+
+      if (!data.valid) {
+        setMembershipError(data.error || "会员码无效")
+        setMembership(null)
+        return
+      }
+
+      setMembership(data.membership)
+      setMembershipError(null)
+    } catch (err) {
+      setMembershipError("验证失败，请重试")
+      setMembership(null)
+    } finally {
+      setVerifying(false)
+    }
+  }
+
+  const removeMembership = () => {
+    setMembership(null)
+    setMembershipCode("")
+    setMembershipError(null)
+  }
+
+  // 计算折扣后的价格
+  const calculateFinalPrice = () => {
+    if (!product) return 0
+    const originalPrice = product.price * quantity
+    if (!membership) return originalPrice
+
+    const discountableCount = Math.min(quantity, membership.remainingToday)
+    const discountAmount = product.price * discountableCount * (1 - membership.discount)
+    return originalPrice - discountAmount
+  }
+
   const addToCart = () => {
     if (!product) return
 
@@ -74,30 +142,39 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
       coverImage: product.coverImage
     }, quantity)
 
-    if (confirm("✓ 已成功添加到购物车！\n\n是否前往购物车查看？")) {
+    showToast("✓ 已成功添加到购物车！", "success")
+    // 1秒后自动跳转到购物车
+    setTimeout(() => {
       router.push("/cart")
-    }
+    }, 1000)
   }
 
   const buyNow = async () => {
     if (!product) return
 
     try {
+      const orderData: any = {
+        items: [{
+          productId: product.id,
+          quantity: quantity,
+          price: product.price
+        }]
+      }
+
+      // 如果使用了会员码，添加会员信息
+      if (membership) {
+        orderData.membershipCode = membership.code
+      }
+
       const res = await fetch("/api/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          items: [{
-            productId: product.id,
-            quantity: quantity,
-            price: product.price
-          }]
-        }),
+        body: JSON.stringify(orderData),
       })
 
       if (!res.ok) {
         const error = await res.json()
-        alert(error.error || "创建订单失败")
+        showToast(error.error || "创建订单失败", "error")
         return
       }
 
@@ -128,7 +205,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
       // 产品思维：直接跳转到支付页面，引导用户完成支付流程
       router.push(`/payment/${data.order.id}`)
     } catch (err) {
-      alert("创建订单失败，请稍后重试")
+      showToast("创建订单失败，请稍后重试", "error")
     }
   }
 
@@ -196,9 +273,103 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
           <p className="text-gray-600 mb-6">{product.description}</p>
 
           <div className="mb-6">
-            <span className="text-4xl font-bold text-blue-600">
-              ¥{product.price.toFixed(2)}
-            </span>
+            <div className="flex items-baseline gap-2">
+              {membership && (
+                <span className="text-2xl text-gray-400 line-through">
+                  ¥{(product.price * quantity).toFixed(2)}
+                </span>
+              )}
+              <span className="text-4xl font-bold text-blue-600">
+                ¥{calculateFinalPrice().toFixed(2)}
+              </span>
+            </div>
+            {membership && (
+              <p className="text-sm text-green-600 mt-1">
+                已节省 ¥{((product.price * quantity) - calculateFinalPrice()).toFixed(2)}
+              </p>
+            )}
+          </div>
+
+          {/* 会员码区域 */}
+          <div className="mb-6">
+            {!membership ? (
+              <div>
+                <button
+                  onClick={() => setShowMembershipInput(!showMembershipInput)}
+                  className="text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                  使用会员码享受折扣
+                </button>
+                {showMembershipInput && (
+                  <div className="mt-2 p-3 bg-gray-50 rounded-md">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      会员码
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={membershipCode}
+                        onChange={(e) => setMembershipCode(e.target.value.toUpperCase())}
+                        placeholder="输入会员码"
+                        className="flex-1 px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                        maxLength={16}
+                      />
+                      <button
+                        onClick={verifyMembership}
+                        disabled={verifying}
+                        className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:bg-gray-300 text-sm font-medium"
+                      >
+                        {verifying ? "验证中..." : "使用"}
+                      </button>
+                    </div>
+                    {membershipError && (
+                      <p className="text-red-600 text-xs mt-1">{membershipError}</p>
+                    )}
+                    <Link
+                      href="/membership"
+                      className="text-xs text-blue-600 hover:underline mt-2 inline-block"
+                    >
+                      还没有会员？立即购买
+                    </Link>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="bg-gradient-to-r from-blue-50 to-purple-50 p-3 rounded-lg">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <svg className="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                      </svg>
+                      <span className="text-sm font-semibold text-gray-800">
+                        会员码已应用
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-600 mt-1">
+                      {(membership.discount * 10).toFixed(1)}折优惠 · 今日剩余 {membership.remainingToday}/{membership.dailyLimit} 次
+                    </p>
+                  </div>
+                  <button
+                    onClick={removeMembership}
+                    className="text-gray-400 hover:text-red-600"
+                    title="移除会员码"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+                {quantity > membership.remainingToday && (
+                  <p className="text-xs text-orange-600 mt-2">
+                    ⚠️ 今日优惠次数不足，仅前 {membership.remainingToday} 件商品享受折扣
+                  </p>
+                )}
+              </div>
+            )}
           </div>
 
           {/* 数量选择 */}

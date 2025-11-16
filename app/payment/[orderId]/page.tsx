@@ -108,7 +108,7 @@ export default function PaymentPage({ params }: { params: Promise<{ orderId: str
         alert("请使用微信扫描二维码支付\n\n（演示模式：直接模拟支付成功）")
         // 模拟支付成功
         setTimeout(() => {
-          router.push(`/payment/success?orderNumber=${order.orderNumber}`)
+          router.push(`/payment/success?orderNumber=${order.orderNumber}&amount=${order.totalAmount}`)
         }, 1000)
       } else if (selectedMethod === "paypal") {
         // PayPal：跳转到PayPal

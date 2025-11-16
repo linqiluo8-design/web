@@ -86,6 +86,13 @@ export default function OrderManagementPage() {
   const [cleanupType, setCleanupType] = useState<"custom" | "month">("month")
   const [cleanupCustomDays, setCleanupCustomDays] = useState(30)
 
+  // 导出状态追踪（用于控制是否可以清理）
+  const [lastExportConfig, setLastExportConfig] = useState<{
+    startDate: string
+    endDate: string
+    status: string
+  } | null>(null)
+
   useEffect(() => {
     if (status === "unauthenticated") {
       router.push("/auth/signin")
@@ -265,6 +272,13 @@ export default function OrderManagementPage() {
       window.URL.revokeObjectURL(url)
       document.body.removeChild(a)
 
+      // 记录导出配置，允许后续清理
+      setLastExportConfig({
+        startDate: exportStartDate,
+        endDate: exportEndDate,
+        status: exportStatus
+      })
+
       alert("✓ 导出成功")
     } catch (err) {
       alert(err instanceof Error ? err.message : "导出失败")
@@ -274,6 +288,17 @@ export default function OrderManagementPage() {
   }
 
   const handleCleanup = async () => {
+    // 检查是否已导出相同配置的数据
+    const configMatches = lastExportConfig &&
+      lastExportConfig.startDate === cleanupStartDate &&
+      lastExportConfig.endDate === cleanupEndDate &&
+      lastExportConfig.status === cleanupStatus
+
+    if (!configMatches) {
+      alert("⚠️ 请先导出当前配置的订单数据！\n\n为了数据安全，必须先导出要清理的订单数据，才能执行清理操作。")
+      return
+    }
+
     if (!confirm(`确定要删除 ${cleanupStartDate} 至 ${cleanupEndDate} 期间的订单吗？\n\n此操作不可恢复，请确保已经导出备份！`)) {
       return
     }
@@ -304,8 +329,12 @@ export default function OrderManagementPage() {
       const data = await response.json()
       alert(`✓ ${data.message}`)
 
+      // 清除导出记录（清理完成后需要重新导出）
+      setLastExportConfig(null)
+
       // 刷新统计数据
       await fetchStats()
+      await fetchOrders()
     } catch (err) {
       alert(err instanceof Error ? err.message : "清理失败")
     } finally {
@@ -788,6 +817,24 @@ export default function OrderManagementPage() {
           </div>
         </div>
 
+        {/* 导出状态提示 */}
+        {lastExportConfig && (
+          <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-md">
+            <p className="text-sm text-green-800">
+              ✓ 已导出数据：{lastExportConfig.startDate} 至 {lastExportConfig.endDate}
+              {lastExportConfig.status !== "all" && ` (${lastExportConfig.status})`}
+            </p>
+          </div>
+        )}
+
+        {!lastExportConfig && (
+          <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+            <p className="text-sm text-yellow-800">
+              ⚠️ 请先导出要清理的订单数据，才能执行清理操作
+            </p>
+          </div>
+        )}
+
         <button
           onClick={handleCleanup}
           disabled={loading}
@@ -803,7 +850,9 @@ export default function OrderManagementPage() {
           <li>• 导出功能支持CSV和JSON两种格式，CSV可直接用Excel打开</li>
           <li>• 按自然月导出：导出当前自然月的所有订单</li>
           <li>• 自定义天数：导出最近N天的订单（默认30天）</li>
-          <li>• 清理功能会永久删除订单数据，请务必先导出备份</li>
+          <li>• <strong>安全机制</strong>：清理前必须先导出相同配置的订单数据，系统会自动验证</li>
+          <li>• 导出和清理的配置（日期范围、状态）必须完全一致才能执行清理</li>
+          <li>• 清理成功后，导出记录会被清除，需要重新导出才能再次清理</li>
           <li>• 建议定期导出订单数据作为备份，可按月或按自定义周期进行</li>
           <li>• 已清理的订单数据无法恢复，请谨慎操作</li>
         </ul>

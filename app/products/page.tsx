@@ -53,6 +53,14 @@ export default function ProductsPage() {
   const [jumpToPage, setJumpToPage] = useState("")
   const [buyingProductId, setBuyingProductId] = useState<string | null>(null)
 
+  // 会员码相关状态
+  const [showMembershipModal, setShowMembershipModal] = useState(false)
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
+  const [membershipCode, setMembershipCode] = useState("")
+  const [membership, setMembership] = useState<any>(null)
+  const [verifying, setVerifying] = useState(false)
+  const [membershipError, setMembershipError] = useState<string | null>(null)
+
   useEffect(() => {
     fetchProducts()
     fetchCategories()
@@ -128,20 +136,69 @@ export default function ProductsPage() {
     showToast("✓ 已成功添加到购物车！", "success", 3000)
   }
 
-  const buyNow = async (product: Product) => {
+  const openBuyNowModal = (product: Product) => {
+    setSelectedProduct(product)
+    setShowMembershipModal(true)
+    setMembershipCode("")
+    setMembership(null)
+    setMembershipError(null)
+  }
+
+  const verifyMembership = async () => {
+    if (!membershipCode.trim()) {
+      setMembershipError("请输入会员码")
+      return
+    }
+
+    setVerifying(true)
+    setMembershipError(null)
+
+    try {
+      const res = await fetch("/api/memberships/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ membershipCode: membershipCode.trim() })
+      })
+
+      const data = await res.json()
+
+      if (!data.valid) {
+        setMembershipError(data.error || "会员码无效")
+        setMembership(null)
+        return
+      }
+
+      setMembership(data.membership)
+      setMembershipError(null)
+    } catch (err) {
+      setMembershipError("验证失败，请重试")
+      setMembership(null)
+    } finally {
+      setVerifying(false)
+    }
+  }
+
+  const buyNow = async (product: Product, useMembershipCode?: string) => {
     try {
       setBuyingProductId(product.id)
+
+      const orderData: any = {
+        items: [{
+          productId: product.id,
+          quantity: 1,
+          price: product.price
+        }]
+      }
+
+      // 如果使用了会员码，添加会员信息
+      if (useMembershipCode) {
+        orderData.membershipCode = useMembershipCode
+      }
 
       const res = await fetch("/api/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          items: [{
-            productId: product.id,
-            quantity: 1,
-            price: product.price
-          }]
-        }),
+        body: JSON.stringify(orderData),
       })
 
       if (!res.ok) {
@@ -177,6 +234,16 @@ export default function ProductsPage() {
       alert(err instanceof Error ? err.message : "创建订单失败，请重试")
       setBuyingProductId(null)
     }
+  }
+
+  const handleConfirmBuy = async () => {
+    if (!selectedProduct) return
+
+    // 关闭弹窗
+    setShowMembershipModal(false)
+
+    // 执行购买
+    await buyNow(selectedProduct, membership?.code)
   }
 
   const fetchCategories = async () => {
@@ -431,7 +498,7 @@ export default function ProductsPage() {
                       加入购物车
                     </button>
                     <button
-                      onClick={() => buyNow(product)}
+                      onClick={() => openBuyNowModal(product)}
                       disabled={buyingProductId === product.id}
                       className="flex-1 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
@@ -520,6 +587,129 @@ export default function ProductsPage() {
             </div>
           )}
         </>
+      )}
+
+      {/* 立即购买会员码弹窗 */}
+      {showMembershipModal && selectedProduct && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-lg w-full p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-gray-900">立即购买</h3>
+              <button
+                onClick={() => setShowMembershipModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* 商品信息 */}
+            <div className="mb-6 p-4 bg-gray-50 rounded-lg">
+              <h4 className="font-semibold text-gray-900 mb-2">{selectedProduct.title}</h4>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-600">原价</span>
+                <span className="text-2xl font-bold text-blue-600">
+                  ¥{selectedProduct.price.toFixed(2)}
+                </span>
+              </div>
+              {membership && membership.discount < 1 && (
+                <div className="mt-2 flex items-center justify-between border-t pt-2">
+                  <span className="text-sm text-green-600">会员折扣 ({(membership.discount * 100).toFixed(0)}折)</span>
+                  <span className="text-xl font-bold text-red-600">
+                    ¥{(selectedProduct.price * membership.discount).toFixed(2)}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* 会员码输入 */}
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                会员码（可选）
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={membershipCode}
+                  onChange={(e) => setMembershipCode(e.target.value)}
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter' && !membership) {
+                      verifyMembership()
+                    }
+                  }}
+                  placeholder="输入会员码享受折扣"
+                  disabled={!!membership}
+                  className="flex-1 px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+                />
+                {!membership ? (
+                  <button
+                    onClick={verifyMembership}
+                    disabled={verifying || !membershipCode.trim()}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+                  >
+                    {verifying ? "验证中..." : "验证"}
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => {
+                      setMembership(null)
+                      setMembershipCode("")
+                      setMembershipError(null)
+                    }}
+                    className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600"
+                    title="移除会员码"
+                  >
+                    移除
+                  </button>
+                )}
+              </div>
+
+              {/* 错误提示 */}
+              {membershipError && (
+                <p className="mt-2 text-sm text-red-600">{membershipError}</p>
+              )}
+
+              {/* 会员信息 */}
+              {membership && (
+                <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-md">
+                  <p className="text-sm text-green-800">
+                    ✓ 会员验证成功！{membership.planName}
+                    {membership.discount < 1 && ` (${(membership.discount * 100).toFixed(0)}折)`}
+                  </p>
+                  {membership.remainingToday !== undefined && (
+                    <p className="text-xs text-gray-600 mt-1">
+                      今日剩余使用次数: {membership.remainingToday}
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* 操作按钮 */}
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowMembershipModal(false)}
+                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
+              >
+                取消
+              </button>
+              <button
+                onClick={handleConfirmBuy}
+                disabled={buyingProductId === selectedProduct.id}
+                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50"
+              >
+                {buyingProductId === selectedProduct.id ? "处理中..." : "确认购买"}
+              </button>
+            </div>
+
+            {/* 提示信息 */}
+            <p className="mt-4 text-xs text-gray-500 text-center">
+              点击"确认购买"后将创建订单并跳转到支付页面
+            </p>
+          </div>
+        </div>
       )}
 
       {/* 课程互换弹窗 */}

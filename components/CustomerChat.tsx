@@ -3,49 +3,77 @@
 import { useEffect, useState } from "react"
 
 /**
- * 客服聊天组件
+ * 客服聊天组件 - 使用开源方案 Chatwoot
  *
  * 使用方式：
- * 1. 方式一：集成 Tawk.to
- *    - 访问 https://www.tawk.to/ 注册账号（免费）
- *    - 获取您的 Property ID 和 Widget ID
+ * 1. 方式一：集成 Chatwoot（推荐的开源方案）
+ *    - 自建：部署 Chatwoot 服务（https://github.com/chatwoot/chatwoot）
+ *    - 或使用官方云服务：https://www.chatwoot.com/
  *    - 在环境变量中设置：
- *      NEXT_PUBLIC_TAWK_PROPERTY_ID=your_property_id
- *      NEXT_PUBLIC_TAWK_WIDGET_ID=your_widget_id
+ *      NEXT_PUBLIC_CHATWOOT_WEBSITE_TOKEN=your_website_token
+ *      NEXT_PUBLIC_CHATWOOT_BASE_URL=https://app.chatwoot.com (或你的自建地址)
  *
  * 2. 方式二：使用内置简易聊天（当前实现）
  *    - 不需要外部服务
  *    - 显示联系方式供用户自助联系
+ *
+ * Chatwoot 优势：
+ * - 完全开源（MIT 协议）
+ * - 支持多渠道（网站、邮件、社交媒体）
+ * - 现代化 UI 界面
+ * - 可自建部署，数据完全掌控
+ * - 活跃的社区支持
  */
 
 export default function CustomerChat() {
   const [isOpen, setIsOpen] = useState(false)
-  const [isTawkLoaded, setIsTawkLoaded] = useState(false)
+  const [isChatwootLoaded, setIsChatwootLoaded] = useState(false)
 
-  // Tawk.to 集成配置
-  const tawkPropertyId = process.env.NEXT_PUBLIC_TAWK_PROPERTY_ID
-  const tawkWidgetId = process.env.NEXT_PUBLIC_TAWK_WIDGET_ID
+  // Chatwoot 集成配置
+  const chatwootToken = process.env.NEXT_PUBLIC_CHATWOOT_WEBSITE_TOKEN
+  const chatwootBaseUrl = process.env.NEXT_PUBLIC_CHATWOOT_BASE_URL || "https://app.chatwoot.com"
 
   useEffect(() => {
-    // 如果配置了 Tawk.to，则加载 Tawk.to 脚本
-    if (tawkPropertyId && tawkWidgetId && !isTawkLoaded) {
+    // 如果配置了 Chatwoot，则加载 Chatwoot 脚本
+    if (chatwootToken && !isChatwootLoaded) {
+      // 设置 Chatwoot 配置
+      (window as any).chatwootSettings = {
+        hideMessageBubble: false,
+        position: "right",
+        locale: "zh_CN",
+        type: "standard",
+      }
+
+      // 加载 Chatwoot 脚本
       const script = document.createElement("script")
+      script.src = `${chatwootBaseUrl}/packs/js/sdk.js`
+      script.defer = true
       script.async = true
-      script.src = `https://embed.tawk.to/${tawkPropertyId}/${tawkWidgetId}`
-      script.charset = "UTF-8"
-      script.setAttribute("crossorigin", "*")
+
+      script.onload = () => {
+        (window as any).chatwootSDK?.run({
+          websiteToken: chatwootToken,
+          baseUrl: chatwootBaseUrl,
+        })
+        setIsChatwootLoaded(true)
+      }
+
       document.body.appendChild(script)
 
-      setIsTawkLoaded(true)
-
       return () => {
-        document.body.removeChild(script)
+        // 清理 Chatwoot
+        if ((window as any).$chatwoot) {
+          (window as any).$chatwoot = undefined
+        }
+        if (document.body.contains(script)) {
+          document.body.removeChild(script)
+        }
       }
     }
-  }, [tawkPropertyId, tawkWidgetId, isTawkLoaded])
+  }, [chatwootToken, chatwootBaseUrl, isChatwootLoaded])
 
-  // 如果已加载 Tawk.to，不显示内置聊天按钮
-  if (isTawkLoaded) {
+  // 如果已加载 Chatwoot，不显示内置聊天按钮
+  if (isChatwootLoaded) {
     return null
   }
 

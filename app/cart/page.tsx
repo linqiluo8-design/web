@@ -160,11 +160,13 @@ export default function CartPage() {
         console.error("保存订单记录失败:", error)
       }
 
-      // Clear cart after successful order creation
-      clearCart()
-
       // 跳转到支付页面（产品思维：不要立即弹出订单号，而是引导用户完成支付）
       router.push(`/payment/${data.order.id}`)
+
+      // 延迟清空购物车，避免在页面跳转前闪现"购物车为空"
+      setTimeout(() => {
+        clearCart()
+      }, 100)
     } catch (err) {
       showToast(err instanceof Error ? err.message : "创建订单失败", "error")
     }

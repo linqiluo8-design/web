@@ -5,6 +5,7 @@ import Link from "next/link"
 import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { useCart } from "@/hooks/useCart"
+import { useToast } from "@/components/Toast"
 
 interface Product {
   id: string
@@ -36,6 +37,7 @@ interface Category {
 export default function ProductsPage() {
   const router = useRouter()
   const { addToCart: addToCartHook } = useCart()
+  const { showToast } = useToast()
   const categoryFilterRef = useRef<HTMLDivElement>(null)
   const [data, setData] = useState<ProductsResponse | null>(null)
   const [categories, setCategories] = useState<Category[]>([])
@@ -121,7 +123,7 @@ export default function ProductsPage() {
       price: product.price,
       coverImage: product.coverImage
     }, 1)
-    alert("✓ 已成功添加到购物车！")
+    showToast("✓ 已成功添加到购物车！", "success", 3000)
   }
 
   const buyNow = async (product: Product) => {

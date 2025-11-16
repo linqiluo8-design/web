@@ -26,15 +26,34 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "订单状态不正确" }, { status: 400 })
     }
 
-    const payment = await prisma.payment.create({
-      data: {
-        orderId: order.id,
-        paymentMethod: data.paymentMethod,
-        amount: data.amount,
-        currency: "CNY",
-        status: "pending"
-      }
+    // 检查是否已有支付记录
+    let payment = await prisma.payment.findUnique({
+      where: { orderId: order.id }
     })
+
+    // 如果已有支付记录，更新支付方式；否则创建新记录
+    if (payment) {
+      // 更新现有支付记录
+      payment = await prisma.payment.update({
+        where: { id: payment.id },
+        data: {
+          paymentMethod: data.paymentMethod,
+          amount: data.amount,
+          status: "pending"
+        }
+      })
+    } else {
+      // 创建新支付记录
+      payment = await prisma.payment.create({
+        data: {
+          orderId: order.id,
+          paymentMethod: data.paymentMethod,
+          amount: data.amount,
+          currency: "CNY",
+          status: "pending"
+        }
+      })
+    }
 
     if (data.paymentMethod === "alipay") {
       return NextResponse.json({

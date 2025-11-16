@@ -218,47 +218,52 @@ async function main() {
 
   // 5. 创建会员方案
   console.log('5️⃣ 创建会员方案...')
-  const plans = await Promise.all([
-    prisma.membershipPlan.upsert({
-      where: { name: '月度会员' },
-      update: {},
-      create: {
-        name: '月度会员',
-        price: 29.00,
-        duration: 30,
-        discount: 0.9, // 9折
-        dailyLimit: 5,
-        status: 'active',
-        sortOrder: 1
-      }
-    }),
-    prisma.membershipPlan.upsert({
-      where: { name: '季度会员' },
-      update: {},
-      create: {
-        name: '季度会员',
-        price: 79.00,
-        duration: 90,
-        discount: 0.85, // 8.5折
-        dailyLimit: 10,
-        status: 'active',
-        sortOrder: 2
-      }
-    }),
-    prisma.membershipPlan.upsert({
-      where: { name: '年度会员' },
-      update: {},
-      create: {
-        name: '年度会员',
-        price: 299.00,
-        duration: 365,
-        discount: 0.8, // 8折
-        dailyLimit: 20,
-        status: 'active',
-        sortOrder: 3
-      }
+  const planData = [
+    {
+      name: '月度会员',
+      price: 29.00,
+      duration: 30,
+      discount: 0.9, // 9折
+      dailyLimit: 5,
+      status: 'active',
+      sortOrder: 1
+    },
+    {
+      name: '季度会员',
+      price: 79.00,
+      duration: 90,
+      discount: 0.85, // 8.5折
+      dailyLimit: 10,
+      status: 'active',
+      sortOrder: 2
+    },
+    {
+      name: '年度会员',
+      price: 299.00,
+      duration: 365,
+      discount: 0.8, // 8折
+      dailyLimit: 20,
+      status: 'active',
+      sortOrder: 3
+    }
+  ]
+
+  const plans = []
+  for (const plan of planData) {
+    // 检查是否已存在
+    const existing = await prisma.membershipPlan.findFirst({
+      where: { name: plan.name }
     })
-  ])
+
+    if (!existing) {
+      const created = await prisma.membershipPlan.create({
+        data: plan
+      })
+      plans.push(created)
+    } else {
+      plans.push(existing)
+    }
+  }
   console.log(`   ✓ 创建了 ${plans.length} 个会员方案\n`)
 
   console.log('✅ 所有测试数据创建完成!\n')

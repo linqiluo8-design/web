@@ -1,13 +1,15 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useSearchParams } from "next/navigation"
+import { useSearchParams, useRouter } from "next/navigation"
 import Link from "next/link"
 import { saveOrderToLocal } from "@/app/my-orders/page"
 
 export default function PaymentSuccessPage() {
   const searchParams = useSearchParams()
+  const router = useRouter()
   const [orderNumber, setOrderNumber] = useState<string>("")
+  const [orderSaved, setOrderSaved] = useState(false)
 
   useEffect(() => {
     const number = searchParams.get("orderNumber")
@@ -16,8 +18,19 @@ export default function PaymentSuccessPage() {
       setOrderNumber(number)
       // 保存到"我的订单"
       saveOrderToLocal(number, parseFloat(amount || "0"))
+      setOrderSaved(true)
     }
   }, [searchParams])
+
+  const handleViewOrders = () => {
+    // 确保订单已保存后再跳转
+    const number = searchParams.get("orderNumber")
+    const amount = searchParams.get("amount")
+    if (number && !orderSaved) {
+      saveOrderToLocal(number, parseFloat(amount || "0"))
+    }
+    router.push("/my-orders")
+  }
 
   return (
     <div className="container mx-auto px-4 py-16">
@@ -44,12 +57,12 @@ export default function PaymentSuccessPage() {
         )}
 
         <div className="space-y-3">
-          <Link
-            href="/my-orders"
+          <button
+            onClick={handleViewOrders}
             className="block w-full py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
           >
             查看我的订单
-          </Link>
+          </button>
 
           <Link
             href="/products"

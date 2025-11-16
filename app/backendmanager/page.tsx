@@ -25,6 +25,8 @@ interface Category {
   name: string
 }
 
+type CreateMode = "single" | "batch" | null
+
 export default function AdminPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
@@ -34,6 +36,29 @@ export default function AdminPage() {
   const [error, setError] = useState<string | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editForm, setEditForm] = useState<Partial<Product>>({})
+  const [createMode, setCreateMode] = useState<CreateMode>(null)
+  const [createForm, setCreateForm] = useState<Partial<Product>>({
+    title: "",
+    description: "",
+    content: "",
+    price: 0,
+    categoryId: "",
+    coverImage: "",
+    showImage: true,
+    status: "active"
+  })
+  const [batchProducts, setBatchProducts] = useState<Partial<Product>[]>([
+    {
+      title: "",
+      description: "",
+      content: "",
+      price: 0,
+      categoryId: "",
+      coverImage: "",
+      showImage: true,
+      status: "active"
+    }
+  ])
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -149,6 +174,127 @@ export default function AdminPage() {
     }
   }
 
+  const startCreate = (mode: CreateMode) => {
+    setCreateMode(mode)
+    if (mode === "single") {
+      setCreateForm({
+        title: "",
+        description: "",
+        content: "",
+        price: 0,
+        categoryId: "",
+        coverImage: "",
+        showImage: true,
+        status: "active"
+      })
+    }
+  }
+
+  const cancelCreate = () => {
+    setCreateMode(null)
+    setCreateForm({
+      title: "",
+      description: "",
+      content: "",
+      price: 0,
+      categoryId: "",
+      coverImage: "",
+      showImage: true,
+      status: "active"
+    })
+    setBatchProducts([
+      {
+        title: "",
+        description: "",
+        content: "",
+        price: 0,
+        categoryId: "",
+        coverImage: "",
+        showImage: true,
+        status: "active"
+      }
+    ])
+  }
+
+  const handleCreateSingle = async () => {
+    try {
+      const response = await fetch("/api/admin/products", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(createForm)
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || "创建商品失败")
+      }
+
+      await fetchProducts()
+      cancelCreate()
+      alert("✓ 商品创建成功")
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "创建失败")
+    }
+  }
+
+  const handleCreateBatch = async () => {
+    try {
+      // 过滤掉空的商品
+      const validProducts = batchProducts.filter(p => p.title && p.description && p.price)
+
+      if (validProducts.length === 0) {
+        alert("请至少填写一个完整的商品信息")
+        return
+      }
+
+      const response = await fetch("/api/admin/products", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ products: validProducts })
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || "批量创建商品失败")
+      }
+
+      const data = await response.json()
+      await fetchProducts()
+      cancelCreate()
+      alert(`✓ ${data.message}`)
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "批量创建失败")
+    }
+  }
+
+  const addBatchProduct = () => {
+    setBatchProducts([
+      ...batchProducts,
+      {
+        title: "",
+        description: "",
+        content: "",
+        price: 0,
+        categoryId: "",
+        coverImage: "",
+        showImage: true,
+        status: "active"
+      }
+    ])
+  }
+
+  const removeBatchProduct = (index: number) => {
+    if (batchProducts.length > 1) {
+      setBatchProducts(batchProducts.filter((_, i) => i !== index))
+    }
+  }
+
+  const updateBatchProduct = (index: number, field: keyof Product, value: any) => {
+    const updated = [...batchProducts]
+    updated[index] = { ...updated[index], [field]: value }
+    setBatchProducts(updated)
+  }
+
   if (status === "loading" || loading) {
     return (
       <div className="container mx-auto px-4 py-8">
@@ -167,23 +313,288 @@ export default function AdminPage() {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-4">后台管理 - 商品管理</h1>
-        <div className="flex gap-4">
-          <Link
-            href="/backendmanager/categories"
-            className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200"
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <h1 className="text-3xl font-bold mb-4">后台管理 - 商品管理</h1>
+          <div className="flex gap-4">
+            <Link
+              href="/backendmanager/categories"
+              className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200"
+            >
+              分类管理
+            </Link>
+            <Link
+              href="/backendmanager/memberships"
+              className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200"
+            >
+              会员管理
+            </Link>
+            <Link
+              href="/backendmanager/orders"
+              className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200"
+            >
+              订单数据管理
+            </Link>
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <button
+            onClick={() => startCreate("single")}
+            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
           >
-            分类管理
-          </Link>
-          <Link
-            href="/backendmanager/memberships"
-            className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200"
+            + 新建商品
+          </button>
+          <button
+            onClick={() => startCreate("batch")}
+            className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
           >
-            会员管理
-          </Link>
+            + 批量添加
+          </button>
         </div>
       </div>
+
+      {/* 单个商品创建表单 */}
+      {createMode === "single" && (
+        <div className="bg-white rounded-lg shadow p-6 mb-6">
+          <h3 className="text-lg font-semibold mb-4">创建新商品</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                商品标题 *
+              </label>
+              <input
+                type="text"
+                value={createForm.title || ""}
+                onChange={(e) => setCreateForm({ ...createForm, title: e.target.value })}
+                className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="例如：Python入门课程"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                价格 *
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                value={createForm.price || 0}
+                onChange={(e) => setCreateForm({ ...createForm, price: parseFloat(e.target.value) })}
+                className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                简短描述 *
+              </label>
+              <input
+                type="text"
+                value={createForm.description || ""}
+                onChange={(e) => setCreateForm({ ...createForm, description: e.target.value })}
+                className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="一句话介绍"
+              />
+            </div>
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                详细内容
+              </label>
+              <textarea
+                value={createForm.content || ""}
+                onChange={(e) => setCreateForm({ ...createForm, content: e.target.value })}
+                className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                rows={4}
+                placeholder="支持Markdown格式"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                分类
+              </label>
+              <select
+                value={createForm.categoryId || ""}
+                onChange={(e) => setCreateForm({ ...createForm, categoryId: e.target.value })}
+                className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">无分类</option>
+                {categories.map((cat) => (
+                  <option key={cat.id} value={cat.id}>
+                    {cat.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                封面图片 URL
+              </label>
+              <input
+                type="text"
+                value={createForm.coverImage || ""}
+                onChange={(e) => setCreateForm({ ...createForm, coverImage: e.target.value })}
+                className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="https://example.com/image.jpg"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                图片显示设置
+              </label>
+              <div className="flex items-center gap-2 mt-2">
+                <input
+                  type="checkbox"
+                  id="createShowImage"
+                  checked={createForm.showImage ?? true}
+                  onChange={(e) => setCreateForm({ ...createForm, showImage: e.target.checked })}
+                  className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                />
+                <label htmlFor="createShowImage" className="text-sm text-gray-700">
+                  在商品列表中显示图片
+                </label>
+              </div>
+            </div>
+            {createForm.coverImage && (
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  封面预览
+                </label>
+                <div className="relative w-32 h-32">
+                  <Image
+                    src={createForm.coverImage}
+                    alt="预览"
+                    fill
+                    className="object-cover rounded"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+          <div className="flex gap-2 mt-4">
+            <button
+              onClick={handleCreateSingle}
+              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+            >
+              创建
+            </button>
+            <button
+              onClick={cancelCreate}
+              className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
+            >
+              取消
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* 批量商品创建表单 */}
+      {createMode === "batch" && (
+        <div className="bg-white rounded-lg shadow p-6 mb-6">
+          <h3 className="text-lg font-semibold mb-4">批量添加商品</h3>
+          <div className="space-y-6">
+            {batchProducts.map((product, index) => (
+              <div key={index} className="border rounded-lg p-4 bg-gray-50">
+                <div className="flex justify-between items-center mb-3">
+                  <h4 className="font-medium">商品 #{index + 1}</h4>
+                  {batchProducts.length > 1 && (
+                    <button
+                      onClick={() => removeBatchProduct(index)}
+                      className="text-red-600 hover:text-red-800 text-sm"
+                    >
+                      删除
+                    </button>
+                  )}
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                      商品标题 *
+                    </label>
+                    <input
+                      type="text"
+                      value={product.title || ""}
+                      onChange={(e) => updateBatchProduct(index, "title", e.target.value)}
+                      className="w-full px-2 py-1 text-sm border rounded-md"
+                      placeholder="例如：Python入门课程"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                      价格 *
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={product.price || 0}
+                      onChange={(e) => updateBatchProduct(index, "price", parseFloat(e.target.value))}
+                      className="w-full px-2 py-1 text-sm border rounded-md"
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                      简短描述 *
+                    </label>
+                    <input
+                      type="text"
+                      value={product.description || ""}
+                      onChange={(e) => updateBatchProduct(index, "description", e.target.value)}
+                      className="w-full px-2 py-1 text-sm border rounded-md"
+                      placeholder="一句话介绍"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                      分类
+                    </label>
+                    <select
+                      value={product.categoryId || ""}
+                      onChange={(e) => updateBatchProduct(index, "categoryId", e.target.value)}
+                      className="w-full px-2 py-1 text-sm border rounded-md"
+                    >
+                      <option value="">无分类</option>
+                      {categories.map((cat) => (
+                        <option key={cat.id} value={cat.id}>
+                          {cat.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                      封面图片 URL
+                    </label>
+                    <input
+                      type="text"
+                      value={product.coverImage || ""}
+                      onChange={(e) => updateBatchProduct(index, "coverImage", e.target.value)}
+                      className="w-full px-2 py-1 text-sm border rounded-md"
+                      placeholder="https://example.com/image.jpg"
+                    />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="flex gap-2 mt-4">
+            <button
+              onClick={addBatchProduct}
+              className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
+            >
+              + 添加一行
+            </button>
+            <button
+              onClick={handleCreateBatch}
+              className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+            >
+              批量创建
+            </button>
+            <button
+              onClick={cancelCreate}
+              className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
+            >
+              取消
+            </button>
+          </div>
+        </div>
+      )}
 
       {products.length === 0 ? (
         <div className="text-center text-gray-500 py-12">

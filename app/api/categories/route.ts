@@ -30,7 +30,11 @@ const createCategorySchema = z.object({
   sortOrder: z.number().optional()
 })
 
-// POST /api/categories - 创建新分类（仅管理员）
+const bulkCategorySchema = z.object({
+  categories: z.array(createCategorySchema).min(1, "至少需要一个分类"),
+})
+
+// POST /api/categories - 创建新分类（仅管理员，支持单个和批量）
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions)
@@ -40,27 +44,70 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json()
-    const data = createCategorySchema.parse(body)
 
-    // 检查分类名是否已存在
-    const existing = await prisma.category.findUnique({
-      where: { name: data.name }
-    })
+    // 判断是单个创建还是批量创建
+    if (Array.isArray(body.categories)) {
+      // 批量创建
+      const validatedData = bulkCategorySchema.parse(body)
 
-    if (existing) {
-      return NextResponse.json({ error: "分类名称已存在" }, { status: 400 })
-    }
+      // 检查分类名是否已存在
+      const existingNames = await prisma.category.findMany({
+        where: {
+          name: {
+            in: validatedData.categories.map(c => c.name)
+          }
+        },
+        select: { name: true }
+      })
 
-    const category = await prisma.category.create({
-      data: {
-        name: data.name,
-        description: data.description,
-        coverImage: data.coverImage,
-        sortOrder: data.sortOrder ?? 0
+      if (existingNames.length > 0) {
+        return NextResponse.json({
+          error: `以下分类名称已存在：${existingNames.map(c => c.name).join(', ')}`
+        }, { status: 400 })
       }
-    })
 
-    return NextResponse.json({ category })
+      const createdCategories = await prisma.$transaction(
+        validatedData.categories.map((category) =>
+          prisma.category.create({
+            data: {
+              name: category.name,
+              description: category.description,
+              coverImage: category.coverImage,
+              sortOrder: category.sortOrder ?? 0
+            }
+          })
+        )
+      )
+
+      return NextResponse.json({
+        categories: createdCategories,
+        count: createdCategories.length,
+        message: `成功创建 ${createdCategories.length} 个分类`,
+      })
+    } else {
+      // 单个创建
+      const data = createCategorySchema.parse(body)
+
+      // 检查分类名是否已存在
+      const existing = await prisma.category.findUnique({
+        where: { name: data.name }
+      })
+
+      if (existing) {
+        return NextResponse.json({ error: "分类名称已存在" }, { status: 400 })
+      }
+
+      const category = await prisma.category.create({
+        data: {
+          name: data.name,
+          description: data.description,
+          coverImage: data.coverImage,
+          sortOrder: data.sortOrder ?? 0
+        }
+      })
+
+      return NextResponse.json({ category })
+    }
   } catch (error: any) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: error.errors[0].message }, { status: 400 })

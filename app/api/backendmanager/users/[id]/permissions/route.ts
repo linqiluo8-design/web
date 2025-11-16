@@ -20,12 +20,13 @@ const permissionSchema = z.object({
  */
 export async function GET(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     await requireAdmin()
 
-    const userId = params.id
+    // Next.js 16: params 是 Promise，需要 await
+    const { id: userId } = await params
 
     const permissions = await prisma.permission.findMany({
       where: { userId },
@@ -56,12 +57,13 @@ export async function GET(
  */
 export async function POST(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     await requireAdmin()
 
-    const userId = params.id
+    // Next.js 16: params 是 Promise，需要 await
+    const { id: userId } = await params
     const body = await req.json()
     const { permissions } = permissionSchema.parse(body)
 

@@ -185,6 +185,67 @@ images: {
 - 订单创建: `app/api/orders/route.ts` - POST
 - 支付前应用会员码: `app/api/orders/[orderId]/apply-membership/route.ts` - POST
 
+---
+
+### 结算支付统一规范（2025-11）
+
+**核心原则**：凡是涉及结算支付的地方，都必须同时支持以下两个功能：
+
+#### 1. 会员码优惠功能
+- 所有结算入口必须提供会员码输入框
+- 支持实时验证会员码有效性
+- 显示折扣预览（原价、折后价、节省金额）
+- 显示会员使用限制（今日剩余次数等）
+
+#### 2. 购买会员引导功能
+- 在会员码输入区域下方必须显示"还没有会员？立即购买"链接
+- 点击链接跳转到会员购买页面 `/membership`
+- 通过 URL 参数 `from` 标识来源（如 `?from=cart`, `?from=buy-now`, `?from=payment`）
+- 购买完成后可以返回原页面继续结算
+
+#### 适用的所有结算入口：
+1. **购物车结算** (`/cart`)
+   - 会员码输入框 + 验证按钮 ✓
+   - "还没有会员？立即购买" 链接 ✓
+   - 跳转参数：`?from=cart`
+
+2. **立即购买弹窗** (`/products` 的会员码弹窗)
+   - 会员码输入框 + 验证按钮 ✓
+   - "还没有会员？立即购买" 链接 ✓（2025-11 新增）
+   - 跳转参数：`?from=buy-now`
+   - 点击链接时关闭弹窗
+
+3. **待支付订单支付页面** (`/payment/[orderId]`)
+   - 会员码输入框 + 验证按钮 ✓
+   - "还没有会员？立即购买" 链接 ✓（2025-11 新增）
+   - 跳转参数：`?from=payment`
+   - 仅当订单未应用会员码时显示
+
+#### 实现要求：
+- **UI 一致性**：所有入口的会员码输入区域样式和交互保持一致
+- **链接样式**：`text-xs text-blue-600 hover:underline`
+- **位置要求**：链接显示在会员码输入框下方，错误提示之后
+- **条件显示**：购买会员链接仅在未验证会员码时显示
+
+#### 开发规范：
+```typescript
+// 会员码输入区域标准结构
+<div className="会员码输入区">
+  <input type="text" placeholder="输入会员码" />
+  <button>验证</button>
+  {membershipError && <p className="错误提示">{membershipError}</p>}
+
+  {/* 必须包含此链接 */}
+  {!membership && (
+    <Link href="/membership?from=来源标识" className="text-xs text-blue-600 hover:underline">
+      还没有会员？立即购买
+    </Link>
+  )}
+
+  {membership && <div className="会员信息显示">...</div>}
+</div>
+```
+
 ### 支付方式
 
 支持三种支付方式：

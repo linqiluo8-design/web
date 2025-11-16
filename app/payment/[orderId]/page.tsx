@@ -332,6 +332,13 @@ export default function PaymentPage({ params }: { params: Promise<{ orderId: str
                   <p className="text-sm text-red-600">{membershipError}</p>
                 )}
 
+                <Link
+                  href="/membership?from=payment"
+                  className="text-xs text-blue-600 hover:underline inline-block mt-1"
+                >
+                  还没有会员？立即购买
+                </Link>
+
                 {membershipPreview && (
                   <div className="bg-green-50 border border-green-200 rounded-lg p-3 space-y-2">
                     <div className="flex justify-between text-sm">

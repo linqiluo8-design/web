@@ -671,6 +671,17 @@ export default function ProductsPage() {
                 <p className="mt-2 text-sm text-red-600">{membershipError}</p>
               )}
 
+              {/* 购买会员链接 */}
+              {!membership && (
+                <Link
+                  href="/membership?from=buy-now"
+                  className="text-xs text-blue-600 hover:underline inline-block mt-2"
+                  onClick={() => setShowMembershipModal(false)}
+                >
+                  还没有会员？立即购买
+                </Link>
+              )}
+
               {/* 会员信息 */}
               {membership && (
                 <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-md">

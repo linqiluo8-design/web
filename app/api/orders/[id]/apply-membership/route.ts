@@ -9,16 +9,16 @@ const applyMembershipSchema = z.object({
 // 为待支付订单应用会员码优惠
 export async function POST(
   req: Request,
-  { params }: { params: Promise<{ orderId: string }> }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { orderId } = await params
+    const { id } = await params
     const body = await req.json()
     const { membershipCode } = applyMembershipSchema.parse(body)
 
     // 查询订单
     const order = await prisma.order.findUnique({
-      where: { id: orderId },
+      where: { id },
       include: {
         orderItems: {
           include: {
@@ -131,7 +131,7 @@ export async function POST(
 
     // 更新订单
     const updatedOrder = await prisma.order.update({
-      where: { id: orderId },
+      where: { id },
       data: {
         membershipId: membership.id,
         originalAmount,

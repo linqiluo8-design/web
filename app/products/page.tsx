@@ -49,12 +49,14 @@ export default function ProductsPage() {
   const [showCategoryFilter, setShowCategoryFilter] = useState(false)
   const [showExchangeModal, setShowExchangeModal] = useState(false)
   const [page, setPage] = useState(1)
+  const [limit, setLimit] = useState(15) // 默认每页15件商品
+  const [jumpToPage, setJumpToPage] = useState("")
   const [buyingProductId, setBuyingProductId] = useState<string | null>(null)
 
   useEffect(() => {
     fetchProducts()
     fetchCategories()
-  }, [page, selectedCategories, showOther])
+  }, [page, limit, selectedCategories, showOther])
 
   // 点击外部关闭下拉框
   useEffect(() => {
@@ -78,7 +80,7 @@ export default function ProductsPage() {
       setLoading(true)
       const params = new URLSearchParams({
         page: page.toString(),
-        limit: "12",
+        limit: limit.toString(),
       })
 
       // 多选分类
@@ -209,6 +211,19 @@ export default function ProductsPage() {
     setSelectedCategories([])
     setShowOther(false)
     setPage(1)
+  }
+
+  const handleLimitChange = (newLimit: number) => {
+    setLimit(newLimit)
+    setPage(1) // 切换每页数量时回到第一页
+  }
+
+  const handleJumpToPage = () => {
+    const pageNum = parseInt(jumpToPage)
+    if (data && !isNaN(pageNum) && pageNum >= 1 && pageNum <= data.pagination.totalPages) {
+      setPage(pageNum)
+      setJumpToPage("")
+    }
   }
 
   if (loading) {
@@ -428,28 +443,80 @@ export default function ProductsPage() {
             ))}
           </div>
 
-          {/* 分页 */}
-          {data && data.pagination.totalPages > 1 && (
-            <div className="mt-8 flex justify-center gap-2">
-              <button
-                onClick={() => setPage(Math.max(1, page - 1))}
-                disabled={page === 1}
-                className="px-4 py-2 border rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
-              >
-                上一页
-              </button>
+          {/* 分页控制 */}
+          {data && data.pagination.totalPages > 0 && (
+            <div className="mt-8 space-y-4">
+              {/* 每页数量选择 */}
+              <div className="flex justify-center items-center gap-3">
+                <span className="text-sm text-gray-600">每页显示：</span>
+                <div className="flex gap-2">
+                  {[10, 15, 20, 30, 50].map((num) => (
+                    <button
+                      key={num}
+                      onClick={() => handleLimitChange(num)}
+                      className={`px-3 py-1 rounded-md text-sm transition-colors ${
+                        limit === num
+                          ? "bg-blue-600 text-white"
+                          : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                      }`}
+                    >
+                      {num}
+                    </button>
+                  ))}
+                </div>
+                <span className="text-sm text-gray-600">
+                  共 {data.pagination.total} 件商品
+                </span>
+              </div>
 
-              <span className="px-4 py-2">
-                第 {page} / {data.pagination.totalPages} 页
-              </span>
+              {/* 分页导航 */}
+              <div className="flex justify-center items-center gap-2 flex-wrap">
+                <button
+                  onClick={() => setPage(Math.max(1, page - 1))}
+                  disabled={page === 1}
+                  className="px-4 py-2 border rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                >
+                  上一页
+                </button>
 
-              <button
-                onClick={() => setPage(Math.min(data.pagination.totalPages, page + 1))}
-                disabled={page === data.pagination.totalPages}
-                className="px-4 py-2 border rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
-              >
-                下一页
-              </button>
+                <span className="px-4 py-2">
+                  第 {page} / {data.pagination.totalPages} 页
+                </span>
+
+                <button
+                  onClick={() => setPage(Math.min(data.pagination.totalPages, page + 1))}
+                  disabled={page === data.pagination.totalPages}
+                  className="px-4 py-2 border rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                >
+                  下一页
+                </button>
+
+                {/* 跳转到指定页 */}
+                <div className="flex items-center gap-2 ml-4">
+                  <span className="text-sm text-gray-600">跳转到</span>
+                  <input
+                    type="number"
+                    min="1"
+                    max={data.pagination.totalPages}
+                    value={jumpToPage}
+                    onChange={(e) => setJumpToPage(e.target.value)}
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter') {
+                        handleJumpToPage()
+                      }
+                    }}
+                    placeholder="页码"
+                    className="w-20 px-2 py-1 border rounded-md text-center focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  <span className="text-sm text-gray-600">页</span>
+                  <button
+                    onClick={handleJumpToPage}
+                    className="px-3 py-1 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm"
+                  >
+                    跳转
+                  </button>
+                </div>
+              </div>
             </div>
           )}
         </>

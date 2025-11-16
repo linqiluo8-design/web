@@ -31,13 +31,23 @@ interface Order {
 const ORDER_STORAGE_KEY = "my_orders"
 
 export default function MyOrdersPage() {
-  const [orders, setOrders] = useState<Order[]>([])
+  const [allOrders, setAllOrders] = useState<Order[]>([]) // 所有订单
+  const [displayedOrders, setDisplayedOrders] = useState<Order[]>([]) // 当前页显示的订单
   const [loading, setLoading] = useState(true)
   const [orderRecords, setOrderRecords] = useState<OrderRecord[]>([])
+  const [searchQuery, setSearchQuery] = useState("")
+  const [page, setPage] = useState(1)
+  const [limit, setLimit] = useState(10) // 默认每页10条
+  const [jumpToPage, setJumpToPage] = useState("")
 
   useEffect(() => {
     loadOrders()
   }, [])
+
+  // 处理分页和搜索
+  useEffect(() => {
+    updateDisplayedOrders()
+  }, [allOrders, page, limit, searchQuery])
 
   const loadOrders = async () => {
     try {
@@ -74,12 +84,61 @@ export default function MyOrdersPage() {
       // 按创建时间倒序排序
       validOrders.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
 
-      setOrders(validOrders)
+      setAllOrders(validOrders)
     } catch (error) {
       console.error("加载订单失败:", error)
     } finally {
       setLoading(false)
     }
+  }
+
+  const updateDisplayedOrders = () => {
+    // 搜索过滤
+    let filtered = allOrders
+    if (searchQuery.trim()) {
+      filtered = allOrders.filter(order =>
+        order.orderNumber.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    }
+
+    // 分页
+    const startIndex = (page - 1) * limit
+    const endIndex = startIndex + limit
+    const paginated = filtered.slice(startIndex, endIndex)
+
+    setDisplayedOrders(paginated)
+  }
+
+  const handleSearch = () => {
+    setPage(1) // 搜索时回到第一页
+  }
+
+  const handleLimitChange = (newLimit: number) => {
+    setLimit(newLimit)
+    setPage(1)
+  }
+
+  const handleJumpToPage = () => {
+    const totalPages = getTotalPages()
+    const pageNum = parseInt(jumpToPage)
+    if (!isNaN(pageNum) && pageNum >= 1 && pageNum <= totalPages) {
+      setPage(pageNum)
+      setJumpToPage("")
+    }
+  }
+
+  const getTotalPages = () => {
+    const filtered = searchQuery.trim()
+      ? allOrders.filter(order => order.orderNumber.toLowerCase().includes(searchQuery.toLowerCase()))
+      : allOrders
+    return Math.ceil(filtered.length / limit)
+  }
+
+  const getFilteredTotal = () => {
+    const filtered = searchQuery.trim()
+      ? allOrders.filter(order => order.orderNumber.toLowerCase().includes(searchQuery.toLowerCase()))
+      : allOrders
+    return filtered.length
   }
 
   const getStatusText = (status: string) => {
@@ -105,7 +164,8 @@ export default function MyOrdersPage() {
   const clearOrders = () => {
     if (confirm("确定要清空所有订单记录吗？\n\n注意：这只会清除本地记录，不会删除实际订单。")) {
       localStorage.removeItem(ORDER_STORAGE_KEY)
-      setOrders([])
+      setAllOrders([])
+      setDisplayedOrders([])
       setOrderRecords([])
     }
   }
@@ -118,11 +178,14 @@ export default function MyOrdersPage() {
     )
   }
 
+  const totalPages = getTotalPages()
+  const filteredTotal = getFilteredTotal()
+
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="flex items-center justify-between mb-8">
         <h1 className="text-3xl font-bold">我的订单</h1>
-        {orders.length > 0 && (
+        {allOrders.length > 0 && (
           <button
             onClick={clearOrders}
             className="text-sm text-gray-600 hover:text-red-600"
@@ -132,7 +195,44 @@ export default function MyOrdersPage() {
         )}
       </div>
 
-      {orders.length === 0 ? (
+      {/* 搜索框 */}
+      {allOrders.length > 0 && (
+        <div className="mb-6">
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyPress={(e) => {
+                if (e.key === 'Enter') {
+                  handleSearch()
+                }
+              }}
+              placeholder="搜索订单号..."
+              className="flex-1 px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <button
+              onClick={handleSearch}
+              className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+            >
+              搜索
+            </button>
+            {searchQuery && (
+              <button
+                onClick={() => {
+                  setSearchQuery("")
+                  setPage(1)
+                }}
+                className="px-4 py-2 border rounded-md hover:bg-gray-50"
+              >
+                清除搜索
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {allOrders.length === 0 ? (
         <div className="text-center py-16">
           <div className="text-6xl mb-4">📦</div>
           <p className="text-gray-500 mb-6">暂无订单记录</p>
@@ -146,10 +246,25 @@ export default function MyOrdersPage() {
             去购物
           </Link>
         </div>
+      ) : filteredTotal === 0 ? (
+        <div className="text-center py-16">
+          <div className="text-6xl mb-4">🔍</div>
+          <p className="text-gray-500 mb-6">未找到匹配的订单</p>
+          <button
+            onClick={() => {
+              setSearchQuery("")
+              setPage(1)
+            }}
+            className="inline-block px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700"
+          >
+            清除搜索
+          </button>
+        </div>
       ) : (
-        <div className="space-y-4">
-          {orders.map((order) => (
-            <div
+        <>
+          <div className="space-y-4">
+            {displayedOrders.map((order) => (
+              <div
               key={order.id}
               className="bg-white rounded-lg shadow border overflow-hidden"
             >
@@ -240,8 +355,93 @@ export default function MyOrdersPage() {
                 </div>
               </div>
             </div>
-          ))}
-        </div>
+            ))}
+          </div>
+
+          {/* 分页控制 */}
+          {totalPages > 0 && (
+            <div className="mt-8 space-y-4">
+              {/* 每页数量选择 */}
+              <div className="flex justify-center items-center gap-3 flex-wrap">
+                <span className="text-sm text-gray-600">每页显示：</span>
+                <div className="flex gap-2">
+                  {[10, 15, 20, 30, 50].map((num) => (
+                    <button
+                      key={num}
+                      onClick={() => handleLimitChange(num)}
+                      className={`px-3 py-1 rounded-md text-sm transition-colors ${
+                        limit === num
+                          ? "bg-blue-600 text-white"
+                          : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                      }`}
+                    >
+                      {num}
+                    </button>
+                  ))}
+                </div>
+                <span className="text-sm text-gray-600">
+                  共 {filteredTotal} 条订单
+                </span>
+              </div>
+
+              {/* 分页导航 */}
+              {totalPages > 1 && (
+                <div className="flex justify-center items-center gap-2 flex-wrap">
+                  <button
+                    onClick={() => setPage(Math.max(1, page - 1))}
+                    disabled={page === 1}
+                    className="px-4 py-2 border rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    上一页
+                  </button>
+
+                  <span className="px-4 py-2">
+                    第 {page} / {totalPages} 页
+                  </span>
+
+                  <button
+                    onClick={() => setPage(Math.min(totalPages, page + 1))}
+                    disabled={page === totalPages}
+                    className="px-4 py-2 border rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    下一页
+                  </button>
+
+                  {/* 跳转到指定页 */}
+                  <div className="flex items-center gap-2 ml-4">
+                    <span className="text-sm text-gray-600">跳转到</span>
+                    <input
+                      type="number"
+                      min="1"
+                      max={totalPages}
+                      value={jumpToPage}
+                      onChange={(e) => setJumpToPage(e.target.value)}
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter') {
+                          handleJumpToPage()
+                        }
+                      }}
+                      placeholder="页码"
+                      className="w-20 px-2 py-1 border rounded-md text-center focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    <span className="text-sm text-gray-600">页</span>
+                    <button
+                      onClick={handleJumpToPage}
+                      className="px-3 py-1 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm"
+                    >
+                      跳转
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* 分页信息 */}
+              <div className="text-center text-sm text-gray-600">
+                当前第 {page}/{totalPages} 页
+              </div>
+            </div>
+          )}
+        </>
       )}
 
       {/* 温馨提示 */}

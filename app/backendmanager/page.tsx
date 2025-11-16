@@ -316,7 +316,7 @@ export default function AdminPage() {
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-3xl font-bold mb-4">后台管理 - 商品管理</h1>
-          <div className="flex gap-4">
+          <div className="flex flex-wrap gap-4">
             <Link
               href="/backendmanager/categories"
               className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200"
@@ -334,6 +334,12 @@ export default function AdminPage() {
               className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200"
             >
               订单数据管理
+            </Link>
+            <Link
+              href="/backendmanager/analytics"
+              className="px-4 py-2 bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 font-medium"
+            >
+              📊 浏览量统计
             </Link>
           </div>
         </div>

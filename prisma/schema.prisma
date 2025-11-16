@@ -256,3 +256,22 @@ model MembershipUsage {
 
   @@unique([membershipId, usageDate])
 }
+
+// 页面访问记录模型（用于统计分析）
+model PageView {
+  id          String   @id @default(cuid())
+  visitorId   String   // 访客唯一标识（session fingerprint）
+  userId      String?  // 如果是登录用户，记录用户ID
+  ipAddress   String   // 访问者IP地址
+  userAgent   String?  // User Agent字符串
+  path        String   // 访问路径
+  referer     String?  // 来源页面URL
+  country     String?  // 国家/地区
+  city        String?  // 城市
+  timestamp   DateTime @default(now())
+
+  @@index([timestamp]) // 按时间索引，方便按时间范围查询
+  @@index([visitorId]) // 按访客ID索引，用于统计UV
+  @@index([path])      // 按路径索引，用于统计各页面访问量
+  @@index([userId])    // 按用户ID索引
+}

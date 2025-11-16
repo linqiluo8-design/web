@@ -21,6 +21,7 @@
     "next-auth": "^4.24.10",
     "react": "19.2.0",
     "react-dom": "19.2.0",
+    "recharts": "^3.4.1",
     "wechatpay-node-v3": "^2.2.1",
     "zod": "^4.1.12"
   },

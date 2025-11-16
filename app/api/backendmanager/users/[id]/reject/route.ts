@@ -7,13 +7,14 @@ import { requireAdmin } from '@/lib/permissions'
 
 export async function POST(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // 检查管理员权限
     await requireAdmin()
 
-    const userId = params.id
+    // Next.js 16: params 是 Promise，需要 await
+    const { id: userId } = await params
 
     // 更新用户状态为已拒绝
     const user = await prisma.user.update({

@@ -97,6 +97,7 @@ model Product {
   category    String?  // 保留兼容旧数据
   tags        String?  // JSON字符串存储标签
   status      String   @default("active") // active, inactive, archived
+  networkDiskLink String? // 网盘链接（课程资源）
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

@@ -9,7 +9,7 @@ const productSchema = z.object({
   title: z.string().min(1, "商品标题不能为空"),
   description: z.string().min(1, "商品描述不能为空"),
   content: z.string().optional(),
-  price: z.number().positive("价格必须大于0"),
+  price: z.number().min(0, "价格不能为负数"),
   coverImage: z.string().optional(),
   showImage: z.boolean().optional().default(true),
   categoryId: z.string().optional(),

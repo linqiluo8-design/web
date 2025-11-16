@@ -218,6 +218,20 @@ export default function AdminPage() {
 
   const handleCreateSingle = async () => {
     try {
+      // 前端验证
+      if (!createForm.title?.trim()) {
+        alert("请输入商品标题")
+        return
+      }
+      if (!createForm.description?.trim()) {
+        alert("请输入商品描述")
+        return
+      }
+      if (createForm.price === undefined || createForm.price < 0) {
+        alert("请输入有效的价格（不能为负数）")
+        return
+      }
+
       const response = await fetch("/api/backendmanager/products", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -239,11 +253,21 @@ export default function AdminPage() {
 
   const handleCreateBatch = async () => {
     try {
-      // 过滤掉空的商品
-      const validProducts = batchProducts.filter(p => p.title && p.description && p.price)
+      // 过滤并验证商品
+      const validProducts = batchProducts.filter(p => {
+        // 检查必填字段
+        return p.title?.trim() && p.description?.trim() && p.price !== undefined && p.price >= 0
+      })
 
       if (validProducts.length === 0) {
-        alert("请至少填写一个完整的商品信息")
+        alert("请至少填写一个完整的商品信息（标题、描述、价格）")
+        return
+      }
+
+      // 检查是否有无效的价格
+      const hasInvalidPrice = validProducts.some(p => p.price === undefined || p.price < 0)
+      if (hasInvalidPrice) {
+        alert("请确保所有商品的价格都是有效的（不能为负数）")
         return
       }
 

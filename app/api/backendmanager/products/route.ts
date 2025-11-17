@@ -23,7 +23,7 @@ const bulkProductSchema = z.object({
   products: z.array(productSchema).min(1, "至少需要一个商品"),
 })
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
     // 验证用户登录和权限
     const session = await getServerSession(authOptions)
@@ -42,30 +42,69 @@ export async function GET() {
       )
     }
 
-    // 获取所有商品（包括下架的）
-    const products = await prisma.product.findMany({
-      orderBy: {
-        createdAt: "desc",
-      },
-      select: {
-        id: true,
-        title: true,
-        description: true,
-        content: true,
-        price: true,
-        coverImage: true,
-        showImage: true,
-        category: true,
-        categoryId: true,
-        networkDiskLink: true,
-        status: true,
-        createdAt: true,
-      },
-    })
+    // 获取查询参数
+    const { searchParams } = new URL(req.url)
+    const page = parseInt(searchParams.get("page") || "1")
+    const limit = parseInt(searchParams.get("limit") || "10")
+    const search = searchParams.get("search") || ""
+
+    // 计算分页
+    const skip = (page - 1) * limit
+
+    // 构建搜索条件
+    const where: any = {}
+    if (search.trim()) {
+      where.OR = [
+        {
+          title: {
+            contains: search.trim(),
+            mode: "insensitive" as const,
+          },
+        },
+        {
+          description: {
+            contains: search.trim(),
+            mode: "insensitive" as const,
+          },
+        },
+      ]
+    }
+
+    // 获取商品列表和总数
+    const [products, total] = await Promise.all([
+      prisma.product.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: {
+          createdAt: "desc",
+        },
+        select: {
+          id: true,
+          title: true,
+          description: true,
+          content: true,
+          price: true,
+          coverImage: true,
+          showImage: true,
+          category: true,
+          categoryId: true,
+          networkDiskLink: true,
+          status: true,
+          createdAt: true,
+        },
+      }),
+      prisma.product.count({ where }),
+    ])
 
     return NextResponse.json({
       products,
-      total: products.length,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
     })
   } catch (error) {
     console.error("获取商品列表失败:", error)

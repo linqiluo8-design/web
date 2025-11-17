@@ -62,6 +62,14 @@ export default function AdminPage() {
     }
   ])
 
+  // 分页和搜索状态
+  const [page, setPage] = useState(1)
+  const [limit, setLimit] = useState(10)
+  const [totalPages, setTotalPages] = useState(1)
+  const [totalCount, setTotalCount] = useState(0)
+  const [searchQuery, setSearchQuery] = useState("")
+  const [jumpToPage, setJumpToPage] = useState("")
+
   useEffect(() => {
     if (status === "unauthenticated") {
       router.push("/auth/signin")
@@ -75,12 +83,21 @@ export default function AdminPage() {
 
     fetchProducts()
     fetchCategories()
-  }, [status, session, router])
+  }, [status, session, router, page, limit, searchQuery])
 
   const fetchProducts = async () => {
     try {
       setLoading(true)
-      const response = await fetch("/api/backendmanager/products")
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: limit.toString()
+      })
+
+      if (searchQuery.trim()) {
+        params.append("search", searchQuery.trim())
+      }
+
+      const response = await fetch(`/api/backendmanager/products?${params}`)
 
       if (!response.ok) {
         throw new Error("获取商品列表失败")
@@ -88,10 +105,29 @@ export default function AdminPage() {
 
       const data = await response.json()
       setProducts(data.products)
+      setTotalPages(data.pagination?.totalPages || 1)
+      setTotalCount(data.pagination?.total || 0)
     } catch (err) {
       setError(err instanceof Error ? err.message : "未知错误")
     } finally {
       setLoading(false)
+    }
+  }
+
+  // 处理搜索
+  const handleSearch = (query: string) => {
+    setSearchQuery(query)
+    setPage(1) // 搜索时重置到第一页
+  }
+
+  // 处理页码跳转
+  const handleJumpToPage = () => {
+    const pageNum = parseInt(jumpToPage)
+    if (pageNum >= 1 && pageNum <= totalPages) {
+      setPage(pageNum)
+      setJumpToPage("")
+    } else {
+      alert(`请输入1到${totalPages}之间的页码`)
     }
   }
 
@@ -538,6 +574,74 @@ export default function AdminPage() {
         </div>
       )}
 
+      {/* 搜索和筛选栏 */}
+      {!createMode && (
+        <div className="bg-white rounded-lg shadow p-4 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                搜索商品
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      handleSearch(searchQuery)
+                    }
+                  }}
+                  className="flex-1 px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="输入商品标题或描述关键词..."
+                />
+                <button
+                  onClick={() => handleSearch(searchQuery)}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                >
+                  搜索
+                </button>
+                {searchQuery && (
+                  <button
+                    onClick={() => {
+                      setSearchQuery("")
+                      setPage(1)
+                    }}
+                    className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
+                  >
+                    清除
+                  </button>
+                )}
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                每页显示数量
+              </label>
+              <select
+                value={limit}
+                onChange={(e) => {
+                  setLimit(parseInt(e.target.value))
+                  setPage(1)
+                }}
+                className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="5">5 条</option>
+                <option value="10">10 条</option>
+                <option value="20">20 条</option>
+                <option value="50">50 条</option>
+                <option value="100">100 条</option>
+              </select>
+            </div>
+          </div>
+          {searchQuery && (
+            <div className="mt-3 text-sm text-gray-600">
+              搜索结果：共找到 <span className="font-bold text-blue-600">{totalCount}</span> 个商品
+            </div>
+          )}
+        </div>
+      )}
+
       {/* 批量商品创建表单 */}
       {createMode === "batch" && (
         <div className="bg-white rounded-lg shadow p-6 mb-6">
@@ -894,6 +998,104 @@ export default function AdminPage() {
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* 分页控件 */}
+      {!createMode && products.length > 0 && (
+        <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4 bg-white rounded-lg shadow p-4">
+          <div className="text-sm text-gray-600">
+            共 <span className="font-bold text-blue-600">{totalCount}</span> 个商品，
+            第 <span className="font-bold">{page}</span> / <span className="font-bold">{totalPages}</span> 页
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setPage(1)}
+              disabled={page === 1}
+              className="px-3 py-1.5 border rounded-md disabled:bg-gray-100 disabled:cursor-not-allowed hover:bg-gray-50 text-sm"
+            >
+              首页
+            </button>
+            <button
+              onClick={() => setPage(page - 1)}
+              disabled={page === 1}
+              className="px-3 py-1.5 border rounded-md disabled:bg-gray-100 disabled:cursor-not-allowed hover:bg-gray-50 text-sm"
+            >
+              上一页
+            </button>
+
+            {/* 页码显示 */}
+            <div className="flex gap-1">
+              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                let pageNum
+                if (totalPages <= 5) {
+                  pageNum = i + 1
+                } else if (page <= 3) {
+                  pageNum = i + 1
+                } else if (page >= totalPages - 2) {
+                  pageNum = totalPages - 4 + i
+                } else {
+                  pageNum = page - 2 + i
+                }
+
+                return (
+                  <button
+                    key={pageNum}
+                    onClick={() => setPage(pageNum)}
+                    className={`px-3 py-1.5 border rounded-md text-sm ${
+                      page === pageNum
+                        ? "bg-blue-600 text-white border-blue-600"
+                        : "hover:bg-gray-50"
+                    }`}
+                  >
+                    {pageNum}
+                  </button>
+                )
+              })}
+            </div>
+
+            <button
+              onClick={() => setPage(page + 1)}
+              disabled={page === totalPages}
+              className="px-3 py-1.5 border rounded-md disabled:bg-gray-100 disabled:cursor-not-allowed hover:bg-gray-50 text-sm"
+            >
+              下一页
+            </button>
+            <button
+              onClick={() => setPage(totalPages)}
+              disabled={page === totalPages}
+              className="px-3 py-1.5 border rounded-md disabled:bg-gray-100 disabled:cursor-not-allowed hover:bg-gray-50 text-sm"
+            >
+              末页
+            </button>
+          </div>
+
+          {/* 跳转到指定页 */}
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-600">跳转到</span>
+            <input
+              type="number"
+              min="1"
+              max={totalPages}
+              value={jumpToPage}
+              onChange={(e) => setJumpToPage(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  handleJumpToPage()
+                }
+              }}
+              className="w-16 px-2 py-1.5 border rounded-md text-sm text-center"
+              placeholder={page.toString()}
+            />
+            <span className="text-sm text-gray-600">页</span>
+            <button
+              onClick={handleJumpToPage}
+              className="px-3 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm"
+            >
+              跳转
+            </button>
+          </div>
         </div>
       )}
     </div>

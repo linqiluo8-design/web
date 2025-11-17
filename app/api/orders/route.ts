@@ -151,6 +151,41 @@ export async function POST(req: Request) {
         )
       }
 
+      // 安全检查：验证折扣率是否在合法范围内（0-1之间）
+      if (membership.discount < 0 || membership.discount > 1) {
+        // 记录安全警报：检测到异常的会员折扣率
+        try {
+          await prisma.securityAlert.create({
+            data: {
+              type: "INVALID_DISCOUNT_RATE",
+              severity: "critical",
+              userId: null,
+              ipAddress: req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || "unknown",
+              userAgent: req.headers.get("user-agent") || "unknown",
+              description: `检测到异常的会员折扣率：会员码${membership.membershipCode}的折扣率为${membership.discount}（合法范围：0-1）`,
+              metadata: JSON.stringify({
+                membershipCode: membership.membershipCode,
+                membershipId: membership.id,
+                invalidDiscount: membership.discount,
+                timestamp: new Date().toISOString()
+              }),
+              status: "unresolved"
+            }
+          })
+        } catch (alertError) {
+          console.error("创建安全警报失败:", alertError)
+        }
+
+        return NextResponse.json(
+          {
+            error: "会员码数据异常",
+            message: "检测到会员码数据异常，系统已记录此问题并通知管理员。请联系客服处理。",
+            code: "INVALID_DISCOUNT_RATE"
+          },
+          { status: 400 }
+        )
+      }
+
       // 检查会员是否过期
       if (membership.endDate && new Date() > membership.endDate) {
         await prisma.membership.update({
@@ -230,18 +265,90 @@ export async function POST(req: Request) {
       totalAmount = originalAmount
     }
 
-    // 安全检查：检测价格篡改攻击
+    // 安全检查：检测价格异常（多层检查）
+    // 检查1: 负价格检测
+    if (totalAmount < 0) {
+      try {
+        await prisma.securityAlert.create({
+          data: {
+            type: "NEGATIVE_PRICE",
+            severity: "critical",
+            userId: null,
+            ipAddress: req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || "unknown",
+            userAgent: req.headers.get("user-agent") || "unknown",
+            description: `检测到负价格订单：商品原价${originalAmount}元，计算后价格为${totalAmount}元`,
+            metadata: JSON.stringify({
+              originalAmount,
+              totalAmount,
+              discount: membershipDiscount,
+              membershipCode: data.membershipCode,
+              items: validatedItems,
+              timestamp: new Date().toISOString()
+            }),
+            status: "unresolved"
+          }
+        })
+      } catch (alertError) {
+        console.error("创建安全警报失败:", alertError)
+      }
+
+      return NextResponse.json(
+        {
+          error: "订单金额异常",
+          message: "检测到订单金额异常（负价格），系统已记录此行为并通知管理员。",
+          code: "NEGATIVE_PRICE"
+        },
+        { status: 400 }
+      )
+    }
+
+    // 检查2: 价格异常增加检测（折扣后价格不应该高于原价）
+    if (totalAmount > originalAmount + 0.01) {
+      try {
+        await prisma.securityAlert.create({
+          data: {
+            type: "PRICE_INCREASE",
+            severity: "critical",
+            userId: null,
+            ipAddress: req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || "unknown",
+            userAgent: req.headers.get("user-agent") || "unknown",
+            description: `检测到价格异常增加：商品原价${originalAmount}元，折扣后变成${totalAmount}元`,
+            metadata: JSON.stringify({
+              originalAmount,
+              totalAmount,
+              discount: membershipDiscount,
+              membershipCode: data.membershipCode,
+              items: validatedItems,
+              timestamp: new Date().toISOString()
+            }),
+            status: "unresolved"
+          }
+        })
+      } catch (alertError) {
+        console.error("创建安全警报失败:", alertError)
+      }
+
+      return NextResponse.json(
+        {
+          error: "订单金额异常",
+          message: "检测到订单金额异常（价格增加），系统已记录此行为并通知管理员。",
+          code: "PRICE_INCREASE"
+        },
+        { status: 400 }
+      )
+    }
+
+    // 检查3: 异常0元订单检测
     // 区分两种情况：
     // 1. 商品原价就是0元（合法的免费商品） - 允许
     // 2. 商品原价 > 0 但被折扣/篡改成0元（攻击） - 拦截并记录
     if (originalAmount > 0.01 && totalAmount <= 0.01) {
-      // 这是价格篡改攻击：原价大于0，但折后价变成了0或负数
       try {
         await prisma.securityAlert.create({
           data: {
             type: "PRICE_MANIPULATION",
             severity: "high",
-            userId: null, // 匿名订单暂无userId
+            userId: null,
             ipAddress: req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || "unknown",
             userAgent: req.headers.get("user-agent") || "unknown",
             description: `检测到价格篡改攻击：商品原价${originalAmount}元，被异常折扣至${totalAmount}元`,
@@ -250,7 +357,7 @@ export async function POST(req: Request) {
               totalAmount,
               discount: membershipDiscount,
               membershipCode: data.membershipCode,
-              items: validatedItems,  // 使用服务器验证后的商品信息（含真实价格）
+              items: validatedItems,
               timestamp: new Date().toISOString()
             }),
             status: "unresolved"

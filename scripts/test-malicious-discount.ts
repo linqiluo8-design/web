@@ -58,10 +58,10 @@ const maliciousMemberships: MaliciousMembership[] = [
   },
   {
     membershipCode: 'HACK100',
-    discount: 1.0,  // 100%折扣 - 刚好免费
-    description: '100%折扣 - 刚好变成0元',
-    shouldTriggerAlert: true,
-    expectedTotalAmount: 0  // 100 - 100*1.0 = 0
+    discount: 1.0,  // discount=1.0 表示支付100%价格（不打折）
+    description: '100%支付比例 - 实际不打折',
+    shouldTriggerAlert: false,  // 这是安全的，只是不打折
+    expectedTotalAmount: 100  // 100 - 100*(1-1.0) = 100
   },
   {
     membershipCode: 'HACK999',
@@ -268,15 +268,17 @@ async function testMaliciousMembership(membership: MaliciousMembership, index: n
     // 验证结果
     if (membership.shouldTriggerAlert) {
       // 应该触发警报，订单应该被拒绝
-      if (status === 400 && data.code === 'PRICE_MANIPULATION') {
+      // 接受多种错误代码：PRICE_MANIPULATION, INVALID_DISCOUNT_RATE, NEGATIVE_PRICE, PRICE_INCREASE
+      const validErrorCodes = ['PRICE_MANIPULATION', 'INVALID_DISCOUNT_RATE', 'NEGATIVE_PRICE', 'PRICE_INCREASE']
+      if (status === 400 && validErrorCodes.includes(data.code)) {
         log(`\n✅ 测试通过: 恶意折扣被成功拦截`, 'green')
         log(`✅ 错误代码: ${data.code}`, 'green')
         log(`✅ 错误信息: ${data.message}`, 'green')
         return { passed: true, alertTriggered: true, orderCreated: false }
       } else {
         log(`\n❌ 测试失败: 恶意折扣应该被拦截但没有`, 'red')
-        log(`❌ 期望: 状态码 400 + PRICE_MANIPULATION`, 'red')
-        log(`❌ 实际: 状态码 ${status}`, 'red')
+        log(`❌ 期望: 状态码 400 + 安全错误代码`, 'red')
+        log(`❌ 实际: 状态码 ${status}, 错误代码 ${data.code || 'N/A'}`, 'red')
         return { passed: false, alertTriggered: false, orderCreated: status === 201 }
       }
     } else {

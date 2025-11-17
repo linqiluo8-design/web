@@ -386,6 +386,12 @@ export default function AdminPage() {
             >
               ⚙️ 系统设置
             </Link>
+            <Link
+              href="/backendmanager/security-alerts"
+              className="px-4 py-2 bg-red-100 text-red-700 rounded-md hover:bg-red-200 font-medium"
+            >
+              🔒 安全警报
+            </Link>
           </div>
         </div>
         <div className="flex gap-2">

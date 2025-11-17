@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { requireAuth } from "@/lib/session"
+import { requireWrite } from "@/lib/permissions"
 import { z } from "zod"
 
 // 安全常量配置
@@ -93,14 +93,8 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const user = await requireAuth()
-
-    if (user.role !== "ADMIN") {
-      return NextResponse.json(
-        { error: "需要管理员权限" },
-        { status: 403 }
-      )
-    }
+    // 需要轮播图管理的写权限
+    const user = await requireWrite('BANNERS')
 
     const { id } = await params
     const body = await req.json()
@@ -247,14 +241,8 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const user = await requireAuth()
-
-    if (user.role !== "ADMIN") {
-      return NextResponse.json(
-        { error: "需要管理员权限" },
-        { status: 403 }
-      )
-    }
+    // 需要轮播图管理的写权限
+    const user = await requireWrite('BANNERS')
 
     const { id } = await params
 

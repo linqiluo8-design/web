@@ -4,7 +4,16 @@ import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 
-type PermissionModule = 'CATEGORIES' | 'MEMBERSHIPS' | 'ORDERS' | 'PRODUCTS'
+type PermissionModule =
+  | 'CATEGORIES'
+  | 'MEMBERSHIPS'
+  | 'ORDERS'
+  | 'PRODUCTS'
+  | 'BANNERS'
+  | 'SYSTEM_SETTINGS'
+  | 'SECURITY_ALERTS'
+  | 'CUSTOMER_CHAT'
+
 type PermissionLevel = 'NONE' | 'READ' | 'WRITE'
 
 interface UserPermission {
@@ -30,6 +39,10 @@ const MODULE_NAMES: Record<PermissionModule, string> = {
   MEMBERSHIPS: '会员管理',
   ORDERS: '订单数据',
   PRODUCTS: '商品管理',
+  BANNERS: '轮播图管理',
+  SYSTEM_SETTINGS: '系统设置',
+  SECURITY_ALERTS: '安全警报',
+  CUSTOMER_CHAT: '客服聊天',
 }
 
 const STATUS_NAMES: Record<string, string> = {
@@ -56,6 +69,10 @@ export default function UserManagementPage() {
     MEMBERSHIPS: 'NONE',
     ORDERS: 'NONE',
     PRODUCTS: 'NONE',
+    BANNERS: 'NONE',
+    SYSTEM_SETTINGS: 'NONE',
+    SECURITY_ALERTS: 'NONE',
+    CUSTOMER_CHAT: 'NONE',
   })
 
   useEffect(() => {
@@ -146,6 +163,10 @@ export default function UserManagementPage() {
       MEMBERSHIPS: 'NONE',
       ORDERS: 'NONE',
       PRODUCTS: 'NONE',
+      BANNERS: 'NONE',
+      SYSTEM_SETTINGS: 'NONE',
+      SECURITY_ALERTS: 'NONE',
+      CUSTOMER_CHAT: 'NONE',
     }
 
     user.permissions.forEach((p) => {

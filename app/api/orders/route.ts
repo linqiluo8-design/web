@@ -278,7 +278,11 @@ export async function POST(req: Request) {
         status: "pending",
         paymentMethod: data.paymentMethod,
         orderItems: {
-          create: data.items
+          create: data.items.map(item => ({
+            productId: item.productId,
+            quantity: item.quantity,
+            price: item.price
+          }))
         }
       },
       include: {

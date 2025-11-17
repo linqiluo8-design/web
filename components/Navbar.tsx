@@ -51,6 +51,12 @@ export function Navbar() {
                 购买会员
               </Link>
               <Link
+                href="/membership-orders"
+                className={isActive("/membership-orders") ? "px-3 py-2 rounded-md text-sm font-medium text-blue-600 bg-blue-50" : "px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50"}
+              >
+                会员订单
+              </Link>
+              <Link
                 href="/my-orders"
                 className={isActive("/my-orders") ? "px-3 py-2 rounded-md text-sm font-medium text-blue-600 bg-blue-50" : "px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50"}
               >

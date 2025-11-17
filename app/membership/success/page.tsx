@@ -3,24 +3,49 @@
 import { useEffect, useState } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import Link from "next/link"
+import { saveMembershipCodeToLocal } from "@/app/membership-orders/page"
 
 export default function MembershipSuccessPage() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const [membershipCode, setMembershipCode] = useState<string>("")
+  const [orderNumber, setOrderNumber] = useState<string>("")
   const [amount, setAmount] = useState<string>("")
   const [showCopySuccess, setShowCopySuccess] = useState(false)
   const [countdown, setCountdown] = useState(5)
   const [fromCart, setFromCart] = useState(false)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     const code = searchParams.get("code")
     const amt = searchParams.get("amount")
     const from = searchParams.get("from")
-    if (code) setMembershipCode(code)
+    if (code) {
+      setMembershipCode(code)
+      // 保存会员码到localStorage
+      saveMembershipCodeToLocal(code)
+      // 通过会员码获取订单号
+      fetchOrderNumber(code)
+    }
     if (amt) setAmount(amt)
     if (from === "cart") setFromCart(true)
   }, [searchParams])
+
+  const fetchOrderNumber = async (code: string) => {
+    try {
+      const res = await fetch(`/api/memberships/verify?code=${code}`)
+      if (res.ok) {
+        const data = await res.json()
+        if (data.membership?.orderNumber) {
+          setOrderNumber(data.membership.orderNumber)
+        }
+      }
+    } catch (error) {
+      console.error("获取订单号失败:", error)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const copyToClipboard = () => {
     navigator.clipboard.writeText(membershipCode)
@@ -114,10 +139,10 @@ export default function MembershipSuccessPage() {
           恭喜您成为尊贵会员，支付金额：¥{amount}
         </p>
 
-        {/* 会员码显示 */}
+        {/* 会员码和订单号显示 */}
         <div className="bg-gradient-to-r from-blue-50 to-purple-50 border-2 border-blue-200 rounded-lg p-6 mb-6">
           <p className="text-sm text-gray-600 mb-2">您的专属会员码</p>
-          <div className="flex items-center justify-center gap-3">
+          <div className="flex items-center justify-center gap-3 mb-4">
             <p className="font-mono text-2xl font-bold text-blue-600">
               {membershipCode}
             </p>
@@ -129,8 +154,28 @@ export default function MembershipSuccessPage() {
               📋 复制
             </button>
           </div>
+          {orderNumber && (
+            <div className="border-t border-blue-200 pt-4">
+              <p className="text-sm text-gray-600 mb-2">会员订单号</p>
+              <div className="flex items-center justify-center gap-3">
+                <p className="font-mono text-lg font-semibold text-gray-700">
+                  {orderNumber}
+                </p>
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(orderNumber)
+                    alert("订单号已复制！")
+                  }}
+                  className="px-3 py-1 bg-gray-600 text-white rounded-lg hover:bg-gray-700 text-sm transition-colors"
+                  title="复制订单号"
+                >
+                  📋 复制
+                </button>
+              </div>
+            </div>
+          )}
           <p className="text-xs text-orange-600 mt-3">
-            ⚠️ 请务必保存此会员码！购买商品时输入可享受会员折扣
+            ⚠️ 请务必保存此会员码和订单号！购买商品时输入会员码可享受会员折扣
           </p>
         </div>
 

@@ -186,6 +186,161 @@ if (membership) {
 - ✅ 过期自动失效
 - ✅ 匿名购买，保护隐私
 
+## 📸 数据快照设计理念（核心设计）
+
+### 设计原则：历史数据独立性
+**会员订单信息是独立的，不受新设置的会员套餐数据影响。历史是历史，新是新的。**
+
+### 为什么需要数据快照？
+会员套餐会因为促销活动、运营策略调整而频繁修改（如价格调整、折扣变化）。如果历史订单引用套餐数据，会导致：
+1. ❌ 用户购买时是88元，后期套餐改为199元，历史订单显示错误
+2. ❌ 用户购买时享受8折，后期改为9折，影响用户权益
+3. ❌ 无法追溯用户真实购买时的套餐配置
+
+### 技术实现：数据快照机制
+
+#### 1. 购买时保存完整快照
+在 `app/api/memberships/purchase/route.ts` 中实现：
+
+```typescript
+// 保存方案快照（第43-50行）
+const planSnapshot = JSON.stringify({
+  name: plan.name,        // 套餐名称
+  price: plan.price,      // 购买时价格
+  duration: plan.duration,// 购买时有效期
+  discount: plan.discount,// 购买时折扣率
+  dailyLimit: plan.dailyLimit // 购买时每日限制
+})
+
+// 创建会员记录（第52-67行）
+const membership = await prisma.membership.create({
+  data: {
+    userId,
+    membershipCode,
+    planId: plan.id,        // 关联套餐ID（仅用于查询）
+    planSnapshot,           // 🔑 完整快照JSON
+    purchasePrice: plan.price,    // 🔑 独立字段：购买价格
+    discount: plan.discount,      // 🔑 独立字段：折扣率
+    dailyLimit: plan.dailyLimit,  // 🔑 独立字段：每日限制
+    duration: plan.duration,      // 🔑 独立字段：有效期
+    startDate: new Date(),
+    endDate: endDate,
+    status: "active",
+    paymentStatus: "pending"
+  }
+})
+```
+
+#### 2. 数据独立性保证
+| 字段 | 数据来源 | 是否独立 | 说明 |
+|------|---------|---------|------|
+| `planId` | 关联套餐表 | ❌ | 仅用于显示套餐名称，不影响权益 |
+| `planSnapshot` | 购买时快照 | ✅ | JSON完整记录，永久保存 |
+| `purchasePrice` | 购买时价格 | ✅ | 独立字段，永不改变 |
+| `discount` | 购买时折扣 | ✅ | 独立字段，永不改变 |
+| `dailyLimit` | 购买时限制 | ✅ | 独立字段，永不改变 |
+| `duration` | 购买时天数 | ✅ | 独立字段，永不改变 |
+| `endDate` | 计算值 | ✅ | 购买时计算，永不改变 |
+
+#### 3. 实际案例说明
+
+**场景：双十一促销**
+```
+2024年10月：年度会员套餐
+├─ 价格：¥88
+├─ 折扣：8折
+└─ 每日限制：10次
+
+用户A在10月20日购买 ✅
+├─ 订单记录：¥88 / 8折 / 每日10次
+└─ 保存快照：{"price": 88, "discount": 0.8, "dailyLimit": 10}
+
+2024年11月：双十一促销，套餐修改
+├─ 价格：¥58 (降价促销)
+├─ 折扣：7折 (加大力度)
+└─ 每日限制：15次 (放宽限制)
+
+用户B在11月11日购买 ✅
+├─ 订单记录：¥58 / 7折 / 每日15次
+└─ 保存快照：{"price": 58, "discount": 0.7, "dailyLimit": 15}
+
+2024年12月：促销结束，套餐恢复
+├─ 价格：¥99 (涨价)
+├─ 折扣：8.5折
+└─ 每日限制：8次
+
+查看历史订单：
+├─ 用户A订单：依然显示 ¥88 / 8折 / 每日10次 ✅ 不受影响
+├─ 用户B订单：依然显示 ¥58 / 7折 / 每日15次 ✅ 不受影响
+└─ 新用户C购买：¥99 / 8.5折 / 每日8次 ✅ 使用新价格
+```
+
+#### 4. 使用会员权益时的数据来源
+当用户在购物车使用会员码时，系统读取的是 **Membership 表中的独立字段**，而不是 MembershipPlan 表：
+
+```typescript
+// app/api/orders/[id]/apply-membership/route.ts
+const membership = await prisma.membership.findUnique({
+  where: { membershipCode: code }
+})
+
+// 使用的是购买时保存的字段，不是套餐表的字段
+const discount = membership.discount      // ✅ 用户购买时的折扣
+const dailyLimit = membership.dailyLimit  // ✅ 用户购买时的限制
+// 而不是 membership.plan.discount 或 membership.plan.dailyLimit
+```
+
+### 数据一致性检查
+
+#### 关系图
+```
+MembershipPlan (套餐表 - 可修改)
+    ↓ planId (弱关联，仅用于显示)
+Membership (会员记录 - 不可修改)
+    ├─ planSnapshot (快照)
+    ├─ purchasePrice (独立)
+    ├─ discount (独立)
+    ├─ dailyLimit (独立)
+    └─ duration (独立)
+    ↓
+MembershipUsage (使用记录)
+Order (订单)
+```
+
+#### 核心规则
+1. ✅ **购买时**：从 MembershipPlan 读取数据，保存到 Membership 独立字段
+2. ✅ **使用时**：从 Membership 独立字段读取，不再查询 MembershipPlan
+3. ✅ **展示时**：显示 Membership 中保存的数据，确保历史准确
+4. ✅ **修改套餐**：只影响新购买用户，不影响已购买用户
+
+### 在代码中的体现
+
+#### 会员订单展示页面 (`app/membership-orders/page.tsx`)
+```typescript
+// 第257行：显示购买时的套餐信息
+<p className="text-sm font-semibold">
+  {getDurationDisplay(order.duration)} •  {/* 购买时的天数 */}
+  {(order.discount * 10).toFixed(1)}折 •  {/* 购买时的折扣 */}
+  每日{order.dailyLimit}次              {/* 购买时的限制 */}
+</p>
+```
+
+#### 管理员订单管理页面 (`app/backendmanager/membership-records/page.tsx`)
+```typescript
+// 第368-372行：显示购买时的价格
+<div className="text-sm">
+  <div className="font-medium text-gray-900">{record.plan.name}</div>
+  <div className="text-gray-500">¥{record.purchasePrice.toFixed(2)}</div>
+  {/* 使用 purchasePrice 而不是 plan.price */}
+</div>
+```
+
+### 总结
+✅ **完全隔离**：历史订单数据与套餐表完全隔离
+✅ **永久保存**：购买时的配置永久保存，不会因套餐修改而改变
+✅ **权益保障**：用户购买时的权益得到保障，不受后续运营调整影响
+✅ **审计追溯**：可以准确追溯任何时间点的购买记录和配置
+
 ## 📊 数据库表结构
 
 ```sql

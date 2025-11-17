@@ -107,12 +107,25 @@ export async function GET(req: Request) {
       take: 100 // 限制最多100条
     })
 
-    // 如果是管理员，将访客的未读消息标记为已读
+    // 标记对方消息为已读
     if (isAdmin) {
+      // 管理员查看时，将访客的未读消息标记为已读
       await prisma.chatMessage.updateMany({
         where: {
           sessionId,
           senderType: "visitor",
+          isRead: false
+        },
+        data: {
+          isRead: true
+        }
+      })
+    } else {
+      // 访客查看时，将管理员的未读消息标记为已读
+      await prisma.chatMessage.updateMany({
+        where: {
+          sessionId,
+          senderType: "admin",
           isRead: false
         },
         data: {

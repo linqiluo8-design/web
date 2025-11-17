@@ -9,6 +9,7 @@ interface ChatMessage {
   senderName: string | null
   message: string
   createdAt: string
+  isRead: boolean
 }
 
 interface ChatSession {
@@ -206,12 +207,20 @@ export default function CustomerChat() {
                   )}
                   <p className="text-sm whitespace-pre-wrap break-words">{msg.message}</p>
                 </div>
-                <p className="text-xs text-gray-400 mt-1">
-                  {new Date(msg.createdAt).toLocaleTimeString("zh-CN", {
-                    hour: "2-digit",
-                    minute: "2-digit"
-                  })}
-                </p>
+                <div className="flex items-center gap-1 mt-1 text-xs text-gray-400">
+                  <span>
+                    {new Date(msg.createdAt).toLocaleTimeString("zh-CN", {
+                      hour: "2-digit",
+                      minute: "2-digit"
+                    })}
+                  </span>
+                  {/* 显示访客发送消息的已读状态 */}
+                  {msg.senderType === "visitor" && (
+                    <span className={`ml-1 ${msg.isRead ? "text-blue-400" : "text-gray-300"}`}>
+                      {msg.isRead ? "✓✓" : "✓"}
+                    </span>
+                  )}
+                </div>
               </div>
             ))}
 

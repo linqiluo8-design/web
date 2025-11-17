@@ -41,7 +41,7 @@ export async function POST(req: Request) {
         )
       }
       senderId = authSession.user.id
-      senderName = authSession.user.name || "管理员"
+      senderName = "客服"
     } else if (senderType === "visitor") {
       senderId = visitorId || null
       senderName = session.visitorName || "访客"

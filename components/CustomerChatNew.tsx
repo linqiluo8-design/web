@@ -49,16 +49,16 @@ export default function CustomerChat() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages])
 
-  // 定期轮询新消息
+  // 定期轮询消息（包括已读状态更新）- 仅在窗口打开时
   useEffect(() => {
-    if (!sessionId) return
+    if (!sessionId || !isOpen) return
 
     const interval = setInterval(() => {
       fetchNewMessages()
     }, 3000) // 每3秒轮询一次
 
     return () => clearInterval(interval)
-  }, [sessionId, messages])
+  }, [sessionId, isOpen])
 
   const fetchOrCreateSession = async () => {
     try {
@@ -74,22 +74,19 @@ export default function CustomerChat() {
   }
 
   const fetchNewMessages = async () => {
-    if (!sessionId || messages.length === 0) return
+    if (!sessionId) return
 
     try {
-      const lastMessage = messages[messages.length - 1]
-      const response = await fetch(
-        `/api/chat/messages?sessionId=${sessionId}&since=${lastMessage.createdAt}`
-      )
-
-      if (!response.ok) throw new Error("获取新消息失败")
+      // 获取所有消息以更新已读状态
+      const response = await fetch(`/api/chat/messages?sessionId=${sessionId}`)
+      if (!response.ok) throw new Error("获取消息失败")
 
       const data = await response.json()
-      if (data.messages && data.messages.length > 0) {
-        setMessages(prev => [...prev, ...data.messages])
+      if (data.messages) {
+        setMessages(data.messages)
       }
     } catch (error) {
-      console.error("获取新消息失败:", error)
+      console.error("获取消息失败:", error)
     }
   }
 

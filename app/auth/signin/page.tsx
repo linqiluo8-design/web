@@ -31,7 +31,10 @@ export default function SignInPage() {
         return
       }
 
-      // 登录成功，跳转到首页
+      // 登录成功，等待一小段时间确保 session 更新
+      await new Promise(resolve => setTimeout(resolve, 500))
+
+      // 跳转到首页
       router.push("/")
       router.refresh()
     } catch (err) {

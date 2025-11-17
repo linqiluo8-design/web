@@ -17,6 +17,8 @@ interface Category {
   }
 }
 
+type CreateMode = "single" | "batch" | null
+
 export default function CategoriesAdminPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
@@ -24,13 +26,16 @@ export default function CategoriesAdminPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
-  const [isCreating, setIsCreating] = useState(false)
+  const [createMode, setCreateMode] = useState<CreateMode>(null)
   const [formData, setFormData] = useState({
     name: "",
     description: "",
     coverImage: "",
     sortOrder: 0
   })
+  const [batchCategories, setBatchCategories] = useState([
+    { name: "", description: "", coverImage: "", sortOrder: 0 }
+  ])
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -64,9 +69,10 @@ export default function CategoriesAdminPage() {
     }
   }
 
-  const startCreate = () => {
-    setIsCreating(true)
+  const startCreate = (mode: "single" | "batch") => {
+    setCreateMode(mode)
     setFormData({ name: "", description: "", coverImage: "", sortOrder: 0 })
+    setBatchCategories([{ name: "", description: "", coverImage: "", sortOrder: 0 }])
   }
 
   const startEdit = (category: Category) => {
@@ -81,8 +87,9 @@ export default function CategoriesAdminPage() {
 
   const cancelEdit = () => {
     setEditingId(null)
-    setIsCreating(false)
+    setCreateMode(null)
     setFormData({ name: "", description: "", coverImage: "", sortOrder: 0 })
+    setBatchCategories([{ name: "", description: "", coverImage: "", sortOrder: 0 }])
   }
 
   const handleCreate = async () => {
@@ -149,6 +156,58 @@ export default function CategoriesAdminPage() {
     }
   }
 
+  // 批量添加分类相关函数
+  const addBatchCategory = () => {
+    setBatchCategories([...batchCategories, { name: "", description: "", coverImage: "", sortOrder: 0 }])
+  }
+
+  const removeBatchCategory = (index: number) => {
+    if (batchCategories.length === 1) {
+      alert("至少保留一个分类")
+      return
+    }
+    setBatchCategories(batchCategories.filter((_, i) => i !== index))
+  }
+
+  const updateBatchCategory = (index: number, field: string, value: any) => {
+    const updated = [...batchCategories]
+    updated[index] = { ...updated[index], [field]: value }
+    setBatchCategories(updated)
+  }
+
+  const handleBatchCreate = async () => {
+    // 验证所有分类名称不为空
+    const emptyNames = batchCategories.filter(cat => !cat.name.trim())
+    if (emptyNames.length > 0) {
+      alert("请填写所有分类的名称")
+      return
+    }
+
+    if (!confirm(`确定要批量创建 ${batchCategories.length} 个分类吗？`)) {
+      return
+    }
+
+    try {
+      const response = await fetch("/api/categories", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ categories: batchCategories })
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || "批量创建分类失败")
+      }
+
+      const data = await response.json()
+      await fetchCategories()
+      cancelEdit()
+      alert(`✓ 成功创建 ${data.count} 个分类`)
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "批量创建失败")
+    }
+  }
+
   if (status === "loading" || loading) {
     return (
       <div className="container mx-auto px-4 py-8">
@@ -176,16 +235,24 @@ export default function CategoriesAdminPage() {
             </Link>
           </div>
         </div>
-        <button
-          onClick={startCreate}
-          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-        >
-          + 新建分类
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => startCreate("single")}
+            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+          >
+            + 新建分类
+          </button>
+          <button
+            onClick={() => startCreate("batch")}
+            className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+          >
+            + 批量添加
+          </button>
+        </div>
       </div>
 
-      {/* 创建表单 */}
-      {isCreating && (
+      {/* 单个创建表单 */}
+      {createMode === "single" && (
         <div className="bg-white rounded-lg shadow p-6 mb-6">
           <h3 className="text-lg font-semibold mb-4">创建新分类</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -253,6 +320,103 @@ export default function CategoriesAdminPage() {
               className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
             >
               创建
+            </button>
+            <button
+              onClick={cancelEdit}
+              className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
+            >
+              取消
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* 批量创建表单 */}
+      {createMode === "batch" && (
+        <div className="bg-white rounded-lg shadow p-6 mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold">批量添加分类</h3>
+            <button
+              onClick={addBatchCategory}
+              className="px-3 py-1 bg-green-600 text-white text-sm rounded-md hover:bg-green-700"
+            >
+              + 添加一行
+            </button>
+          </div>
+
+          <div className="space-y-4 max-h-[600px] overflow-y-auto">
+            {batchCategories.map((category, index) => (
+              <div key={index} className="border rounded-lg p-4 bg-gray-50">
+                <div className="flex items-start justify-between mb-3">
+                  <h4 className="font-medium text-gray-700">分类 #{index + 1}</h4>
+                  {batchCategories.length > 1 && (
+                    <button
+                      onClick={() => removeBatchCategory(index)}
+                      className="text-red-600 hover:text-red-800 text-sm"
+                    >
+                      删除
+                    </button>
+                  )}
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      分类名称 *
+                    </label>
+                    <input
+                      type="text"
+                      value={category.name}
+                      onChange={(e) => updateBatchCategory(index, "name", e.target.value)}
+                      className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="例如：课程"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      排序顺序
+                    </label>
+                    <input
+                      type="number"
+                      value={category.sortOrder}
+                      onChange={(e) => updateBatchCategory(index, "sortOrder", parseInt(e.target.value) || 0)}
+                      className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      描述
+                    </label>
+                    <textarea
+                      value={category.description}
+                      onChange={(e) => updateBatchCategory(index, "description", e.target.value)}
+                      className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      rows={2}
+                      placeholder="分类描述（可选）"
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      封面图片 URL
+                    </label>
+                    <input
+                      type="text"
+                      value={category.coverImage}
+                      onChange={(e) => updateBatchCategory(index, "coverImage", e.target.value)}
+                      className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="https://example.com/image.jpg"
+                    />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="flex gap-2 mt-4">
+            <button
+              onClick={handleBatchCreate}
+              className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+            >
+              批量创建 ({batchCategories.length} 个)
             </button>
             <button
               onClick={cancelEdit}
@@ -417,6 +581,8 @@ export default function CategoriesAdminPage() {
         <h3 className="font-semibold mb-2 text-blue-900">💡 使用说明</h3>
         <ul className="text-sm text-blue-800 space-y-1">
           <li>• 分类可用于组织和筛选商品</li>
+          <li>• 支持单个创建和批量添加两种模式</li>
+          <li>• 批量添加时可以一次性创建多个分类，提高效率</li>
           <li>• 排序顺序数值越小越靠前</li>
           <li>• 删除分类前需要先移除该分类下的所有商品</li>
           <li>• 图片URL需要是公开可访问的网址</li>

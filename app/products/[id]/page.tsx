@@ -156,8 +156,8 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
       const orderData: any = {
         items: [{
           productId: product.id,
-          quantity: quantity,
-          price: product.price
+          quantity: quantity
+          // 安全改进：不再发送价格，价格由服务器从数据库查询决定
         }]
       }
 

@@ -6,10 +6,10 @@ import crypto from "crypto"
 
 const createOrderSchema = z.object({
   // 订单项列表（匿名购物车）
+  // 安全改进：移除 price 参数，价格完全由服务器从数据库查询决定
   items: z.array(z.object({
     productId: z.string(),
-    quantity: z.number().int().positive(),
-    price: z.number().positive()
+    quantity: z.number().int().positive()
   })).min(1, "订单至少需要一个商品"),
   // 支付方式（暂时可选，创建订单后选择）
   paymentMethod: z.enum(["alipay", "wechat", "paypal"]).optional(),
@@ -112,6 +112,9 @@ export async function POST(req: Request) {
     let membershipDiscount = null
 
     // 验证所有商品是否存在且可用，计算原价
+    // 安全改进：价格完全从数据库查询，不信任客户端传来的任何价格数据
+    const validatedItems: Array<{ productId: string; quantity: number; price: number }> = []
+
     for (const item of data.items) {
       const product = await prisma.product.findUnique({
         where: { id: item.productId }
@@ -124,15 +127,15 @@ export async function POST(req: Request) {
         )
       }
 
-      // 验证价格是否匹配（防止客户端篡改价格）
-      if (Math.abs(product.price - item.price) > 0.01) {
-        return NextResponse.json(
-          { error: `商品价格已变更，请刷新页面` },
-          { status: 400 }
-        )
-      }
+      // 使用数据库中的价格（完全不信任客户端）
+      const serverPrice = product.price
+      validatedItems.push({
+        productId: item.productId,
+        quantity: item.quantity,
+        price: serverPrice  // 使用服务器价格
+      })
 
-      originalAmount += item.price * item.quantity
+      originalAmount += serverPrice * item.quantity
     }
 
     // 如果提供了会员码，验证并应用折扣
@@ -191,14 +194,14 @@ export async function POST(req: Request) {
       }
 
       // 计算可以享受折扣的商品数量
-      const totalItems = data.items.reduce((sum, item) => sum + item.quantity, 0)
+      const totalItems = validatedItems.reduce((sum, item) => sum + item.quantity, 0)
       const discountableCount = Math.min(totalItems, remainingToday)
 
       // 计算折扣金额
       let remaining = discountableCount
       let discountAmount = 0
 
-      for (const item of data.items) {
+      for (const item of validatedItems) {
         if (remaining <= 0) break
         const itemCount = Math.min(item.quantity, remaining)
         discountAmount += item.price * itemCount * (1 - membership.discount)
@@ -227,24 +230,27 @@ export async function POST(req: Request) {
       totalAmount = originalAmount
     }
 
-    // 安全检查：检测0元或负数订单（可能是价格篡改攻击）
-    if (totalAmount <= 0.01) {
-      // 记录安全警报
+    // 安全检查：检测价格篡改攻击
+    // 区分两种情况：
+    // 1. 商品原价就是0元（合法的免费商品） - 允许
+    // 2. 商品原价 > 0 但被折扣/篡改成0元（攻击） - 拦截并记录
+    if (originalAmount > 0.01 && totalAmount <= 0.01) {
+      // 这是价格篡改攻击：原价大于0，但折后价变成了0或负数
       try {
         await prisma.securityAlert.create({
           data: {
-            type: "ZERO_AMOUNT_ORDER",
+            type: "PRICE_MANIPULATION",
             severity: "high",
             userId: null, // 匿名订单暂无userId
             ipAddress: req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || "unknown",
             userAgent: req.headers.get("user-agent") || "unknown",
-            description: `检测到0元或异常金额订单尝试：原价${originalAmount}元，折后${totalAmount}元`,
+            description: `检测到价格篡改攻击：商品原价${originalAmount}元，被异常折扣至${totalAmount}元`,
             metadata: JSON.stringify({
               originalAmount,
               totalAmount,
               discount: membershipDiscount,
               membershipCode: data.membershipCode,
-              items: data.items,
+              items: validatedItems,  // 使用服务器验证后的商品信息（含真实价格）
               timestamp: new Date().toISOString()
             }),
             status: "unresolved"
@@ -258,11 +264,13 @@ export async function POST(req: Request) {
         {
           error: "订单金额异常",
           message: "检测到订单金额异常，系统已记录此行为并通知管理员。如果您认为这是一个错误，请联系客服。",
-          code: "INVALID_AMOUNT"
+          code: "PRICE_MANIPULATION"
         },
         { status: 400 }
       )
     }
+
+    // 如果 originalAmount <= 0.01 且 totalAmount <= 0.01，说明是管理员上架的合法0元商品，允许创建订单
 
     // 生成安全的唯一订单号
     const orderNumber = generateOrderNumber()
@@ -278,10 +286,10 @@ export async function POST(req: Request) {
         status: "pending",
         paymentMethod: data.paymentMethod,
         orderItems: {
-          create: data.items.map(item => ({
+          create: validatedItems.map(item => ({
             productId: item.productId,
             quantity: item.quantity,
-            price: item.price
+            price: item.price  // 使用服务器从数据库查询的价格
           }))
         }
       },

@@ -92,6 +92,31 @@ export async function GET(req: Request) {
     const authSession = await getServerSession(authOptions)
     const isAdmin = authSession?.user?.role === "ADMIN"
 
+    // 安全检查：验证访问权限
+    if (!isAdmin) {
+      // 非管理员用户需要验证是否是会话的所有者
+      const chatSession = await prisma.chatSession.findUnique({
+        where: { id: sessionId },
+        select: { visitorId: true }
+      })
+
+      if (!chatSession) {
+        return NextResponse.json(
+          { error: "会话不存在" },
+          { status: 404 }
+        )
+      }
+
+      // 验证visitorId是否匹配（从请求头或查询参数获取）
+      const requestVisitorId = searchParams.get("visitorId")
+      if (chatSession.visitorId !== requestVisitorId) {
+        return NextResponse.json(
+          { error: "无权访问此会话" },
+          { status: 403 }
+        )
+      }
+    }
+
     // 构建查询条件
     const where: any = { sessionId }
     if (since) {

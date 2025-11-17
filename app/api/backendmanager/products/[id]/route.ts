@@ -44,7 +44,6 @@ export async function PATCH(
 
     // 解析请求数据
     const body = await request.json()
-    console.log("更新商品 - 收到的数据:", JSON.stringify(body, null, 2))
     const updateData = updateProductSchema.parse(body)
 
     // 检查商品是否存在
@@ -89,8 +88,6 @@ export async function PATCH(
     if (processedData.networkDiskLink === "") {
       processedData.networkDiskLink = null
     }
-
-    console.log("处理后的数据:", JSON.stringify(processedData, null, 2))
 
     // 更新商品（只更新提供的字段）
     const updatedProduct = await prisma.product.update({

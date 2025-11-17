@@ -77,8 +77,8 @@ export default function CustomerChat() {
     if (!sessionId) return
 
     try {
-      // 获取所有消息以更新已读状态
-      const response = await fetch(`/api/chat/messages?sessionId=${sessionId}`)
+      // 获取所有消息以更新已读状态（传递visitorId用于权限验证）
+      const response = await fetch(`/api/chat/messages?sessionId=${sessionId}&visitorId=${visitorId}`)
       if (!response.ok) throw new Error("获取消息失败")
 
       const data = await response.json()

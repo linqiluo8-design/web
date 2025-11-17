@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
+import ImageUpload from "@/components/ImageUpload"
 
 interface Banner {
   id: string
@@ -289,30 +290,16 @@ export default function BannersAdminPage() {
             </div>
 
             <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                图片URL * <span className="text-xs text-gray-500">(仅支持 http/https，最多2000字符)</span>
-              </label>
-              <input
-                type="url"
+              <ImageUpload
+                label="轮播图片 * (支持URL输入或图片上传/粘贴)"
                 value={formData.image}
-                onChange={(e) => setFormData({ ...formData, image: e.target.value })}
-                className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="https://example.com/banner.jpg"
-                maxLength={2000}
+                onChange={(url) => setFormData({ ...formData, image: url })}
               />
-              {formData.image && (
-                <div className="mt-2 w-full h-40 rounded border overflow-hidden bg-gray-50">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={formData.image}
-                    alt="预览"
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      e.currentTarget.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="100" height="100"%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dy=".3em" fill="%23999"%3E加载失败%3C/text%3E%3C/svg%3E'
-                    }}
-                  />
-                </div>
-              )}
+              <p className="mt-1 text-xs text-gray-500">
+                • URL模式：支持 http/https 协议（最多2000字符）
+                <br />
+                • 上传模式：支持点击选择、拖拽或粘贴图片（Ctrl+V），最大5MB
+              </p>
             </div>
 
             <div className="md:col-span-2">
@@ -510,7 +497,10 @@ export default function BannersAdminPage() {
         <h4 className="text-sm font-semibold text-blue-900 mb-2">🔒 安全提示</h4>
         <ul className="text-xs text-blue-800 space-y-1">
           <li>• 最多可创建 50 个轮播图</li>
-          <li>• 仅支持 http/https 协议的图片和链接URL</li>
+          <li>• 图片支持两种方式：</li>
+          <li className="ml-4">- URL模式：支持 http/https 协议的图片链接</li>
+          <li className="ml-4">- 上传模式：支持点击选择、拖拽或粘贴图片（Ctrl+V），最大5MB</li>
+          <li>• 链接URL仅支持 http/https 协议</li>
           <li>• 系统会自动检测并拦截可疑URL（如 javascript:、data: 等）</li>
           <li>• 所有操作都会记录到安全审计日志</li>
         </ul>

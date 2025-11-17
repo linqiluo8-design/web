@@ -38,6 +38,19 @@ function validateURL(url: string, fieldName: string): { valid: boolean; error?: 
     }
   }
 
+  // 支持本地上传路径（以 / 开头）
+  if (url.startsWith('/')) {
+    // 验证本地路径格式（只允许 /uploads/ 开头的路径）
+    if (!url.startsWith('/uploads/')) {
+      return { valid: false, error: `${fieldName}路径不安全，仅允许 /uploads/ 路径` }
+    }
+    // 检查路径遍历攻击
+    if (url.includes('..') || url.includes('//')) {
+      return { valid: false, error: `${fieldName}包含非法字符` }
+    }
+    return { valid: true }
+  }
+
   // 必须是 http/https 协议
   try {
     const urlObj = new URL(url)
@@ -56,8 +69,12 @@ const bannerSchema = z.object({
     .min(1, "标题不能为空")
     .max(SECURITY_LIMITS.MAX_TITLE_LENGTH, `标题不能超过${SECURITY_LIMITS.MAX_TITLE_LENGTH}个字符`),
   image: z.string()
-    .url("请输入有效的图片URL")
-    .max(SECURITY_LIMITS.MAX_URL_LENGTH, "图片URL过长"),
+    .min(1, "图片URL不能为空")
+    .max(SECURITY_LIMITS.MAX_URL_LENGTH, "图片URL过长")
+    .refine(
+      (val) => val.startsWith('/uploads/') || val.startsWith('http://') || val.startsWith('https://'),
+      "图片必须是有效的URL或上传路径"
+    ),
   link: z.string()
     .max(SECURITY_LIMITS.MAX_URL_LENGTH, "链接URL过长")
     .optional(),

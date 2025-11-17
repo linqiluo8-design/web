@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
-import { writeFile } from "fs/promises"
+import { writeFile, mkdir } from "fs/promises"
 import path from "path"
 import { v4 as uuidv4 } from "uuid"
+import { existsSync } from "fs"
 
 export async function POST(req: Request) {
   try {
@@ -61,8 +62,14 @@ export async function POST(req: Request) {
     const bytes = await file.arrayBuffer()
     const buffer = Buffer.from(bytes)
 
+    // 确保uploads目录存在
+    const uploadsDir = path.join(process.cwd(), "public", "uploads")
+    if (!existsSync(uploadsDir)) {
+      await mkdir(uploadsDir, { recursive: true })
+    }
+
     // 保存文件到public/uploads目录
-    const uploadPath = path.join(process.cwd(), "public", "uploads", fileName)
+    const uploadPath = path.join(uploadsDir, fileName)
     await writeFile(uploadPath, buffer)
 
     // 返回图片URL

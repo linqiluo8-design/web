@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { requireAuth } from "@/lib/session"
+import { requireRead, requireWrite } from "@/lib/permissions"
 import { z } from "zod"
 
 const configSchema = z.object({
@@ -14,14 +14,8 @@ const configSchema = z.object({
 // 获取所有系统配置
 export async function GET(req: Request) {
   try {
-    const user = await requireAuth()
-
-    if (user.role !== "ADMIN") {
-      return NextResponse.json(
-        { error: "需要管理员权限" },
-        { status: 403 }
-      )
-    }
+    // 需要系统设置的读权限
+    await requireRead('SYSTEM_SETTINGS')
 
     const { searchParams } = new URL(req.url)
     const category = searchParams.get("category")
@@ -53,14 +47,8 @@ export async function GET(req: Request) {
 // 创建或更新系统配置
 export async function POST(req: Request) {
   try {
-    const user = await requireAuth()
-
-    if (user.role !== "ADMIN") {
-      return NextResponse.json(
-        { error: "需要管理员权限" },
-        { status: 403 }
-      )
-    }
+    // 需要系统设置的写权限
+    await requireWrite('SYSTEM_SETTINGS')
 
     const body = await req.json()
     const data = configSchema.parse(body)
@@ -108,14 +96,8 @@ export async function POST(req: Request) {
 // 批量更新配置
 export async function PUT(req: Request) {
   try {
-    const user = await requireAuth()
-
-    if (user.role !== "ADMIN") {
-      return NextResponse.json(
-        { error: "需要管理员权限" },
-        { status: 403 }
-      )
-    }
+    // 需要系统设置的写权限
+    await requireWrite('SYSTEM_SETTINGS')
 
     const body = await req.json()
     const { configs } = body

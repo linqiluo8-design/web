@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { requireAuth } from "@/lib/session"
+import { requireRead, requireWrite } from "@/lib/permissions"
 import { z } from "zod"
 
 // 安全常量配置
@@ -92,14 +92,8 @@ const bannerSchema = z.object({
 // 获取所有轮播图
 export async function GET(req: Request) {
   try {
-    const user = await requireAuth()
-
-    if (user.role !== "ADMIN") {
-      return NextResponse.json(
-        { error: "需要管理员权限" },
-        { status: 403 }
-      )
-    }
+    // 需要轮播图管理的读权限
+    await requireRead('BANNERS')
 
     const banners = await prisma.banner.findMany({
       orderBy: [
@@ -110,10 +104,17 @@ export async function GET(req: Request) {
 
     return NextResponse.json({ banners })
   } catch (error: any) {
-    if (error.message === "未授权，请先登录") {
+    if (error.message === "未登录") {
       return NextResponse.json(
         { error: error.message },
         { status: 401 }
+      )
+    }
+
+    if (error.message?.includes("没有访问")) {
+      return NextResponse.json(
+        { error: error.message },
+        { status: 403 }
       )
     }
 
@@ -128,14 +129,8 @@ export async function GET(req: Request) {
 // 创建轮播图
 export async function POST(req: Request) {
   try {
-    const user = await requireAuth()
-
-    if (user.role !== "ADMIN") {
-      return NextResponse.json(
-        { error: "需要管理员权限" },
-        { status: 403 }
-      )
-    }
+    // 需要轮播图管理的写权限
+    const user = await requireWrite('BANNERS')
 
     const body = await req.json()
     const data = bannerSchema.parse(body)

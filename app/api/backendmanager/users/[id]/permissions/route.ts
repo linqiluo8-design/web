@@ -9,7 +9,16 @@ import { z } from 'zod'
 const permissionSchema = z.object({
   permissions: z.array(
     z.object({
-      module: z.enum(['CATEGORIES', 'MEMBERSHIPS', 'ORDERS', 'PRODUCTS']),
+      module: z.enum([
+        'CATEGORIES',
+        'MEMBERSHIPS',
+        'ORDERS',
+        'PRODUCTS',
+        'BANNERS',
+        'SYSTEM_SETTINGS',
+        'SECURITY_ALERTS',
+        'CUSTOMER_CHAT'
+      ]),
       level: z.enum(['NONE', 'READ', 'WRITE']),
     })
   ),

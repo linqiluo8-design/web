@@ -60,12 +60,25 @@ export async function PATCH(
 
     // 处理空字符串：将空字符串转换为null
     const processedData: any = { ...updateData }
-    if (processedData.categoryId === "") {
-      processedData.categoryId = null
+
+    // 如果更新了categoryId，需要同步更新category字段（分类名称）
+    if (processedData.categoryId !== undefined) {
+      if (processedData.categoryId === "" || processedData.categoryId === null) {
+        // 清除分类
+        processedData.categoryId = null
+        processedData.category = null
+      } else {
+        // 查找分类名称并更新
+        const categoryData = await prisma.category.findUnique({
+          where: { id: processedData.categoryId },
+          select: { name: true }
+        })
+        if (categoryData) {
+          processedData.category = categoryData.name
+        }
+      }
     }
-    if (processedData.category === "") {
-      processedData.category = null
-    }
+
     if (processedData.coverImage === "") {
       processedData.coverImage = null
     }

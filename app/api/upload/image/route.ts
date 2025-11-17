@@ -36,11 +36,37 @@ export async function POST(req: Request) {
       )
     }
 
-    // 验证文件类型
+    // 验证文件类型（MIME type）
     const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp"]
     if (!allowedTypes.includes(file.type)) {
       return NextResponse.json(
         { error: "只支持上传图片文件 (JPEG, PNG, GIF, WebP)" },
+        { status: 400 }
+      )
+    }
+
+    // 验证文件扩展名（白名单）
+    const allowedExtensions = ["jpg", "jpeg", "png", "gif", "webp"]
+    const fileExtension = file.name.split(".").pop()?.toLowerCase()
+    if (!fileExtension || !allowedExtensions.includes(fileExtension)) {
+      return NextResponse.json(
+        { error: "不支持的文件扩展名" },
+        { status: 400 }
+      )
+    }
+
+    // 验证MIME类型与扩展名匹配
+    const mimeToExtension: { [key: string]: string[] } = {
+      "image/jpeg": ["jpg", "jpeg"],
+      "image/jpg": ["jpg", "jpeg"],
+      "image/png": ["png"],
+      "image/gif": ["gif"],
+      "image/webp": ["webp"]
+    }
+    const expectedExtensions = mimeToExtension[file.type]
+    if (!expectedExtensions || !expectedExtensions.includes(fileExtension)) {
+      return NextResponse.json(
+        { error: "文件类型与扩展名不匹配" },
         { status: 400 }
       )
     }
@@ -54,8 +80,7 @@ export async function POST(req: Request) {
       )
     }
 
-    // 生成唯一文件名
-    const fileExtension = file.name.split(".").pop()
+    // 生成唯一文件名（只使用验证过的扩展名）
     const fileName = `${uuidv4()}.${fileExtension}`
 
     // 将文件转换为Buffer

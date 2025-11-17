@@ -1,19 +1,12 @@
 import { NextResponse } from "next/server"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
+import { requireRead } from "@/lib/permissions"
 import { prisma } from "@/lib/prisma"
 
-// GET /api/backendmanager/chat - 获取所有聊天会话（管理员）
+// GET /api/backendmanager/chat - 获取所有聊天会话
 export async function GET() {
   try {
-    const session = await getServerSession(authOptions)
-
-    if (!session || session.user.role !== "ADMIN") {
-      return NextResponse.json(
-        { error: "需要管理员权限" },
-        { status: 403 }
-      )
-    }
+    // 需要客服聊天的读权限
+    await requireRead('CUSTOMER_CHAT')
 
     // 获取所有活跃的聊天会话
     const sessions = await prisma.chatSession.findMany({

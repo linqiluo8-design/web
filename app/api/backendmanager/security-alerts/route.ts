@@ -1,32 +1,16 @@
 import { NextResponse } from "next/server"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
+import { requireRead } from "@/lib/permissions"
 import { prisma } from "@/lib/prisma"
 
 /**
  * GET /api/backendmanager/security-alerts
  * 获取安全警报列表（支持筛选和分页）
- * 仅限管理员访问
+ * 需要安全警报的读权限
  */
 export async function GET(req: Request) {
   try {
-    // 验证用户登录
-    const session = await getServerSession(authOptions)
-
-    if (!session || !session.user) {
-      return NextResponse.json(
-        { error: "未授权，请先登录" },
-        { status: 401 }
-      )
-    }
-
-    // 验证管理员权限
-    if (session.user.role !== "ADMIN") {
-      return NextResponse.json(
-        { error: "无权限访问，仅管理员可访问" },
-        { status: 403 }
-      )
-    }
+    // 需要安全警报的读权限
+    await requireRead('SECURITY_ALERTS')
 
     const { searchParams } = new URL(req.url)
 

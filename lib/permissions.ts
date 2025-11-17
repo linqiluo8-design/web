@@ -5,7 +5,16 @@ import { prisma } from './prisma'
 import { getServerSession } from 'next-auth'
 import { authOptions } from './auth'
 
-export type PermissionModule = 'CATEGORIES' | 'MEMBERSHIPS' | 'ORDERS' | 'PRODUCTS'
+export type PermissionModule =
+  | 'CATEGORIES'
+  | 'MEMBERSHIPS'
+  | 'ORDERS'
+  | 'PRODUCTS'
+  | 'BANNERS'
+  | 'SYSTEM_SETTINGS'
+  | 'SECURITY_ALERTS'
+  | 'CUSTOMER_CHAT'
+
 export type PermissionLevel = 'NONE' | 'READ' | 'WRITE'
 
 /**
@@ -173,6 +182,10 @@ function getModuleName(module: PermissionModule): string {
     MEMBERSHIPS: '会员管理',
     ORDERS: '订单数据',
     PRODUCTS: '商品管理',
+    BANNERS: '轮播图管理',
+    SYSTEM_SETTINGS: '系统设置',
+    SECURITY_ALERTS: '安全警报',
+    CUSTOMER_CHAT: '客服聊天',
   }
   return names[module] || module
 }

@@ -27,6 +27,7 @@ export async function GET(req: Request) {
                 price: true,
                 coverImage: true,
                 category: true,
+                networkDiskLink: true, // 包含网盘链接
               }
             }
           }
@@ -40,6 +41,13 @@ export async function GET(req: Request) {
         { error: "订单不存在" },
         { status: 404 }
       )
+    }
+
+    // 如果订单未支付，移除网盘链接信息（安全考虑）
+    if (order.status !== "paid") {
+      order.orderItems.forEach((item: any) => {
+        item.product.networkDiskLink = null
+      })
     }
 
     return NextResponse.json({ order })

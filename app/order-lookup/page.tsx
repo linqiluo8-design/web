@@ -15,6 +15,7 @@ interface OrderItem {
     price: number
     coverImage: string | null
     category: string | null
+    networkDiskLink: string | null
   }
 }
 
@@ -202,6 +203,39 @@ export default function OrderLookupPage() {
               ))}
             </div>
           </div>
+
+          {/* 虚拟商品资源信息 - 仅在已支付订单中显示 */}
+          {order.status === "paid" && order.orderItems.some(item => item.product.networkDiskLink) && (
+            <div className="px-6 py-4 bg-green-50 border-t border-green-200">
+              <div className="flex items-start gap-2 mb-3">
+                <span className="text-lg">🎁</span>
+                <div>
+                  <h3 className="font-semibold text-green-900">虚拟商品资源</h3>
+                  <p className="text-sm text-green-700">支付成功！您可以查看以下商品的资源链接</p>
+                </div>
+              </div>
+              <div className="space-y-3">
+                {order.orderItems.map((item) => (
+                  item.product.networkDiskLink && (
+                    <div key={item.id} className="bg-white rounded-lg p-4 border border-green-200">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="text-sm font-medium text-gray-900">{item.product.title}</span>
+                        <span className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded">虚拟商品</span>
+                      </div>
+                      <div className="bg-gray-50 rounded p-3 border">
+                        <pre className="text-xs font-mono text-gray-800 whitespace-pre-wrap break-all">
+                          {item.product.networkDiskLink}
+                        </pre>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-2">
+                        💡 请妥善保存资源链接，建议截图或复制保存
+                      </p>
+                    </div>
+                  )
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* 订单总计 */}
           <div className="bg-gray-50 px-6 py-4 border-t">

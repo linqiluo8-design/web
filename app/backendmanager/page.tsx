@@ -17,6 +17,7 @@ interface Product {
   showImage: boolean
   category: string | null
   categoryId: string | null
+  networkDiskLink: string | null
   status: string
   createdAt: string
 }
@@ -142,6 +143,7 @@ export default function AdminPage() {
       categoryId: product.categoryId || "",
       coverImage: product.coverImage || "",
       showImage: product.showImage,
+      networkDiskLink: product.networkDiskLink || "",
     })
   }
 
@@ -478,6 +480,22 @@ export default function AdminPage() {
                 </label>
               </div>
             </div>
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                网盘链接 (虚拟商品资源)
+              </label>
+              <textarea
+                value={createForm.networkDiskLink || ""}
+                onChange={(e) => setCreateForm({ ...createForm, networkDiskLink: e.target.value })}
+                className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
+                rows={3}
+                placeholder="例如：百度网盘: https://pan.baidu.com/xxx 提取码: abcd&#10;或留空表示实体商品"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                💡 虚拟商品（视频、电子书等）：填写网盘链接和提取密码，用户付款后可见<br/>
+                📦 实体商品或线下服务：留空即可
+              </p>
+            </div>
           </div>
           <div className="flex gap-2 mt-4">
             <button
@@ -573,6 +591,18 @@ export default function AdminPage() {
                       value={product.coverImage || ""}
                       onChange={(url) => updateBatchProduct(index, "coverImage", url)}
                       label="封面图片"
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                      网盘链接 (可选)
+                    </label>
+                    <textarea
+                      value={product.networkDiskLink || ""}
+                      onChange={(e) => updateBatchProduct(index, "networkDiskLink", e.target.value)}
+                      className="w-full px-2 py-1 text-xs border rounded-md font-mono"
+                      rows={2}
+                      placeholder="网盘链接 + 提取码"
                     />
                   </div>
                 </div>
@@ -723,6 +753,22 @@ export default function AdminPage() {
                           </div>
                           <p className="text-xs text-gray-500 mt-1">
                             关闭后，商品列表将显示"暂无图片"占位符
+                          </p>
+                        </div>
+                        <div className="md:col-span-2">
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            网盘链接 (虚拟商品资源)
+                          </label>
+                          <textarea
+                            value={editForm.networkDiskLink || ""}
+                            onChange={(e) => setEditForm({ ...editForm, networkDiskLink: e.target.value })}
+                            className="w-full px-3 py-2 border rounded-md font-mono text-sm"
+                            rows={3}
+                            placeholder="例如：百度网盘: https://pan.baidu.com/xxx 提取码: abcd&#10;或留空表示实体商品"
+                          />
+                          <p className="text-xs text-gray-500 mt-1">
+                            💡 虚拟商品（视频、电子书等）：填写网盘链接和提取密码，用户付款后可见<br/>
+                            📦 实体商品或线下服务：留空即可
                           </p>
                         </div>
                       </div>

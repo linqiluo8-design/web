@@ -328,3 +328,40 @@ model SecurityAlert {
   @@index([status])
   @@index([createdAt])
 }
+
+// 客服聊天会话模型
+model ChatSession {
+  id            String   @id @default(cuid())
+  visitorId     String   // 访客唯一标识（未登录用户）或用户ID
+  userId        String?  // 如果是登录用户，关联用户ID
+  visitorName   String?  // 访客姓名（可选）
+  visitorEmail  String?  // 访客邮箱（可选）
+  status        String   @default("active") // active, closed
+  lastMessageAt DateTime @default(now()) // 最后一条消息时间
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  messages      ChatMessage[]
+
+  @@index([visitorId])
+  @@index([userId])
+  @@index([status])
+  @@index([lastMessageAt])
+}
+
+// 聊天消息模型
+model ChatMessage {
+  id          String   @id @default(cuid())
+  sessionId   String   // 关联聊天会话
+  senderType  String   // visitor, admin
+  senderId    String?  // 发送者ID（管理员ID或访客ID）
+  senderName  String?  // 发送者姓名
+  message     String   // 消息内容
+  isRead      Boolean  @default(false) // 是否已读
+  createdAt   DateTime @default(now())
+
+  session     ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+  @@index([createdAt])
+}

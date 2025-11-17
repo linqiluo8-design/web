@@ -9,7 +9,18 @@ export async function POST(request: Request) {
   try {
     // 获取当前用户session（支持匿名购买，所以不强制要求登录）
     const session = await getServerSession(authOptions)
-    const userId = session?.user?.id || null
+    let userId: string | null = null
+
+    // 如果有session，验证用户是否存在
+    if (session?.user?.id) {
+      const user = await prisma.user.findUnique({
+        where: { id: session.user.id }
+      })
+      // 只有用户存在时才关联userId
+      if (user) {
+        userId = user.id
+      }
+    }
 
     const { planId } = await request.json()
 

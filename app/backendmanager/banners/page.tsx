@@ -238,25 +238,10 @@ export default function BannersAdminPage() {
     <div className="container mx-auto px-4 py-8">
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-bold mb-4">后台管理 - 轮播图管理</h1>
-          <div className="flex flex-wrap gap-4">
-            <Link
-              href="/backendmanager"
-              className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200"
-            >
-              商品管理
-            </Link>
-            <Link
-              href="/backendmanager/categories"
-              className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200"
-            >
-              分类管理
-            </Link>
-            <Link
-              href="/backendmanager/security-alerts"
-              className="px-4 py-2 bg-red-100 text-red-700 rounded-md hover:bg-red-200 font-medium"
-            >
-              🔒 安全警报
+          <h1 className="text-3xl font-bold mb-2">轮播图管理</h1>
+          <div className="flex gap-4 text-sm">
+            <Link href="/backendmanager" className="text-gray-600 hover:text-blue-600">
+              ← 返回商品管理
             </Link>
           </div>
         </div>

@@ -14,6 +14,7 @@ const updateProductSchema = z.object({
   content: z.string().optional(),
   coverImage: z.string().optional(),
   showImage: z.boolean().optional(),
+  networkDiskLink: z.string().optional(),
 })
 
 export async function PATCH(
@@ -57,16 +58,35 @@ export async function PATCH(
       )
     }
 
+    // 处理空字符串：将空字符串转换为null
+    const processedData: any = { ...updateData }
+    if (processedData.categoryId === "") {
+      processedData.categoryId = null
+    }
+    if (processedData.category === "") {
+      processedData.category = null
+    }
+    if (processedData.coverImage === "") {
+      processedData.coverImage = null
+    }
+    if (processedData.content === "") {
+      processedData.content = null
+    }
+    if (processedData.networkDiskLink === "") {
+      processedData.networkDiskLink = null
+    }
+
     // 更新商品（只更新提供的字段）
     const updatedProduct = await prisma.product.update({
       where: { id: params.id },
-      data: updateData,
+      data: processedData,
       select: {
         id: true,
         title: true,
         description: true,
         price: true,
         category: true,
+        categoryId: true,
         status: true,
         updatedAt: true,
       },

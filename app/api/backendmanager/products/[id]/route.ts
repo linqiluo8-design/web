@@ -44,6 +44,7 @@ export async function PATCH(
 
     // 解析请求数据
     const body = await request.json()
+    console.log("更新商品 - 收到的数据:", JSON.stringify(body, null, 2))
     const updateData = updateProductSchema.parse(body)
 
     // 检查商品是否存在
@@ -60,12 +61,25 @@ export async function PATCH(
 
     // 处理空字符串：将空字符串转换为null
     const processedData: any = { ...updateData }
-    if (processedData.categoryId === "") {
-      processedData.categoryId = null
+
+    // 如果更新了categoryId，需要同步更新category字段（分类名称）
+    if (processedData.categoryId !== undefined) {
+      if (processedData.categoryId === "" || processedData.categoryId === null) {
+        // 清除分类
+        processedData.categoryId = null
+        processedData.category = null
+      } else {
+        // 查找分类名称并更新
+        const categoryData = await prisma.category.findUnique({
+          where: { id: processedData.categoryId },
+          select: { name: true }
+        })
+        if (categoryData) {
+          processedData.category = categoryData.name
+        }
+      }
     }
-    if (processedData.category === "") {
-      processedData.category = null
-    }
+
     if (processedData.coverImage === "") {
       processedData.coverImage = null
     }
@@ -75,6 +89,8 @@ export async function PATCH(
     if (processedData.networkDiskLink === "") {
       processedData.networkDiskLink = null
     }
+
+    console.log("处理后的数据:", JSON.stringify(processedData, null, 2))
 
     // 更新商品（只更新提供的字段）
     const updatedProduct = await prisma.product.update({

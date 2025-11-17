@@ -97,26 +97,12 @@ export default function MembershipPaymentPage({ params }: { params: Promise<{ id
       const data = await res.json()
 
       // 根据不同支付方式处理
-      if (selectedMethod === "alipay") {
-        // 支付宝：跳转到支付宝页面
+      if (selectedMethod === "alipay" || selectedMethod === "wechat" || selectedMethod === "paypal") {
+        // 所有支付方式统一跳转到支付页面
         if (data.payUrl) {
           window.location.href = data.payUrl
         } else {
           throw new Error("支付链接获取失败")
-        }
-      } else if (selectedMethod === "wechat") {
-        // 微信：显示二维码（演示模式）
-        alert("请使用微信扫描二维码支付\n\n（演示模式：直接模拟支付成功）")
-        // 模拟支付成功
-        setTimeout(() => {
-          router.push(`/membership/success?code=${membership.membershipCode}&amount=${membership.purchasePrice}`)
-        }, 1000)
-      } else if (selectedMethod === "paypal") {
-        // PayPal：跳转到PayPal
-        if (data.approvalUrl) {
-          window.location.href = data.approvalUrl
-        } else {
-          throw new Error("PayPal支付链接获取失败")
         }
       }
     } catch (err) {

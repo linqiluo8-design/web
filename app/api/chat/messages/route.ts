@@ -88,6 +88,10 @@ export async function GET(req: Request) {
       )
     }
 
+    // 检查是否是管理员
+    const authSession = await getServerSession(authOptions)
+    const isAdmin = authSession?.user?.role === "ADMIN"
+
     // 构建查询条件
     const where: any = { sessionId }
     if (since) {
@@ -102,6 +106,20 @@ export async function GET(req: Request) {
       orderBy: { createdAt: "asc" },
       take: 100 // 限制最多100条
     })
+
+    // 如果是管理员，将访客的未读消息标记为已读
+    if (isAdmin) {
+      await prisma.chatMessage.updateMany({
+        where: {
+          sessionId,
+          senderType: "visitor",
+          isRead: false
+        },
+        data: {
+          isRead: true
+        }
+      })
+    }
 
     return NextResponse.json({ messages })
   } catch (error) {

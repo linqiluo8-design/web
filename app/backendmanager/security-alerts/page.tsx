@@ -35,6 +35,8 @@ export default function SecurityAlertsPage() {
   const [showDetail, setShowDetail] = useState(false)
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [severityFilter, setSeverityFilter] = useState<string>("all")
+  const [selectedIds, setSelectedIds] = useState<string[]>([])
+  const [showBatchActions, setShowBatchActions] = useState(false)
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -123,6 +125,89 @@ export default function SecurityAlertsPage() {
     } catch (err) {
       alert(err instanceof Error ? err.message : "删除失败")
     }
+  }
+
+  // 批量操作：删除
+  const handleBatchDelete = async () => {
+    if (selectedIds.length === 0) {
+      alert("请先选择要删除的警报")
+      return
+    }
+
+    if (!confirm(`确定要删除选中的 ${selectedIds.length} 条警报吗？`)) {
+      return
+    }
+
+    try {
+      const response = await fetch("/api/backendmanager/security-alerts/batch", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: selectedIds })
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || "批量删除失败")
+      }
+
+      await fetchAlerts()
+      setSelectedIds([])
+      alert(`✓ 成功删除 ${selectedIds.length} 条警报`)
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "批量删除失败")
+    }
+  }
+
+  // 批量操作：更新状态
+  const handleBatchUpdateStatus = async (newStatus: string) => {
+    if (selectedIds.length === 0) {
+      alert("请先选择要更新的警报")
+      return
+    }
+
+    let notes: string | undefined
+    if (newStatus === "resolved") {
+      const input = prompt("请输入处理备注（可选）:")
+      notes = input || undefined
+    } else if (newStatus === "false_positive") {
+      const input = prompt("请说明为什么这些是误报:")
+      notes = input || undefined
+    }
+
+    try {
+      const response = await fetch("/api/backendmanager/security-alerts/batch", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: selectedIds, status: newStatus, notes })
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || "批量更新失败")
+      }
+
+      await fetchAlerts()
+      setSelectedIds([])
+      alert(`✓ 成功更新 ${selectedIds.length} 条警报状态`)
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "批量更新失败")
+    }
+  }
+
+  // 全选/取消全选
+  const handleSelectAll = () => {
+    if (selectedIds.length === alerts.length) {
+      setSelectedIds([])
+    } else {
+      setSelectedIds(alerts.map(alert => alert.id))
+    }
+  }
+
+  // 切换单个选择
+  const handleToggleSelect = (id: string) => {
+    setSelectedIds(prev =>
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    )
   }
 
   const getSeverityColor = (severity: string) => {
@@ -265,10 +350,59 @@ export default function SecurityAlertsPage() {
         </div>
       ) : (
         <>
+          {/* 批量操作工具栏 */}
+          {selectedIds.length > 0 && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4 flex items-center justify-between">
+              <div className="text-sm text-blue-900">
+                已选择 <span className="font-bold">{selectedIds.length}</span> 条警报
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => handleBatchUpdateStatus("investigating")}
+                  className="px-3 py-1.5 bg-yellow-600 text-white text-sm rounded-md hover:bg-yellow-700"
+                >
+                  批量标记为调查中
+                </button>
+                <button
+                  onClick={() => handleBatchUpdateStatus("resolved")}
+                  className="px-3 py-1.5 bg-green-600 text-white text-sm rounded-md hover:bg-green-700"
+                >
+                  批量标记为已解决
+                </button>
+                <button
+                  onClick={() => handleBatchUpdateStatus("false_positive")}
+                  className="px-3 py-1.5 bg-gray-600 text-white text-sm rounded-md hover:bg-gray-700"
+                >
+                  批量标记为误报
+                </button>
+                <button
+                  onClick={handleBatchDelete}
+                  className="px-3 py-1.5 bg-red-600 text-white text-sm rounded-md hover:bg-red-700"
+                >
+                  批量删除
+                </button>
+                <button
+                  onClick={() => setSelectedIds([])}
+                  className="px-3 py-1.5 border border-gray-300 text-gray-700 text-sm rounded-md hover:bg-gray-50"
+                >
+                  取消选择
+                </button>
+              </div>
+            </div>
+          )}
+
           <div className="bg-white rounded-lg shadow overflow-hidden mb-6">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
+                  <th className="px-6 py-3 text-left">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.length === alerts.length && alerts.length > 0}
+                      onChange={handleSelectAll}
+                      className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                    />
+                  </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     时间
                   </th>
@@ -292,6 +426,14 @@ export default function SecurityAlertsPage() {
               <tbody className="bg-white divide-y divide-gray-200">
                 {alerts.map((alert) => (
                   <tr key={alert.id} className={alert.status === "unresolved" ? "bg-red-50" : ""}>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.includes(alert.id)}
+                        onChange={() => handleToggleSelect(alert.id)}
+                        className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                      />
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-900">
                         {new Date(alert.createdAt).toLocaleString("zh-CN")}
@@ -515,6 +657,7 @@ export default function SecurityAlertsPage() {
         <h3 className="font-semibold mb-2 text-blue-900">💡 安全警报说明</h3>
         <ul className="text-sm text-blue-800 space-y-1">
           <li>• <strong>0元订单尝试</strong>：检测到有人尝试创建金额为0或异常的订单，可能是价格篡改攻击</li>
+          <li>• <strong>批量操作</strong>：勾选多个警报后，可以批量更新状态或批量删除（最多支持100条）</li>
           <li>• <strong>查看详情</strong>：点击可查看完整的警报信息，包括IP地址、User Agent等</li>
           <li>• <strong>处理警报</strong>：可以将警报标记为调查中、已解决或误报</li>
           <li>• <strong>定期检查</strong>：建议定期检查未处理的警报，及时发现和处理安全问题</li>

@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import Image from "next/image"
 import Link from "next/link"
+import ImageUpload from "@/components/ImageUpload"
 
 interface Category {
   id: string
@@ -292,26 +293,11 @@ export default function CategoriesAdminPage() {
               />
             </div>
             <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                封面图片 URL
-              </label>
-              <input
-                type="text"
+              <ImageUpload
+                label="封面图片 (支持URL输入或图片上传/粘贴)"
                 value={formData.coverImage}
-                onChange={(e) => setFormData({ ...formData, coverImage: e.target.value })}
-                className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="https://example.com/image.jpg"
+                onChange={(url) => setFormData({ ...formData, coverImage: url })}
               />
-              {formData.coverImage && (
-                <div className="mt-2 relative w-32 h-32">
-                  <Image
-                    src={formData.coverImage}
-                    alt="预览"
-                    fill
-                    className="object-cover rounded"
-                  />
-                </div>
-              )}
             </div>
           </div>
           <div className="flex gap-2 mt-4">
@@ -395,15 +381,10 @@ export default function CategoriesAdminPage() {
                     />
                   </div>
                   <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      封面图片 URL
-                    </label>
-                    <input
-                      type="text"
+                    <ImageUpload
+                      label="封面图片 (支持URL输入或图片上传/粘贴)"
                       value={category.coverImage}
-                      onChange={(e) => updateBatchCategory(index, "coverImage", e.target.value)}
-                      className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="https://example.com/image.jpg"
+                      onChange={(url) => updateBatchCategory(index, "coverImage", url)}
                     />
                   </div>
                 </div>
@@ -495,15 +476,10 @@ export default function CategoriesAdminPage() {
                           />
                         </div>
                         <div className="md:col-span-2">
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            封面图片 URL
-                          </label>
-                          <input
-                            type="text"
+                          <ImageUpload
+                            label="封面图片 (支持URL输入或图片上传/粘贴)"
                             value={formData.coverImage}
-                            onChange={(e) => setFormData({ ...formData, coverImage: e.target.value })}
-                            className="w-full px-3 py-2 border rounded-md"
-                            placeholder="https://example.com/image.jpg"
+                            onChange={(url) => setFormData({ ...formData, coverImage: url })}
                           />
                         </div>
                       </div>

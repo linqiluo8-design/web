@@ -236,7 +236,7 @@ export default function ChatAdminPage() {
                     className={`mb-4 ${msg.senderType === "admin" ? "text-right" : ""}`}
                   >
                     <div
-                      className={`inline-block max-w-[70%] rounded-lg p-3 shadow-sm ${
+                      className={`inline-block max-w-[70%] rounded-lg p-3 shadow-sm relative ${
                         msg.senderType === "admin"
                           ? "bg-blue-600 text-white"
                           : "bg-white text-gray-700"
@@ -247,24 +247,33 @@ export default function ChatAdminPage() {
                           {msg.senderName || "访客"}
                         </p>
                       )}
-                      <p className="text-sm whitespace-pre-wrap break-words">{msg.message}</p>
-                    </div>
-                    <div className="flex items-center gap-1 mt-1 text-xs text-gray-400">
-                      <span>
-                        {new Date(msg.createdAt).toLocaleString("zh-CN", {
-                          month: "2-digit",
-                          day: "2-digit",
-                          hour: "2-digit",
-                          minute: "2-digit"
-                        })}
-                      </span>
-                      {/* 显示管理员发送消息的已读状态 */}
+                      <p className="text-sm whitespace-pre-wrap break-words pr-4">{msg.message}</p>
+
+                      {/* 显示管理员发送消息的已读状态 - 右上角小圆圈 */}
                       {msg.senderType === "admin" && (
-                        <span className={`ml-1 ${msg.isRead ? "text-blue-400" : "text-gray-300"}`} title={msg.isRead ? "已读" : "未读"}>
-                          {msg.isRead ? "✓✓" : "✓"}
-                        </span>
+                        <div
+                          className="absolute -top-1 -right-1 w-4 h-4 rounded-full border-2 flex items-center justify-center bg-white"
+                          style={{
+                            borderColor: msg.isRead ? "#60a5fa" : "#d1d5db"
+                          }}
+                          title={msg.isRead ? "已读" : "未读"}
+                        >
+                          {msg.isRead && (
+                            <svg className="w-2.5 h-2.5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                            </svg>
+                          )}
+                        </div>
                       )}
                     </div>
+                    <p className="text-xs text-gray-400 mt-1">
+                      {new Date(msg.createdAt).toLocaleString("zh-CN", {
+                        month: "2-digit",
+                        day: "2-digit",
+                        hour: "2-digit",
+                        minute: "2-digit"
+                      })}
+                    </p>
                   </div>
                 ))}
                 <div ref={messagesEndRef} />

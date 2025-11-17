@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import Image from "next/image"
+import ImageUpload from "@/components/ImageUpload"
 
 interface Product {
   id: string
@@ -453,16 +454,11 @@ export default function AdminPage() {
                 ))}
               </select>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                封面图片 URL
-              </label>
-              <input
-                type="text"
+            <div className="md:col-span-2">
+              <ImageUpload
                 value={createForm.coverImage || ""}
-                onChange={(e) => setCreateForm({ ...createForm, coverImage: e.target.value })}
-                className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="https://example.com/image.jpg"
+                onChange={(url) => setCreateForm({ ...createForm, coverImage: url })}
+                label="封面图片"
               />
             </div>
             <div>
@@ -482,21 +478,6 @@ export default function AdminPage() {
                 </label>
               </div>
             </div>
-            {createForm.coverImage && (
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  封面预览
-                </label>
-                <div className="relative w-32 h-32">
-                  <Image
-                    src={createForm.coverImage}
-                    alt="预览"
-                    fill
-                    className="object-cover rounded"
-                  />
-                </div>
-              </div>
-            )}
           </div>
           <div className="flex gap-2 mt-4">
             <button
@@ -587,16 +568,11 @@ export default function AdminPage() {
                       ))}
                     </select>
                   </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">
-                      封面图片 URL
-                    </label>
-                    <input
-                      type="text"
+                  <div className="md:col-span-2">
+                    <ImageUpload
                       value={product.coverImage || ""}
-                      onChange={(e) => updateBatchProduct(index, "coverImage", e.target.value)}
-                      className="w-full px-2 py-1 text-sm border rounded-md"
-                      placeholder="https://example.com/image.jpg"
+                      onChange={(url) => updateBatchProduct(index, "coverImage", url)}
+                      label="封面图片"
                     />
                   </div>
                 </div>
@@ -722,16 +698,11 @@ export default function AdminPage() {
                             ))}
                           </select>
                         </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            封面图片 URL
-                          </label>
-                          <input
-                            type="text"
+                        <div className="md:col-span-2">
+                          <ImageUpload
                             value={editForm.coverImage || ""}
-                            onChange={(e) => setEditForm({ ...editForm, coverImage: e.target.value })}
-                            className="w-full px-3 py-2 border rounded-md"
-                            placeholder="https://example.com/image.jpg"
+                            onChange={(url) => setEditForm({ ...editForm, coverImage: url })}
+                            label="封面图片"
                           />
                         </div>
                         <div>
@@ -754,21 +725,6 @@ export default function AdminPage() {
                             关闭后，商品列表将显示"暂无图片"占位符
                           </p>
                         </div>
-                        {editForm.coverImage && (
-                          <div className="md:col-span-2">
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                              封面预览
-                            </label>
-                            <div className="relative w-32 h-32">
-                              <Image
-                                src={editForm.coverImage}
-                                alt="预览"
-                                fill
-                                className="object-cover rounded"
-                              />
-                            </div>
-                          </div>
-                        )}
                       </div>
                       <div className="flex gap-2 mt-4">
                         <button

@@ -235,12 +235,12 @@ export default function PaymentPage({ params }: { params: Promise<{ orderId: str
           throw new Error("支付链接获取失败")
         }
       } else if (selectedMethod === "wechat") {
-        // 微信：显示二维码
-        alert("请使用微信扫描二维码支付\n\n（演示模式：直接模拟支付成功）")
-        // 模拟支付成功
-        setTimeout(() => {
-          router.push(`/payment/success?orderNumber=${order.orderNumber}&amount=${order.totalAmount}`)
-        }, 1000)
+        // 微信：跳转到微信支付页面
+        if (data.payUrl) {
+          window.location.href = data.payUrl
+        } else {
+          throw new Error("微信支付链接获取失败")
+        }
       } else if (selectedMethod === "paypal") {
         // PayPal：跳转到PayPal
         if (data.approvalUrl) {

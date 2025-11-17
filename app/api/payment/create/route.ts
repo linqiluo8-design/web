@@ -63,7 +63,7 @@ export async function POST(request: Request) {
     } else if (data.paymentMethod === "wechat") {
       return NextResponse.json({
         paymentId: payment.id,
-        qrCode: `weixin://pay/${payment.id}`
+        payUrl: `/api/payment/mock?paymentId=${payment.id}&orderNumber=${order.orderNumber}&method=wechat&amount=${data.amount}`
       })
     } else if (data.paymentMethod === "paypal") {
       return NextResponse.json({

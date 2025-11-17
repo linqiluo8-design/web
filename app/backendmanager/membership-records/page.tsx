@@ -1,0 +1,607 @@
+"use client"
+
+import { useEffect, useState } from "react"
+import { useSession } from "next-auth/react"
+import { useRouter } from "next/navigation"
+import Link from "next/link"
+
+interface User {
+  id: string
+  name: string | null
+  email: string
+}
+
+interface Plan {
+  id: string
+  name: string
+}
+
+interface MembershipRecord {
+  id: string
+  userId: string | null
+  user: User | null
+  membershipCode: string
+  planId: string
+  plan: Plan
+  planSnapshot: string
+  purchasePrice: number
+  discount: number
+  dailyLimit: number
+  duration: number
+  startDate: string
+  endDate: string | null
+  status: string
+  orderNumber: string | null
+  paymentMethod: string | null
+  paymentStatus: string
+  createdAt: string
+  updatedAt: string
+}
+
+interface Pagination {
+  page: number
+  limit: number
+  total: number
+  totalPages: number
+}
+
+export default function MembershipRecordsPage() {
+  const { data: session, status } = useSession()
+  const router = useRouter()
+  const [records, setRecords] = useState<MembershipRecord[]>([])
+  const [pagination, setPagination] = useState<Pagination>({
+    page: 1,
+    limit: 20,
+    total: 0,
+    totalPages: 0
+  })
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  // 筛选和搜索状态
+  const [search, setSearch] = useState("")
+  const [statusFilter, setStatusFilter] = useState("")
+  const [paymentStatusFilter, setPaymentStatusFilter] = useState("")
+  const [selectedRecord, setSelectedRecord] = useState<MembershipRecord | null>(null)
+  const [showDetailModal, setShowDetailModal] = useState(false)
+
+  useEffect(() => {
+    if (status === "unauthenticated") {
+      router.push("/auth/signin")
+      return
+    }
+
+    if (session?.user?.role !== "ADMIN") {
+      router.push("/")
+      return
+    }
+
+    fetchRecords()
+  }, [status, session, router, pagination.page, search, statusFilter, paymentStatusFilter])
+
+  const fetchRecords = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+
+      const params = new URLSearchParams({
+        page: pagination.page.toString(),
+        limit: pagination.limit.toString()
+      })
+
+      if (search) params.append("search", search)
+      if (statusFilter) params.append("status", statusFilter)
+      if (paymentStatusFilter) params.append("paymentStatus", paymentStatusFilter)
+
+      const response = await fetch(`/api/backendmanager/membership-records?${params}`)
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || "获取会员购买记录失败")
+      }
+
+      const data = await response.json()
+      setRecords(data.records)
+      setPagination(data.pagination)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "未知错误")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleSearch = () => {
+    setPagination({ ...pagination, page: 1 })
+  }
+
+  const handlePageChange = (newPage: number) => {
+    setPagination({ ...pagination, page: newPage })
+  }
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleString("zh-CN", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit"
+    })
+  }
+
+  const getDurationDisplay = (duration: number) => {
+    if (duration === -1) return "终身"
+    if (duration >= 365) return `${Math.floor(duration / 365)}年`
+    return `${duration}天`
+  }
+
+  const getStatusBadge = (status: string) => {
+    const statusConfig: Record<string, { bg: string; text: string; label: string }> = {
+      active: { bg: "bg-green-100", text: "text-green-800", label: "有效" },
+      expired: { bg: "bg-gray-100", text: "text-gray-800", label: "已过期" },
+      cancelled: { bg: "bg-red-100", text: "text-red-800", label: "已取消" }
+    }
+
+    const config = statusConfig[status] || { bg: "bg-gray-100", text: "text-gray-800", label: status }
+
+    return (
+      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${config.bg} ${config.text}`}>
+        {config.label}
+      </span>
+    )
+  }
+
+  const getPaymentStatusBadge = (paymentStatus: string) => {
+    const statusConfig: Record<string, { bg: string; text: string; label: string }> = {
+      pending: { bg: "bg-yellow-100", text: "text-yellow-800", label: "待支付" },
+      completed: { bg: "bg-green-100", text: "text-green-800", label: "已支付" },
+      failed: { bg: "bg-red-100", text: "text-red-800", label: "支付失败" }
+    }
+
+    const config = statusConfig[paymentStatus] || { bg: "bg-gray-100", text: "text-gray-800", label: paymentStatus }
+
+    return (
+      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${config.bg} ${config.text}`}>
+        {config.label}
+      </span>
+    )
+  }
+
+  const getPaymentMethodDisplay = (method: string | null) => {
+    if (!method) return "-"
+    const methodMap: Record<string, string> = {
+      alipay: "支付宝",
+      wechat: "微信支付",
+      paypal: "PayPal"
+    }
+    return methodMap[method] || method
+  }
+
+  const showDetail = (record: MembershipRecord) => {
+    setSelectedRecord(record)
+    setShowDetailModal(true)
+  }
+
+  const handleCopyCode = (code: string) => {
+    navigator.clipboard.writeText(code).then(() => {
+      alert("会员码已复制到剪贴板")
+    })
+  }
+
+  if (status === "loading" || loading) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          <p className="mt-2 text-gray-600">加载中...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <div className="flex items-center">
+            <svg className="w-5 h-5 text-red-600 mr-2" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+            </svg>
+            <span className="text-red-800">{error}</span>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="container mx-auto px-4 py-8">
+      {/* 页面标题和导航 */}
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <h1 className="text-3xl font-bold mb-2">会员购买记录</h1>
+          <div className="flex gap-4 text-sm">
+            <Link href="/backendmanager" className="text-gray-600 hover:text-blue-600">
+              ← 返回后台管理
+            </Link>
+            <Link href="/backendmanager/memberships" className="text-gray-600 hover:text-blue-600">
+              会员方案管理
+            </Link>
+          </div>
+        </div>
+        <div className="text-sm text-gray-600">
+          共 {pagination.total} 条记录
+        </div>
+      </div>
+
+      {/* 搜索和筛选 */}
+      <div className="bg-white rounded-lg shadow p-6 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              搜索会员码或订单号
+            </label>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                onKeyPress={(e) => e.key === "Enter" && handleSearch()}
+                placeholder="输入会员码或订单号..."
+                className="flex-1 px-4 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+              <button
+                onClick={handleSearch}
+                className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+              >
+                搜索
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              会员状态
+            </label>
+            <select
+              value={statusFilter}
+              onChange={(e) => {
+                setStatusFilter(e.target.value)
+                setPagination({ ...pagination, page: 1 })
+              }}
+              className="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="">全部</option>
+              <option value="active">有效</option>
+              <option value="expired">已过期</option>
+              <option value="cancelled">已取消</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              支付状态
+            </label>
+            <select
+              value={paymentStatusFilter}
+              onChange={(e) => {
+                setPaymentStatusFilter(e.target.value)
+                setPagination({ ...pagination, page: 1 })
+              }}
+              className="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="">全部</option>
+              <option value="pending">待支付</option>
+              <option value="completed">已支付</option>
+              <option value="failed">支付失败</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      {/* 数据表格 */}
+      {records.length === 0 ? (
+        <div className="text-center text-gray-500 py-12 bg-white rounded-lg shadow">
+          暂无会员购买记录
+        </div>
+      ) : (
+        <>
+          <div className="bg-white rounded-lg shadow overflow-hidden mb-6">
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      会员码
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      用户信息
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      会员方案
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      购买时间
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      支付方式
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      支付状态
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      会员状态
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      操作
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {records.map((record) => (
+                    <tr key={record.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-mono font-medium text-blue-600">
+                            {record.membershipCode}
+                          </span>
+                          <button
+                            onClick={() => handleCopyCode(record.membershipCode)}
+                            className="text-gray-400 hover:text-blue-600"
+                            title="复制会员码"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                            </svg>
+                          </button>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {record.user ? (
+                          <div className="text-sm">
+                            <div className="font-medium text-gray-900">{record.user.name || "未设置"}</div>
+                            <div className="text-gray-500">{record.user.email}</div>
+                          </div>
+                        ) : (
+                          <span className="text-sm text-gray-500 italic">匿名用户</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm">
+                          <div className="font-medium text-gray-900">{record.plan.name}</div>
+                          <div className="text-gray-500">¥{record.purchasePrice.toFixed(2)}</div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900">{formatDate(record.createdAt)}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900">{getPaymentMethodDisplay(record.paymentMethod)}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {getPaymentStatusBadge(record.paymentStatus)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {getStatusBadge(record.status)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <button
+                          onClick={() => showDetail(record)}
+                          className="text-blue-600 hover:text-blue-900"
+                        >
+                          查看详情
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* 分页 */}
+          {pagination.totalPages > 1 && (
+            <div className="flex items-center justify-between bg-white px-6 py-4 rounded-lg shadow">
+              <div className="text-sm text-gray-700">
+                显示第 {(pagination.page - 1) * pagination.limit + 1} 到{" "}
+                {Math.min(pagination.page * pagination.limit, pagination.total)} 条，
+                共 {pagination.total} 条
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => handlePageChange(pagination.page - 1)}
+                  disabled={pagination.page === 1}
+                  className="px-4 py-2 border rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  上一页
+                </button>
+                <div className="flex gap-1">
+                  {Array.from({ length: Math.min(5, pagination.totalPages) }, (_, i) => {
+                    let pageNum
+                    if (pagination.totalPages <= 5) {
+                      pageNum = i + 1
+                    } else if (pagination.page <= 3) {
+                      pageNum = i + 1
+                    } else if (pagination.page >= pagination.totalPages - 2) {
+                      pageNum = pagination.totalPages - 4 + i
+                    } else {
+                      pageNum = pagination.page - 2 + i
+                    }
+
+                    return (
+                      <button
+                        key={pageNum}
+                        onClick={() => handlePageChange(pageNum)}
+                        className={`px-4 py-2 border rounded-md ${
+                          pagination.page === pageNum
+                            ? "bg-blue-600 text-white border-blue-600"
+                            : "hover:bg-gray-50"
+                        }`}
+                      >
+                        {pageNum}
+                      </button>
+                    )
+                  })}
+                </div>
+                <button
+                  onClick={() => handlePageChange(pagination.page + 1)}
+                  disabled={pagination.page === pagination.totalPages}
+                  className="px-4 py-2 border rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  下一页
+                </button>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* 详情模态框 */}
+      {showDetailModal && selectedRecord && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between">
+              <h2 className="text-xl font-bold">会员购买详情</h2>
+              <button
+                onClick={() => setShowDetailModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="p-6 space-y-6">
+              {/* 会员码 */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">会员码</label>
+                <div className="flex items-center gap-2">
+                  <code className="flex-1 px-4 py-3 bg-gray-50 border rounded-md text-lg font-mono font-bold text-blue-600">
+                    {selectedRecord.membershipCode}
+                  </code>
+                  <button
+                    onClick={() => handleCopyCode(selectedRecord.membershipCode)}
+                    className="px-4 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                  >
+                    复制
+                  </button>
+                </div>
+              </div>
+
+              {/* 用户信息 */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">购买用户</label>
+                {selectedRecord.user ? (
+                  <div className="px-4 py-3 bg-gray-50 border rounded-md">
+                    <div className="font-medium">{selectedRecord.user.name || "未设置姓名"}</div>
+                    <div className="text-sm text-gray-600">{selectedRecord.user.email}</div>
+                    <div className="text-xs text-gray-500 mt-1">用户ID: {selectedRecord.user.id}</div>
+                  </div>
+                ) : (
+                  <div className="px-4 py-3 bg-gray-50 border rounded-md text-gray-500 italic">
+                    匿名用户购买
+                  </div>
+                )}
+              </div>
+
+              {/* 会员方案 */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">会员方案</label>
+                  <div className="px-4 py-3 bg-gray-50 border rounded-md">
+                    {selectedRecord.plan.name}
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">购买价格</label>
+                  <div className="px-4 py-3 bg-gray-50 border rounded-md font-bold text-green-600">
+                    ¥{selectedRecord.purchasePrice.toFixed(2)}
+                  </div>
+                </div>
+              </div>
+
+              {/* 会员详情 */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">折扣率</label>
+                  <div className="px-4 py-3 bg-gray-50 border rounded-md">
+                    {(selectedRecord.discount * 10).toFixed(1)}折
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">每日限制</label>
+                  <div className="px-4 py-3 bg-gray-50 border rounded-md">
+                    每天{selectedRecord.dailyLimit}次
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">有效期</label>
+                  <div className="px-4 py-3 bg-gray-50 border rounded-md">
+                    {getDurationDisplay(selectedRecord.duration)}
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">到期时间</label>
+                  <div className="px-4 py-3 bg-gray-50 border rounded-md">
+                    {selectedRecord.endDate ? formatDate(selectedRecord.endDate) : "永久有效"}
+                  </div>
+                </div>
+              </div>
+
+              {/* 支付信息 */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">支付方式</label>
+                  <div className="px-4 py-3 bg-gray-50 border rounded-md">
+                    {getPaymentMethodDisplay(selectedRecord.paymentMethod)}
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">支付状态</label>
+                  <div className="px-4 py-3 bg-gray-50 border rounded-md">
+                    {getPaymentStatusBadge(selectedRecord.paymentStatus)}
+                  </div>
+                </div>
+              </div>
+
+              {/* 订单号 */}
+              {selectedRecord.orderNumber && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">关联订单号</label>
+                  <div className="px-4 py-3 bg-gray-50 border rounded-md font-mono">
+                    {selectedRecord.orderNumber}
+                  </div>
+                </div>
+              )}
+
+              {/* 时间信息 */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">购买时间</label>
+                  <div className="px-4 py-3 bg-gray-50 border rounded-md text-sm">
+                    {formatDate(selectedRecord.createdAt)}
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">会员状态</label>
+                  <div className="px-4 py-3 bg-gray-50 border rounded-md">
+                    {getStatusBadge(selectedRecord.status)}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="sticky bottom-0 bg-white border-t px-6 py-4">
+              <button
+                onClick={() => setShowDetailModal(false)}
+                className="w-full py-2 border border-gray-300 rounded-md hover:bg-gray-50"
+              >
+                关闭
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}

@@ -1,10 +1,16 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import crypto from "crypto"
+import { getServerSession } from "next-auth"
+import { authOptions } from "@/lib/auth"
 
 // POST /api/memberships/purchase - 购买会员
 export async function POST(request: Request) {
   try {
+    // 获取当前用户session（支持匿名购买，所以不强制要求登录）
+    const session = await getServerSession(authOptions)
+    const userId = session?.user?.id || null
+
     const { planId } = await request.json()
 
     if (!planId) {
@@ -46,6 +52,7 @@ export async function POST(request: Request) {
     // 创建会员记录
     const membership = await prisma.membership.create({
       data: {
+        userId,  // 记录购买用户ID（可为null，支持匿名）
         membershipCode,
         planId: plan.id,
         planSnapshot,
@@ -54,7 +61,8 @@ export async function POST(request: Request) {
         dailyLimit: plan.dailyLimit,
         duration: plan.duration,
         endDate,
-        status: "active"
+        status: "active",
+        paymentStatus: "pending"  // 初始状态为待支付
       }
     })
 

@@ -354,7 +354,13 @@ export default function AdminPage() {
               href="/backendmanager/memberships"
               className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200"
             >
-              会员管理
+              会员方案管理
+            </Link>
+            <Link
+              href="/backendmanager/membership-records"
+              className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200"
+            >
+              会员购买记录
             </Link>
             <Link
               href="/backendmanager/orders"
@@ -367,6 +373,18 @@ export default function AdminPage() {
               className="px-4 py-2 bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 font-medium"
             >
               📊 浏览量统计
+            </Link>
+            <Link
+              href="/backendmanager/banners"
+              className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200"
+            >
+              轮播图管理
+            </Link>
+            <Link
+              href="/backendmanager/settings"
+              className="px-4 py-2 bg-purple-100 text-purple-700 rounded-md hover:bg-purple-200 font-medium"
+            >
+              ⚙️ 系统设置
             </Link>
           </div>
         </div>

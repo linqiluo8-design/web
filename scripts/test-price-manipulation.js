@@ -30,7 +30,7 @@ const testCases = [
     description: '购买正常价格的商品，应该成功',
     data: {
       items: [
-        { productId: 'test-product-1', quantity: 1, price: 100 }
+        { productId: 'test-product-1', quantity: 1 }
       ]
     },
     expectedStatus: 201,
@@ -41,74 +41,34 @@ const testCases = [
     description: '购买管理员上架的0元免费商品，应该成功',
     data: {
       items: [
-        { productId: 'test-free-product', quantity: 1, price: 0 }
+        { productId: 'test-free-product', quantity: 1 }
       ]
     },
     expectedStatus: 201,
     shouldPass: true
   },
   {
-    name: '场景3: 价格篡改攻击 - 单个商品',
-    description: '将100元商品篡改成0元，应该被拦截',
+    name: '场景3: 多商品混合 - 正常',
+    description: '购买多个商品，应该成功',
     data: {
       items: [
-        { productId: 'test-product-1', quantity: 1, price: 0 }  // 篡改：实际价格是100元
-      ]
-    },
-    expectedStatus: 400,
-    expectedError: 'PRICE_MANIPULATION',
-    shouldPass: false,
-    attack: true
-  },
-  {
-    name: '场景4: 价格篡改攻击 - 负数价格',
-    description: '使用负数价格，应该在验证阶段被拦截',
-    data: {
-      items: [
-        { productId: 'test-product-1', quantity: 1, price: -50 }
-      ]
-    },
-    expectedStatus: 400,
-    shouldPass: false,
-    attack: true
-  },
-  {
-    name: '场景5: 价格篡改攻击 - 极小价格',
-    description: '将100元商品篡改成0.001元，应该被拦截',
-    data: {
-      items: [
-        { productId: 'test-product-1', quantity: 1, price: 0.001 }
-      ]
-    },
-    expectedStatus: 400,
-    expectedError: 'PRICE_MANIPULATION',
-    shouldPass: false,
-    attack: true
-  },
-  {
-    name: '场景6: 多商品混合 - 正常',
-    description: '购买多个正常价格商品，应该成功',
-    data: {
-      items: [
-        { productId: 'test-product-1', quantity: 2, price: 100 },
-        { productId: 'test-product-2', quantity: 1, price: 50 }
+        { productId: 'test-product-1', quantity: 2 },
+        { productId: 'test-product-2', quantity: 1 }
       ]
     },
     expectedStatus: 201,
     shouldPass: true
   },
   {
-    name: '场景7: 多商品混合 - 部分篡改',
-    description: '一个正常价格 + 一个篡改成0元，应该被拦截',
+    name: '场景4: 不存在的商品',
+    description: '购买不存在的商品，应该失败',
     data: {
       items: [
-        { productId: 'test-product-1', quantity: 1, price: 100 },
-        { productId: 'test-product-2', quantity: 1, price: 0 }  // 篡改：实际价格是50元
+        { productId: 'non-existent-product', quantity: 1 }
       ]
     },
-    expectedStatus: 400,
-    shouldPass: false,
-    attack: true
+    expectedStatus: 404,
+    shouldPass: false
   }
 ]
 

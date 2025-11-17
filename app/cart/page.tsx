@@ -115,8 +115,8 @@ export default function CartPage() {
       const orderData: any = {
         items: cart.map(item => ({
           productId: item.productId,
-          quantity: item.quantity,
-          price: item.price
+          quantity: item.quantity
+          // 安全改进：不再发送价格，价格由服务器从数据库查询决定
         }))
       }
 

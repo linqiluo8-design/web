@@ -108,7 +108,7 @@ async function setupTestProducts() {
 interface TestCase {
   name: string
   description: string
-  items: Array<{ productId: string; quantity: number; price: number }>
+  items: Array<{ productId: string; quantity: number }>
   shouldCreateOrder: boolean
   shouldTriggerAlert: boolean
   isAttack: boolean
@@ -117,8 +117,8 @@ interface TestCase {
 const testCases: TestCase[] = [
   {
     name: '场景1: 正常购买100元商品',
-    description: '使用正确的价格购买，应该成功',
-    items: [{ productId: 'security-test-product-100', quantity: 1, price: 100 }],
+    description: '购买100元商品，应该成功',
+    items: [{ productId: 'security-test-product-100', quantity: 1 }],
     shouldCreateOrder: true,
     shouldTriggerAlert: false,
     isAttack: false
@@ -126,43 +126,35 @@ const testCases: TestCase[] = [
   {
     name: '场景2: 购买合法0元商品',
     description: '购买管理员上架的0元商品，应该成功且不触发警报',
-    items: [{ productId: 'security-test-product-free', quantity: 1, price: 0 }],
+    items: [{ productId: 'security-test-product-free', quantity: 1 }],
     shouldCreateOrder: true,
     shouldTriggerAlert: false,
     isAttack: false
   },
   {
-    name: '场景3: 价格篡改 - 100元商品改成0元',
-    description: '将100元商品价格篡改成0元，应该被拦截并触发警报',
-    items: [{ productId: 'security-test-product-100', quantity: 1, price: 0 }],
-    shouldCreateOrder: false,
-    shouldTriggerAlert: true,
-    isAttack: true
-  },
-  {
-    name: '场景4: 价格篡改 - 50元商品改成0.01元',
-    description: '将50元商品价格篡改成0.01元，应该被拦截',
-    items: [{ productId: 'security-test-product-50', quantity: 1, price: 0.01 }],
-    shouldCreateOrder: false,
-    shouldTriggerAlert: true,
-    isAttack: true
-  },
-  {
-    name: '场景5: 多商品 - 混合篡改',
-    description: '一个正常价格 + 一个篡改价格，应该被拦截',
+    name: '场景3: 多商品购买',
+    description: '购买多种商品，应该成功',
     items: [
-      { productId: 'security-test-product-100', quantity: 1, price: 100 },
-      { productId: 'security-test-product-50', quantity: 1, price: 0 }
+      { productId: 'security-test-product-100', quantity: 1 },
+      { productId: 'security-test-product-50', quantity: 2 }
     ],
-    shouldCreateOrder: false,
-    shouldTriggerAlert: false, // 会在价格验证时就失败，不会到安全检查
-    isAttack: true
+    shouldCreateOrder: true,
+    shouldTriggerAlert: false,
+    isAttack: false
   },
   {
-    name: '场景6: 0元商品多个购买',
+    name: '场景4: 0元商品多个购买',
     description: '购买多个0元商品，应该成功',
-    items: [{ productId: 'security-test-product-free', quantity: 5, price: 0 }],
+    items: [{ productId: 'security-test-product-free', quantity: 5 }],
     shouldCreateOrder: true,
+    shouldTriggerAlert: false,
+    isAttack: false
+  },
+  {
+    name: '场景5: 不存在的商品',
+    description: '购买不存在的商品，应该失败',
+    items: [{ productId: 'non-existent-product', quantity: 1 }],
+    shouldCreateOrder: false,
     shouldTriggerAlert: false,
     isAttack: false
   }
@@ -182,7 +174,7 @@ async function testOrderCreation(testCase: TestCase) {
     let originalAmount = 0
     let totalAmount = 0
 
-    // 验证所有商品并计算原价
+    // 验证所有商品并计算原价（使用数据库价格，不信任客户端）
     for (const item of testCase.items) {
       const product = await prisma.product.findUnique({
         where: { id: item.productId }
@@ -192,18 +184,9 @@ async function testOrderCreation(testCase: TestCase) {
         throw new Error(`商品不存在或已下架: ${item.productId}`)
       }
 
-      // 验证价格是否匹配（这里会检测篡改）
-      if (Math.abs(product.price - item.price) > 0.01) {
-        log(`❌ 价格不匹配: 商品实际价格${product.price}元，请求价格${item.price}元`, 'red')
-        log(`✅ 价格验证层拦截成功`, 'green')
-        return {
-          success: false,
-          reason: 'price_mismatch',
-          alertTriggered: false
-        }
-      }
-
-      originalAmount += item.price * item.quantity
+      // 使用数据库中的价格（完全不信任客户端）
+      const serverPrice = product.price
+      originalAmount += serverPrice * item.quantity
     }
 
     totalAmount = originalAmount

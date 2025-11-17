@@ -46,13 +46,13 @@ curl -X POST "${API_URL}/api/orders" \
   -H "Content-Type: application/json" \
   -d '{
     "items": [
-      {"productId": "test-100", "quantity": 1, "price": 100}
+      {"productId": "test-100", "quantity": 1}
     ]
   }' \
   -w "\n\n状态码: %{http_code}\n" \
   -s | jq . || echo ""
 
-echo -e "${GREEN}✅ 期望结果: 状态码 201 (或 404 如果商品不存在)${NC}"
+echo -e "${GREEN}✅ 期望结果: 状态码 201 (订单创建成功)${NC}"
 echo ""
 read -p "按 Enter 继续..."
 echo ""
@@ -67,7 +67,7 @@ curl -X POST "${API_URL}/api/orders" \
   -H "Content-Type: application/json" \
   -d '{
     "items": [
-      {"productId": "test-free", "quantity": 1, "price": 0}
+      {"productId": "test-free", "quantity": 1}
     ]
   }' \
   -w "\n\n状态码: %{http_code}\n" \
@@ -78,91 +78,24 @@ echo ""
 read -p "按 Enter 继续..."
 echo ""
 
-# 测试3: 价格篡改攻击 - 100元改成0元
+# 测试3: 多商品购买
 echo -e "${CYAN}================================================================================${NC}"
-echo -e "${RED}测试3: 价格篡改攻击 - 100元商品改成0元${NC}"
-echo -e "${BLUE}说明: 将100元商品价格篡改成0元，应该被拦截${NC}"
-echo -e "${YELLOW}⚠️  这是攻击测试${NC}"
-echo -e "${CYAN}================================================================================${NC}"
-
-curl -X POST "${API_URL}/api/orders" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "items": [
-      {"productId": "test-100", "quantity": 1, "price": 0}
-    ]
-  }' \
-  -w "\n\n状态码: %{http_code}\n" \
-  -s | jq . || echo ""
-
-echo -e "${RED}❌ 期望结果: 状态码 400，错误: 商品价格已变更${NC}"
-echo -e "${GREEN}✅ 系统应该在价格验证阶段就拦截${NC}"
-echo ""
-read -p "按 Enter 继续..."
-echo ""
-
-# 测试4: 价格篡改攻击 - 极小价格
-echo -e "${CYAN}================================================================================${NC}"
-echo -e "${RED}测试4: 价格篡改攻击 - 50元商品改成0.001元${NC}"
-echo -e "${BLUE}说明: 将50元商品价格篡改成极小值${NC}"
-echo -e "${YELLOW}⚠️  这是攻击测试${NC}"
+echo -e "${CYAN}测试3: 多商品正常购买${NC}"
+echo -e "${BLUE}说明: 购买多个商品${NC}"
 echo -e "${CYAN}================================================================================${NC}"
 
 curl -X POST "${API_URL}/api/orders" \
   -H "Content-Type: application/json" \
   -d '{
     "items": [
-      {"productId": "test-50", "quantity": 1, "price": 0.001}
+      {"productId": "test-100", "quantity": 2},
+      {"productId": "test-50", "quantity": 1}
     ]
   }' \
   -w "\n\n状态码: %{http_code}\n" \
   -s | jq . || echo ""
 
-echo -e "${RED}❌ 期望结果: 状态码 400，错误: 商品价格已变更${NC}"
-echo ""
-read -p "按 Enter 继续..."
-echo ""
-
-# 测试5: 负数价格
-echo -e "${CYAN}================================================================================${NC}"
-echo -e "${RED}测试5: 负数价格攻击${NC}"
-echo -e "${BLUE}说明: 使用负数价格${NC}"
-echo -e "${YELLOW}⚠️  这是攻击测试${NC}"
-echo -e "${CYAN}================================================================================${NC}"
-
-curl -X POST "${API_URL}/api/orders" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "items": [
-      {"productId": "test-100", "quantity": 1, "price": -50}
-    ]
-  }' \
-  -w "\n\n状态码: %{http_code}\n" \
-  -s | jq . || echo ""
-
-echo -e "${RED}❌ 期望结果: 状态码 400，Zod 验证错误${NC}"
-echo ""
-read -p "按 Enter 继续..."
-echo ""
-
-# 测试6: 多商品混合
-echo -e "${CYAN}================================================================================${NC}"
-echo -e "${CYAN}测试6: 多商品正常购买${NC}"
-echo -e "${BLUE}说明: 购买多个商品，价格正确${NC}"
-echo -e "${CYAN}================================================================================${NC}"
-
-curl -X POST "${API_URL}/api/orders" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "items": [
-      {"productId": "test-100", "quantity": 2, "price": 100},
-      {"productId": "test-50", "quantity": 1, "price": 50}
-    ]
-  }' \
-  -w "\n\n状态码: %{http_code}\n" \
-  -s | jq . || echo ""
-
-echo -e "${GREEN}✅ 期望结果: 状态码 201，总金额 250元${NC}"
+echo -e "${GREEN}✅ 期望结果: 状态码 201，总金额由服务器计算${NC}"
 echo ""
 
 # 查看安全警报

@@ -6,10 +6,10 @@ import crypto from "crypto"
 
 const createOrderSchema = z.object({
   // 订单项列表（匿名购物车）
+  // 安全改进：移除 price 参数，价格完全由服务器从数据库查询决定
   items: z.array(z.object({
     productId: z.string(),
-    quantity: z.number().int().positive(),
-    price: z.number().positive()
+    quantity: z.number().int().positive()
   })).min(1, "订单至少需要一个商品"),
   // 支付方式（暂时可选，创建订单后选择）
   paymentMethod: z.enum(["alipay", "wechat", "paypal"]).optional(),
@@ -112,6 +112,9 @@ export async function POST(req: Request) {
     let membershipDiscount = null
 
     // 验证所有商品是否存在且可用，计算原价
+    // 安全改进：价格完全从数据库查询，不信任客户端传来的任何价格数据
+    const validatedItems: Array<{ productId: string; quantity: number; price: number }> = []
+
     for (const item of data.items) {
       const product = await prisma.product.findUnique({
         where: { id: item.productId }
@@ -124,15 +127,15 @@ export async function POST(req: Request) {
         )
       }
 
-      // 验证价格是否匹配（防止客户端篡改价格）
-      if (Math.abs(product.price - item.price) > 0.01) {
-        return NextResponse.json(
-          { error: `商品价格已变更，请刷新页面` },
-          { status: 400 }
-        )
-      }
+      // 使用数据库中的价格（完全不信任客户端）
+      const serverPrice = product.price
+      validatedItems.push({
+        productId: item.productId,
+        quantity: item.quantity,
+        price: serverPrice  // 使用服务器价格
+      })
 
-      originalAmount += item.price * item.quantity
+      originalAmount += serverPrice * item.quantity
     }
 
     // 如果提供了会员码，验证并应用折扣
@@ -191,14 +194,14 @@ export async function POST(req: Request) {
       }
 
       // 计算可以享受折扣的商品数量
-      const totalItems = data.items.reduce((sum, item) => sum + item.quantity, 0)
+      const totalItems = validatedItems.reduce((sum, item) => sum + item.quantity, 0)
       const discountableCount = Math.min(totalItems, remainingToday)
 
       // 计算折扣金额
       let remaining = discountableCount
       let discountAmount = 0
 
-      for (const item of data.items) {
+      for (const item of validatedItems) {
         if (remaining <= 0) break
         const itemCount = Math.min(item.quantity, remaining)
         discountAmount += item.price * itemCount * (1 - membership.discount)
@@ -247,7 +250,7 @@ export async function POST(req: Request) {
               totalAmount,
               discount: membershipDiscount,
               membershipCode: data.membershipCode,
-              items: data.items,
+              items: validatedItems,  // 使用服务器验证后的商品信息（含真实价格）
               timestamp: new Date().toISOString()
             }),
             status: "unresolved"
@@ -283,10 +286,10 @@ export async function POST(req: Request) {
         status: "pending",
         paymentMethod: data.paymentMethod,
         orderItems: {
-          create: data.items.map(item => ({
+          create: validatedItems.map(item => ({
             productId: item.productId,
             quantity: item.quantity,
-            price: item.price
+            price: item.price  // 使用服务器从数据库查询的价格
           }))
         }
       },

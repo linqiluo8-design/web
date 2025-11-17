@@ -57,6 +57,7 @@ export async function GET() {
         showImage: true,
         category: true,
         categoryId: true,
+        networkDiskLink: true,
         status: true,
         createdAt: true,
       },

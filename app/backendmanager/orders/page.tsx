@@ -21,6 +21,7 @@ interface OrderItem {
   product: {
     id: string
     title: string
+    networkDiskLink: string | null
   }
 }
 
@@ -459,6 +460,9 @@ export default function OrderManagementPage() {
                       商品
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      网盘信息
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       金额
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -490,6 +494,22 @@ export default function OrderManagementPage() {
                           {order.orderItems.map((item, idx) => (
                             <div key={item.id} className="text-xs">
                               {item.product.title} x{item.quantity}
+                              {idx < order.orderItems.length - 1 && <br />}
+                            </div>
+                          ))}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-500">
+                        <div className="max-w-xs">
+                          {order.orderItems.map((item, idx) => (
+                            <div key={item.id} className="text-xs">
+                              {item.product.networkDiskLink ? (
+                                <div className="text-green-600 font-mono whitespace-pre-wrap break-words">
+                                  {item.product.networkDiskLink}
+                                </div>
+                              ) : (
+                                <span className="text-gray-400">-</span>
+                              )}
                               {idx < order.orderItems.length - 1 && <br />}
                             </div>
                           ))}

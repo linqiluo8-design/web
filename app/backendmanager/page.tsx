@@ -651,6 +651,9 @@ export default function AdminPage() {
                   价格
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  网盘链接
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   状态
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -662,7 +665,7 @@ export default function AdminPage() {
               {products.map((product) => (
                 editingId === product.id ? (
                   <tr key={product.id} className="bg-blue-50">
-                    <td className="px-6 py-4" colSpan={5}>
+                    <td className="px-6 py-4" colSpan={6}>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -821,6 +824,17 @@ export default function AdminPage() {
                       <span className="text-sm font-medium text-gray-900">
                         ¥{product.price.toFixed(2)}
                       </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      {product.networkDiskLink ? (
+                        <div className="text-xs text-green-600 font-mono max-w-xs break-words whitespace-pre-wrap">
+                          {product.networkDiskLink.length > 50
+                            ? product.networkDiskLink.substring(0, 50) + "..."
+                            : product.networkDiskLink}
+                        </div>
+                      ) : (
+                        <span className="text-sm text-gray-400">-</span>
+                      )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span

@@ -17,6 +17,7 @@ export default function SettingsPage() {
     payment_wechat_enabled: true,
     payment_paypal_enabled: true,
   })
+  const [paymentMode, setPaymentMode] = useState<"mock" | "real">("mock")
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -42,7 +43,11 @@ export default function SettingsPage() {
       if (data.configs && data.configs.length > 0) {
         const configMap: Record<string, boolean> = {}
         data.configs.forEach((config: SystemConfig) => {
-          configMap[config.key] = config.value === "true"
+          if (config.key === "payment_mode") {
+            setPaymentMode(config.value as "mock" | "real")
+          } else {
+            configMap[config.key] = config.value === "true"
+          }
         })
         setConfigs((prev) => ({ ...prev, ...configMap }))
       }
@@ -73,6 +78,15 @@ export default function SettingsPage() {
           category,
           description: getDescription(key),
         }
+      })
+
+      // 添加支付模式配置
+      configsArray.push({
+        key: "payment_mode",
+        value: paymentMode,
+        type: "string",
+        category: "payment",
+        description: "支付模式：mock=模拟支付，real=真实支付",
       })
 
       console.log("保存的配置:", configsArray)
@@ -186,6 +200,65 @@ export default function SettingsPage() {
           </div>
         </div>
 
+        {/* 支付模式设置 */}
+        <div className="mb-8">
+          <h2 className="text-xl font-semibold mb-4">支付模式</h2>
+          <div className="space-y-4">
+            <div className="p-4 border rounded-lg">
+              <div className="mb-3">
+                <h3 className="font-medium mb-2">选择支付环境</h3>
+                <p className="text-sm text-gray-600 mb-4">
+                  模拟支付用于开发和测试，真实支付用于生产环境
+                </p>
+              </div>
+              <div className="flex gap-4">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="paymentMode"
+                    value="mock"
+                    checked={paymentMode === "mock"}
+                    onChange={(e) => setPaymentMode(e.target.value as "mock" | "real")}
+                    className="w-4 h-4 text-blue-600"
+                  />
+                  <span className="text-sm">
+                    <span className="font-medium">模拟支付</span>
+                    <span className="text-gray-500 ml-1">(开发/测试)</span>
+                  </span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="paymentMode"
+                    value="real"
+                    checked={paymentMode === "real"}
+                    onChange={(e) => setPaymentMode(e.target.value as "mock" | "real")}
+                    className="w-4 h-4 text-blue-600"
+                  />
+                  <span className="text-sm">
+                    <span className="font-medium">真实支付</span>
+                    <span className="text-gray-500 ml-1">(生产环境)</span>
+                  </span>
+                </label>
+              </div>
+              {paymentMode === "mock" && (
+                <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+                  <p className="text-xs text-yellow-800">
+                    ⚠️ 当前为模拟支付模式，无需配置真实商户信息，适用于开发和测试环境
+                  </p>
+                </div>
+              )}
+              {paymentMode === "real" && (
+                <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-md">
+                  <p className="text-xs text-blue-800">
+                    💡 真实支付模式下，需要配置支付宝、微信、PayPal的商户信息才能正常使用
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
         {/* 支付方式设置 */}
         <div className="mb-8">
           <h2 className="text-xl font-semibold mb-4">支付方式设置</h2>
@@ -259,6 +332,12 @@ export default function SettingsPage() {
         <div className="mb-8 p-4 bg-gray-50 rounded-lg">
           <h3 className="text-sm font-semibold text-gray-700 mb-2">当前配置状态：</h3>
           <div className="grid grid-cols-2 gap-2 text-xs">
+            <div className="flex items-center justify-between">
+              <span className="text-gray-600">支付模式：</span>
+              <span className={paymentMode === "mock" ? "text-yellow-600 font-medium" : "text-blue-600 font-medium"}>
+                {paymentMode === "mock" ? "模拟支付" : "真实支付"}
+              </span>
+            </div>
             <div className="flex items-center justify-between">
               <span className="text-gray-600">轮播图：</span>
               <span className={configs.banner_enabled ? "text-green-600 font-medium" : "text-gray-400"}>

@@ -30,6 +30,13 @@ export default function MembershipPaymentPage({ params }: { params: Promise<{ id
   const [selectedMethod, setSelectedMethod] = useState<string>("")
   const [processing, setProcessing] = useState(false)
 
+  // 支付方式配置
+  const [enabledPaymentMethods, setEnabledPaymentMethods] = useState<Record<string, boolean>>({
+    alipay: true,
+    wechat: true,
+    paypal: true,
+  })
+
   useEffect(() => {
     params.then((resolvedParams) => {
       setMembershipId(resolvedParams.id)
@@ -39,8 +46,26 @@ export default function MembershipPaymentPage({ params }: { params: Promise<{ id
   useEffect(() => {
     if (membershipId) {
       fetchMembership()
+      loadPaymentConfig()
     }
   }, [membershipId])
+
+  const loadPaymentConfig = async () => {
+    try {
+      const res = await fetch("/api/system-config?keys=payment_alipay_enabled,payment_wechat_enabled,payment_paypal_enabled")
+      if (res.ok) {
+        const config = await res.json()
+        setEnabledPaymentMethods({
+          alipay: config.payment_alipay_enabled !== false,
+          wechat: config.payment_wechat_enabled !== false,
+          paypal: config.payment_paypal_enabled !== false,
+        })
+      }
+    } catch (error) {
+      console.error("加载支付配置失败:", error)
+      // 如果加载失败，默认全部启用
+    }
+  }
 
   const fetchMembership = async () => {
     if (!membershipId) return
@@ -191,104 +216,120 @@ export default function MembershipPaymentPage({ params }: { params: Promise<{ id
           <h2 className="text-xl font-bold mb-4">选择支付方式</h2>
 
           <div className="space-y-3">
-            {/* 支付宝 */}
-            <div
-              onClick={() => setSelectedMethod("alipay")}
-              className={`border-2 rounded-lg p-4 cursor-pointer transition-colors ${
-                selectedMethod === "alipay"
-                  ? "border-blue-500 bg-blue-50"
-                  : "border-gray-200 hover:border-blue-300"
-              }`}
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-blue-500 rounded flex items-center justify-center text-white font-bold">
-                    支
-                  </div>
-                  <div>
-                    <p className="font-semibold">支付宝</p>
-                    <p className="text-xs text-gray-600">推荐使用</p>
-                  </div>
-                </div>
-                <div className={`w-5 h-5 rounded-full border-2 ${
-                  selectedMethod === "alipay"
-                    ? "border-blue-500 bg-blue-500"
-                    : "border-gray-300"
-                }`}>
-                  {selectedMethod === "alipay" && (
-                    <div className="w-full h-full flex items-center justify-center text-white text-xs">
-                      ✓
-                    </div>
-                  )}
-                </div>
+            {/* 检查是否有启用的支付方式 */}
+            {!enabledPaymentMethods.alipay && !enabledPaymentMethods.wechat && !enabledPaymentMethods.paypal ? (
+              <div className="text-center py-8">
+                <p className="text-red-600 mb-2">当前没有可用的支付方式</p>
+                <p className="text-sm text-gray-500">请联系管理员</p>
               </div>
-            </div>
+            ) : (
+              <>
+                {/* 支付宝 */}
+                {enabledPaymentMethods.alipay && (
+                  <div
+                    onClick={() => setSelectedMethod("alipay")}
+                    className={`border-2 rounded-lg p-4 cursor-pointer transition-colors ${
+                      selectedMethod === "alipay"
+                        ? "border-blue-500 bg-blue-50"
+                        : "border-gray-200 hover:border-blue-300"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 bg-blue-500 rounded flex items-center justify-center text-white font-bold">
+                          支
+                        </div>
+                        <div>
+                          <p className="font-semibold">支付宝</p>
+                          <p className="text-xs text-gray-600">推荐使用</p>
+                        </div>
+                      </div>
+                      <div className={`w-5 h-5 rounded-full border-2 ${
+                        selectedMethod === "alipay"
+                          ? "border-blue-500 bg-blue-500"
+                          : "border-gray-300"
+                      }`}>
+                        {selectedMethod === "alipay" && (
+                          <div className="w-full h-full flex items-center justify-center text-white text-xs">
+                            ✓
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
 
-            {/* 微信支付 */}
-            <div
-              onClick={() => setSelectedMethod("wechat")}
-              className={`border-2 rounded-lg p-4 cursor-pointer transition-colors ${
-                selectedMethod === "wechat"
-                  ? "border-green-500 bg-green-50"
-                  : "border-gray-200 hover:border-green-300"
-              }`}
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-green-500 rounded flex items-center justify-center text-white font-bold">
-                    微
-                  </div>
-                  <div>
-                    <p className="font-semibold">微信支付</p>
-                    <p className="text-xs text-gray-600">扫码支付</p>
-                  </div>
-                </div>
-                <div className={`w-5 h-5 rounded-full border-2 ${
-                  selectedMethod === "wechat"
-                    ? "border-green-500 bg-green-500"
-                    : "border-gray-300"
-                }`}>
-                  {selectedMethod === "wechat" && (
-                    <div className="w-full h-full flex items-center justify-center text-white text-xs">
-                      ✓
+                {/* 微信支付 */}
+                {enabledPaymentMethods.wechat && (
+                  <div
+                    onClick={() => setSelectedMethod("wechat")}
+                    className={`border-2 rounded-lg p-4 cursor-pointer transition-colors ${
+                      selectedMethod === "wechat"
+                        ? "border-green-500 bg-green-50"
+                        : "border-gray-200 hover:border-green-300"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 bg-green-500 rounded flex items-center justify-center text-white font-bold">
+                          微
+                        </div>
+                        <div>
+                          <p className="font-semibold">微信支付</p>
+                          <p className="text-xs text-gray-600">扫码支付</p>
+                        </div>
+                      </div>
+                      <div className={`w-5 h-5 rounded-full border-2 ${
+                        selectedMethod === "wechat"
+                          ? "border-green-500 bg-green-500"
+                          : "border-gray-300"
+                      }`}>
+                        {selectedMethod === "wechat" && (
+                          <div className="w-full h-full flex items-center justify-center text-white text-xs">
+                            ✓
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  )}
-                </div>
-              </div>
-            </div>
+                  </div>
+                )}
 
-            {/* PayPal */}
-            <div
-              onClick={() => setSelectedMethod("paypal")}
-              className={`border-2 rounded-lg p-4 cursor-pointer transition-colors ${
-                selectedMethod === "paypal"
-                  ? "border-yellow-500 bg-yellow-50"
-                  : "border-gray-200 hover:border-yellow-300"
-              }`}
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-yellow-500 rounded flex items-center justify-center text-white font-bold">
-                    P
-                  </div>
-                  <div>
-                    <p className="font-semibold">PayPal</p>
-                    <p className="text-xs text-gray-600">国际支付</p>
-                  </div>
-                </div>
-                <div className={`w-5 h-5 rounded-full border-2 ${
-                  selectedMethod === "paypal"
-                    ? "border-yellow-500 bg-yellow-500"
-                    : "border-gray-300"
-                }`}>
-                  {selectedMethod === "paypal" && (
-                    <div className="w-full h-full flex items-center justify-center text-white text-xs">
-                      ✓
+                {/* PayPal */}
+                {enabledPaymentMethods.paypal && (
+                  <div
+                    onClick={() => setSelectedMethod("paypal")}
+                    className={`border-2 rounded-lg p-4 cursor-pointer transition-colors ${
+                      selectedMethod === "paypal"
+                        ? "border-yellow-500 bg-yellow-50"
+                        : "border-gray-200 hover:border-yellow-300"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 bg-yellow-500 rounded flex items-center justify-center text-white font-bold">
+                          P
+                        </div>
+                        <div>
+                          <p className="font-semibold">PayPal</p>
+                          <p className="text-xs text-gray-600">国际支付</p>
+                        </div>
+                      </div>
+                      <div className={`w-5 h-5 rounded-full border-2 ${
+                        selectedMethod === "paypal"
+                          ? "border-yellow-500 bg-yellow-500"
+                          : "border-gray-300"
+                      }`}>
+                        {selectedMethod === "paypal" && (
+                          <div className="w-full h-full flex items-center justify-center text-white text-xs">
+                            ✓
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  )}
-                </div>
-              </div>
-            </div>
+                  </div>
+                )}
+              </>
+            )}
           </div>
 
           {/* 支付按钮 */}

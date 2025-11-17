@@ -111,11 +111,77 @@ export async function POST(req: Request) {
     let membership = null
     let membershipDiscount = null
 
+    // 安全检查：订单项数量限制
+    if (data.items.length > 100) {
+      try {
+        await prisma.securityAlert.create({
+          data: {
+            type: "EXCESSIVE_ORDER_ITEMS",
+            severity: "medium",
+            userId: null,
+            ipAddress: req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || "unknown",
+            userAgent: req.headers.get("user-agent") || "unknown",
+            description: `检测到异常订单项数量：订单包含${data.items.length}种商品`,
+            metadata: JSON.stringify({
+              itemCount: data.items.length,
+              items: data.items.map(i => ({ productId: i.productId, quantity: i.quantity })),
+              timestamp: new Date().toISOString()
+            }),
+            status: "unresolved"
+          }
+        })
+      } catch (alertError) {
+        console.error("创建安全警报失败:", alertError)
+      }
+
+      return NextResponse.json(
+        {
+          error: "订单商品数量异常",
+          message: "单个订单最多支持100种不同商品。",
+          code: "EXCESSIVE_ORDER_ITEMS"
+        },
+        { status: 400 }
+      )
+    }
+
     // 验证所有商品是否存在且可用，计算原价
     // 安全改进：价格完全从数据库查询，不信任客户端传来的任何价格数据
     const validatedItems: Array<{ productId: string; quantity: number; price: number }> = []
 
     for (const item of data.items) {
+      // 安全检查：商品数量上限
+      if (item.quantity > 10000) {
+        try {
+          await prisma.securityAlert.create({
+            data: {
+              type: "EXCESSIVE_QUANTITY",
+              severity: "high",
+              userId: null,
+              ipAddress: req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || "unknown",
+              userAgent: req.headers.get("user-agent") || "unknown",
+              description: `检测到异常商品数量：商品${item.productId}数量为${item.quantity}`,
+              metadata: JSON.stringify({
+                productId: item.productId,
+                quantity: item.quantity,
+                timestamp: new Date().toISOString()
+              }),
+              status: "unresolved"
+            }
+          })
+        } catch (alertError) {
+          console.error("创建安全警报失败:", alertError)
+        }
+
+        return NextResponse.json(
+          {
+            error: "商品数量异常",
+            message: "单个商品数量不能超过10000件。",
+            code: "EXCESSIVE_QUANTITY"
+          },
+          { status: 400 }
+        )
+      }
+
       const product = await prisma.product.findUnique({
         where: { id: item.productId }
       })
@@ -151,21 +217,180 @@ export async function POST(req: Request) {
         )
       }
 
-      // 检查会员是否过期
-      if (membership.endDate && new Date() > membership.endDate) {
-        await prisma.membership.update({
-          where: { id: membership.id },
-          data: { status: "expired" }
-        })
+      // 安全检查：验证折扣率是否在合法范围内（0-1之间）
+      if (membership.discount < 0 || membership.discount > 1) {
+        // 记录安全警报：检测到异常的会员折扣率
+        try {
+          await prisma.securityAlert.create({
+            data: {
+              type: "INVALID_DISCOUNT_RATE",
+              severity: "critical",
+              userId: null,
+              ipAddress: req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || "unknown",
+              userAgent: req.headers.get("user-agent") || "unknown",
+              description: `检测到异常的会员折扣率：会员码${membership.membershipCode}的折扣率为${membership.discount}（合法范围：0-1）`,
+              metadata: JSON.stringify({
+                membershipCode: membership.membershipCode,
+                membershipId: membership.id,
+                invalidDiscount: membership.discount,
+                timestamp: new Date().toISOString()
+              }),
+              status: "unresolved"
+            }
+          })
+        } catch (alertError) {
+          console.error("创建安全警报失败:", alertError)
+        }
+
         return NextResponse.json(
-          { error: "会员已过期" },
+          {
+            error: "会员码数据异常",
+            message: "检测到会员码数据异常，系统已记录此问题并通知管理员。请联系客服处理。",
+            code: "INVALID_DISCOUNT_RATE"
+          },
           { status: 400 }
         )
       }
 
+      // 安全检查：会员有效期异常检测
+      if (membership.endDate) {
+        const now = new Date()
+        const endDate = new Date(membership.endDate)
+        const daysUntilExpiry = (endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
+
+        // 检查是否过期
+        if (now > endDate) {
+          // 记录过期会员码使用警报
+          try {
+            await prisma.securityAlert.create({
+              data: {
+                type: "EXPIRED_MEMBERSHIP_USE",
+                severity: "medium",
+                userId: null,
+                ipAddress: req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || "unknown",
+                userAgent: req.headers.get("user-agent") || "unknown",
+                description: `检测到使用过期会员码：${membership.membershipCode}，过期时间：${endDate.toISOString()}`,
+                metadata: JSON.stringify({
+                  membershipCode: membership.membershipCode,
+                  membershipId: membership.id,
+                  endDate: endDate.toISOString(),
+                  attemptTime: now.toISOString(),
+                  timestamp: new Date().toISOString()
+                }),
+                status: "unresolved"
+              }
+            })
+          } catch (alertError) {
+            console.error("创建安全警报失败:", alertError)
+          }
+
+          await prisma.membership.update({
+            where: { id: membership.id },
+            data: { status: "expired" }
+          })
+          return NextResponse.json(
+            { error: "会员已过期" },
+            { status: 400 }
+          )
+        }
+
+        // 检查会员有效期是否异常（超过10年）
+        if (daysUntilExpiry > 3650) {
+          try {
+            await prisma.securityAlert.create({
+              data: {
+                type: "ABNORMAL_MEMBERSHIP_DURATION",
+                severity: "high",
+                userId: null,
+                ipAddress: req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || "unknown",
+                userAgent: req.headers.get("user-agent") || "unknown",
+                description: `检测到异常会员有效期：${membership.membershipCode}，有效期至${endDate.toISOString()}（${Math.floor(daysUntilExpiry)}天后）`,
+                metadata: JSON.stringify({
+                  membershipCode: membership.membershipCode,
+                  membershipId: membership.id,
+                  endDate: endDate.toISOString(),
+                  daysUntilExpiry: Math.floor(daysUntilExpiry),
+                  timestamp: new Date().toISOString()
+                }),
+                status: "unresolved"
+              }
+            })
+          } catch (alertError) {
+            console.error("创建安全警报失败:", alertError)
+          }
+
+          return NextResponse.json(
+            {
+              error: "会员数据异常",
+              message: "检测到会员数据异常，系统已记录此问题并通知管理员。请联系客服处理。",
+              code: "ABNORMAL_MEMBERSHIP_DURATION"
+            },
+            { status: 400 }
+          )
+        }
+      }
+
+      // 安全检查：会员状态检测
       if (membership.status !== "active") {
+        // 记录失效会员码使用警报
+        try {
+          await prisma.securityAlert.create({
+            data: {
+              type: "INACTIVE_MEMBERSHIP_USE",
+              severity: "medium",
+              userId: null,
+              ipAddress: req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || "unknown",
+              userAgent: req.headers.get("user-agent") || "unknown",
+              description: `检测到使用失效会员码：${membership.membershipCode}，状态：${membership.status}`,
+              metadata: JSON.stringify({
+                membershipCode: membership.membershipCode,
+                membershipId: membership.id,
+                status: membership.status,
+                timestamp: new Date().toISOString()
+              }),
+              status: "unresolved"
+            }
+          })
+        } catch (alertError) {
+          console.error("创建安全警报失败:", alertError)
+        }
+
         return NextResponse.json(
           { error: "会员已失效" },
+          { status: 400 }
+        )
+      }
+
+      // 安全检查：每日限额异常检测
+      if (membership.dailyLimit > 10000) {
+        try {
+          await prisma.securityAlert.create({
+            data: {
+              type: "ABNORMAL_DAILY_LIMIT",
+              severity: "high",
+              userId: null,
+              ipAddress: req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || "unknown",
+              userAgent: req.headers.get("user-agent") || "unknown",
+              description: `检测到异常每日限额：${membership.membershipCode}，每日限额：${membership.dailyLimit}`,
+              metadata: JSON.stringify({
+                membershipCode: membership.membershipCode,
+                membershipId: membership.id,
+                dailyLimit: membership.dailyLimit,
+                timestamp: new Date().toISOString()
+              }),
+              status: "unresolved"
+            }
+          })
+        } catch (alertError) {
+          console.error("创建安全警报失败:", alertError)
+        }
+
+        return NextResponse.json(
+          {
+            error: "会员数据异常",
+            message: "检测到会员数据异常，系统已记录此问题并通知管理员。请联系客服处理。",
+            code: "ABNORMAL_DAILY_LIMIT"
+          },
           { status: 400 }
         )
       }
@@ -187,6 +412,30 @@ export async function POST(req: Request) {
       const remainingToday = Math.max(0, membership.dailyLimit - todayUsed)
 
       if (remainingToday === 0) {
+        // 记录频繁达到每日限额警报
+        try {
+          await prisma.securityAlert.create({
+            data: {
+              type: "DAILY_LIMIT_EXHAUSTED",
+              severity: "low",
+              userId: null,
+              ipAddress: req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || "unknown",
+              userAgent: req.headers.get("user-agent") || "unknown",
+              description: `会员码${membership.membershipCode}今日优惠次数已用完（${todayUsed}/${membership.dailyLimit}）`,
+              metadata: JSON.stringify({
+                membershipCode: membership.membershipCode,
+                membershipId: membership.id,
+                todayUsed,
+                dailyLimit: membership.dailyLimit,
+                timestamp: new Date().toISOString()
+              }),
+              status: "unresolved"
+            }
+          })
+        } catch (alertError) {
+          console.error("创建安全警报失败:", alertError)
+        }
+
         return NextResponse.json(
           { error: "今日会员优惠次数已用完" },
           { status: 400 }
@@ -230,18 +479,116 @@ export async function POST(req: Request) {
       totalAmount = originalAmount
     }
 
-    // 安全检查：检测价格篡改攻击
+    // 安全检查：免费商品使用会员码检测
+    if (membership && originalAmount <= 0.01) {
+      try {
+        await prisma.securityAlert.create({
+          data: {
+            type: "FREE_PRODUCT_WITH_MEMBERSHIP",
+            severity: "low",
+            userId: null,
+            ipAddress: req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || "unknown",
+            userAgent: req.headers.get("user-agent") || "unknown",
+            description: `检测到免费商品使用会员码：会员码${membership.membershipCode}，商品原价${originalAmount}元`,
+            metadata: JSON.stringify({
+              membershipCode: membership.membershipCode,
+              membershipId: membership.id,
+              originalAmount,
+              items: validatedItems,
+              timestamp: new Date().toISOString()
+            }),
+            status: "unresolved"
+          }
+        })
+      } catch (alertError) {
+        console.error("创建安全警报失败:", alertError)
+      }
+    }
+
+    // 安全检查：检测价格异常（多层检查）
+    // 检查1: 负价格检测
+    if (totalAmount < 0) {
+      try {
+        await prisma.securityAlert.create({
+          data: {
+            type: "NEGATIVE_PRICE",
+            severity: "critical",
+            userId: null,
+            ipAddress: req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || "unknown",
+            userAgent: req.headers.get("user-agent") || "unknown",
+            description: `检测到负价格订单：商品原价${originalAmount}元，计算后价格为${totalAmount}元`,
+            metadata: JSON.stringify({
+              originalAmount,
+              totalAmount,
+              discount: membershipDiscount,
+              membershipCode: data.membershipCode,
+              items: validatedItems,
+              timestamp: new Date().toISOString()
+            }),
+            status: "unresolved"
+          }
+        })
+      } catch (alertError) {
+        console.error("创建安全警报失败:", alertError)
+      }
+
+      return NextResponse.json(
+        {
+          error: "订单金额异常",
+          message: "检测到订单金额异常（负价格），系统已记录此行为并通知管理员。",
+          code: "NEGATIVE_PRICE"
+        },
+        { status: 400 }
+      )
+    }
+
+    // 检查2: 价格异常增加检测（折扣后价格不应该高于原价）
+    if (totalAmount > originalAmount + 0.01) {
+      try {
+        await prisma.securityAlert.create({
+          data: {
+            type: "PRICE_INCREASE",
+            severity: "critical",
+            userId: null,
+            ipAddress: req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || "unknown",
+            userAgent: req.headers.get("user-agent") || "unknown",
+            description: `检测到价格异常增加：商品原价${originalAmount}元，折扣后变成${totalAmount}元`,
+            metadata: JSON.stringify({
+              originalAmount,
+              totalAmount,
+              discount: membershipDiscount,
+              membershipCode: data.membershipCode,
+              items: validatedItems,
+              timestamp: new Date().toISOString()
+            }),
+            status: "unresolved"
+          }
+        })
+      } catch (alertError) {
+        console.error("创建安全警报失败:", alertError)
+      }
+
+      return NextResponse.json(
+        {
+          error: "订单金额异常",
+          message: "检测到订单金额异常（价格增加），系统已记录此行为并通知管理员。",
+          code: "PRICE_INCREASE"
+        },
+        { status: 400 }
+      )
+    }
+
+    // 检查3: 异常0元订单检测
     // 区分两种情况：
     // 1. 商品原价就是0元（合法的免费商品） - 允许
     // 2. 商品原价 > 0 但被折扣/篡改成0元（攻击） - 拦截并记录
     if (originalAmount > 0.01 && totalAmount <= 0.01) {
-      // 这是价格篡改攻击：原价大于0，但折后价变成了0或负数
       try {
         await prisma.securityAlert.create({
           data: {
             type: "PRICE_MANIPULATION",
             severity: "high",
-            userId: null, // 匿名订单暂无userId
+            userId: null,
             ipAddress: req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || "unknown",
             userAgent: req.headers.get("user-agent") || "unknown",
             description: `检测到价格篡改攻击：商品原价${originalAmount}元，被异常折扣至${totalAmount}元`,
@@ -250,7 +597,7 @@ export async function POST(req: Request) {
               totalAmount,
               discount: membershipDiscount,
               membershipCode: data.membershipCode,
-              items: validatedItems,  // 使用服务器验证后的商品信息（含真实价格）
+              items: validatedItems,
               timestamp: new Date().toISOString()
             }),
             status: "unresolved"

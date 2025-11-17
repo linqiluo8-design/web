@@ -167,8 +167,8 @@ export async function GET(request: Request) {
 
     <div class="info-box">
       <div class="info-row">
-        <span class="info-label">会员码</span>
-        <span class="info-value code">${membership.membershipCode}</span>
+        <span class="info-label">订单号</span>
+        <span class="info-value">${membershipId.substring(0, 16)}...</span>
       </div>
       <div class="info-row">
         <span class="info-label">支付方式</span>
@@ -189,7 +189,10 @@ export async function GET(request: Request) {
     </div>
 
     <div class="note">
-      ⚠️ 这是模拟支付环境，点击"确认支付"将直接模拟支付成功。真实支付模式请在后台管理中配置支付商户信息后启用。
+      💡 <strong>温馨提示：</strong><br>
+      • 这是模拟支付环境，点击"确认支付"将直接模拟支付成功<br>
+      • 支付成功后，您将获得专属会员码<br>
+      • 真实支付模式请在后台管理中配置支付商户信息后启用
     </div>
   </div>
 

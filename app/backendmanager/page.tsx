@@ -376,79 +376,85 @@ export default function AdminPage() {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-3xl font-bold mb-4">后台管理 - 商品管理</h1>
-          <div className="flex flex-wrap gap-4">
-            <Link
-              href="/backendmanager/categories"
-              className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200"
-            >
-              分类管理
-            </Link>
-            <Link
-              href="/backendmanager/memberships"
-              className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200"
-            >
-              会员方案管理
-            </Link>
-            <Link
-              href="/backendmanager/membership-records"
-              className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200"
-            >
-              会员购买记录
-            </Link>
-            <Link
-              href="/backendmanager/orders"
-              className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200"
-            >
-              订单数据管理
-            </Link>
-            <Link
-              href="/backendmanager/analytics"
-              className="px-4 py-2 bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 font-medium"
-            >
-              📊 浏览量统计
-            </Link>
-            <Link
-              href="/backendmanager/banners"
-              className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200"
-            >
-              轮播图管理
-            </Link>
-            <Link
-              href="/backendmanager/settings"
-              className="px-4 py-2 bg-purple-100 text-purple-700 rounded-md hover:bg-purple-200 font-medium"
-            >
-              ⚙️ 系统设置
-            </Link>
-            <Link
-              href="/backendmanager/security-alerts"
-              className="px-4 py-2 bg-red-100 text-red-700 rounded-md hover:bg-red-200 font-medium"
-            >
-              🔒 安全警报
-            </Link>
-            <Link
-              href="/backendmanager/chat"
-              className="px-4 py-2 bg-green-100 text-green-700 rounded-md hover:bg-green-200 font-medium"
-            >
-              💬 客服聊天
-            </Link>
-          </div>
+      {/* 后台管理导航 */}
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold mb-4">后台管理</h1>
+        <div className="flex flex-wrap gap-3">
+          <Link
+            href="/backendmanager/categories"
+            className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200"
+          >
+            分类管理
+          </Link>
+          <Link
+            href="/backendmanager/memberships"
+            className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200"
+          >
+            会员方案管理
+          </Link>
+          <Link
+            href="/backendmanager/membership-records"
+            className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200"
+          >
+            会员购买记录
+          </Link>
+          <Link
+            href="/backendmanager/orders"
+            className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200"
+          >
+            订单数据管理
+          </Link>
+          <Link
+            href="/backendmanager/analytics"
+            className="px-4 py-2 bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 font-medium"
+          >
+            📊 浏览量统计
+          </Link>
+          <Link
+            href="/backendmanager/banners"
+            className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200"
+          >
+            轮播图管理
+          </Link>
+          <Link
+            href="/backendmanager/settings"
+            className="px-4 py-2 bg-purple-100 text-purple-700 rounded-md hover:bg-purple-200 font-medium"
+          >
+            ⚙️ 系统设置
+          </Link>
+          <Link
+            href="/backendmanager/security-alerts"
+            className="px-4 py-2 bg-red-100 text-red-700 rounded-md hover:bg-red-200 font-medium"
+          >
+            🔒 安全警报
+          </Link>
+          <Link
+            href="/backendmanager/chat"
+            className="px-4 py-2 bg-green-100 text-green-700 rounded-md hover:bg-green-200 font-medium"
+          >
+            💬 客服聊天
+          </Link>
         </div>
-        <div className="flex gap-2">
-          <button
-            onClick={() => startCreate("single")}
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-          >
-            + 新建商品
-          </button>
-          <button
-            onClick={() => startCreate("batch")}
-            className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
-          >
-            + 批量添加
-          </button>
+      </div>
+
+      {/* 商品管理区域 */}
+      <div className="border-t pt-8">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-2xl font-bold">商品管理</h2>
+          <div className="flex gap-2">
+            <button
+              onClick={() => startCreate("single")}
+              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+            >
+              + 新建商品
+            </button>
+            <button
+              onClick={() => startCreate("batch")}
+              className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+            >
+              + 批量添加
+            </button>
+          </div>
         </div>
       </div>
 

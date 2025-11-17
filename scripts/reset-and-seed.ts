@@ -58,26 +58,17 @@ async function main() {
       log('  ✓ 删除 dev.db-journal', 'green')
     }
 
-    // 2. 运行迁移
-    log('\n📦 步骤 2/7: 运行数据库迁移', 'cyan')
-    try {
-      execSync('npx prisma migrate deploy', {
-        stdio: 'inherit',
-        env: { ...process.env, DATABASE_URL: 'file:./dev.db' }
-      })
-      log('  ✓ 数据库迁移完成', 'green')
-    } catch (error) {
-      log('  ⚠️  迁移失败，尝试使用 db push', 'yellow')
-      execSync('npx prisma db push --accept-data-loss', {
-        stdio: 'inherit',
-        env: { ...process.env, DATABASE_URL: 'file:./dev.db' }
-      })
-      log('  ✓ 数据库结构同步完成', 'green')
-    }
+    // 2. 创建数据库结构（使用 db push 直接根据 schema 创建，避免迁移历史问题）
+    log('\n📦 步骤 2/7: 创建数据库结构', 'cyan')
+    execSync('npx prisma db push --force-reset --skip-generate', {
+      stdio: 'pipe',  // 隐藏输出以保持界面整洁
+      env: { ...process.env, DATABASE_URL: 'file:./dev.db' }
+    })
+    log('  ✓ 数据库结构创建完成', 'green')
 
     // 3. 生成 Prisma Client
     log('\n🔧 步骤 3/7: 生成 Prisma Client', 'cyan')
-    execSync('npx prisma generate', { stdio: 'inherit' })
+    execSync('npx prisma generate', { stdio: 'pipe' })
     log('  ✓ Prisma Client 生成完成', 'green')
 
     // 4. 创建管理员账户

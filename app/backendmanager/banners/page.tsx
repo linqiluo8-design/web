@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
-import Image from "next/image"
 import Link from "next/link"
 
 interface Banner {
@@ -302,13 +301,15 @@ export default function BannersAdminPage() {
                 maxLength={2000}
               />
               {formData.image && (
-                <div className="mt-2 relative w-full h-40 rounded border">
-                  <Image
+                <div className="mt-2 w-full h-40 rounded border overflow-hidden bg-gray-50">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
                     src={formData.image}
                     alt="预览"
-                    fill
-                    className="object-cover rounded"
-                    onError={() => alert("图片加载失败，请检查URL")}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      e.currentTarget.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="100" height="100"%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dy=".3em" fill="%23999"%3E加载失败%3C/text%3E%3C/svg%3E'
+                    }}
                   />
                 </div>
               )}
@@ -422,12 +423,15 @@ export default function BannersAdminPage() {
               {banners.map((banner) => (
                 <tr key={banner.id} className={editingId === banner.id ? "bg-blue-50" : ""}>
                   <td className="px-6 py-4">
-                    <div className="relative w-32 h-20 rounded overflow-hidden">
-                      <Image
+                    <div className="w-32 h-20 rounded overflow-hidden bg-gray-100">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
                         src={banner.image}
                         alt={banner.title}
-                        fill
-                        className="object-cover"
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          e.currentTarget.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="100" height="100"%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dy=".3em" fill="%23999"%3E无法加载%3C/text%3E%3C/svg%3E'
+                        }}
                       />
                     </div>
                   </td>

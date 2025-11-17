@@ -9,6 +9,19 @@ const paymentSchema = z.object({
   paymentMethod: z.enum(["alipay", "wechat", "paypal"])
 })
 
+// 获取系统配置
+async function getSystemConfig(key: string, defaultValue: string = ""): Promise<string> {
+  try {
+    const config = await prisma.systemConfig.findUnique({
+      where: { key }
+    })
+    return config?.value || defaultValue
+  } catch (error) {
+    console.error(`获取配置 ${key} 失败:`, error)
+    return defaultValue
+  }
+}
+
 export async function POST(request: Request) {
   try {
     const body = await request.json()
@@ -24,6 +37,18 @@ export async function POST(request: Request) {
 
     if (order.status !== "pending") {
       return NextResponse.json({ error: "订单状态不正确" }, { status: 400 })
+    }
+
+    // 获取支付模式配置
+    const paymentMode = await getSystemConfig("payment_mode", "mock")
+
+    // 检查支付方式是否启用
+    const providerEnabled = await getSystemConfig(`payment_${data.paymentMethod}_enabled`, "true")
+    if (providerEnabled !== "true") {
+      return NextResponse.json(
+        { error: "该支付方式暂未开放" },
+        { status: 400 }
+      )
     }
 
     // 检查是否已有支付记录
@@ -55,21 +80,46 @@ export async function POST(request: Request) {
       })
     }
 
-    if (data.paymentMethod === "alipay") {
+    // 根据支付模式返回不同的支付链接
+    if (paymentMode === "mock") {
+      // 模拟支付模式
+      if (data.paymentMethod === "alipay") {
+        return NextResponse.json({
+          paymentId: payment.id,
+          payUrl: `/api/payment/mock?paymentId=${payment.id}&orderNumber=${order.orderNumber}&method=alipay&amount=${data.amount}`,
+          mode: "mock"
+        })
+      } else if (data.paymentMethod === "wechat") {
+        return NextResponse.json({
+          paymentId: payment.id,
+          payUrl: `/api/payment/mock?paymentId=${payment.id}&orderNumber=${order.orderNumber}&method=wechat&amount=${data.amount}`,
+          mode: "mock"
+        })
+      } else if (data.paymentMethod === "paypal") {
+        return NextResponse.json({
+          paymentId: payment.id,
+          approvalUrl: `/api/payment/mock?paymentId=${payment.id}&orderNumber=${order.orderNumber}&method=paypal&amount=${data.amount}`,
+          mode: "mock"
+        })
+      }
+    } else {
+      // 真实支付模式
+      // TODO: 这里需要集成真实的支付接口
+      // 目前先返回错误提示
       return NextResponse.json({
-        paymentId: payment.id,
-        payUrl: `/api/payment/mock?paymentId=${payment.id}&orderNumber=${order.orderNumber}&method=alipay&amount=${data.amount}`
-      })
-    } else if (data.paymentMethod === "wechat") {
-      return NextResponse.json({
-        paymentId: payment.id,
-        payUrl: `/api/payment/mock?paymentId=${payment.id}&orderNumber=${order.orderNumber}&method=wechat&amount=${data.amount}`
-      })
-    } else if (data.paymentMethod === "paypal") {
-      return NextResponse.json({
-        paymentId: payment.id,
-        approvalUrl: `/api/payment/mock?paymentId=${payment.id}&orderNumber=${order.orderNumber}&method=paypal&amount=${data.amount}`
-      })
+        error: "真实支付功能暂未实现，请先配置支付商户信息",
+        message: "请在后台管理中配置支付宝、微信、PayPal的商户信息后再使用真实支付模式"
+      }, { status: 501 })
+
+      // 未来的实现示例：
+      // if (data.paymentMethod === "alipay") {
+      //   const alipayResult = await createAlipayOrder({...})
+      //   return NextResponse.json({
+      //     paymentId: payment.id,
+      //     payUrl: alipayResult.paymentUrl,
+      //     mode: "real"
+      //   })
+      // }
     }
 
     return NextResponse.json({ error: "不支持的支付方式" }, { status: 400 })

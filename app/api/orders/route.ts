@@ -227,18 +227,21 @@ export async function POST(req: Request) {
       totalAmount = originalAmount
     }
 
-    // 安全检查：检测0元或负数订单（可能是价格篡改攻击）
-    if (totalAmount <= 0.01) {
-      // 记录安全警报
+    // 安全检查：检测价格篡改攻击
+    // 区分两种情况：
+    // 1. 商品原价就是0元（合法的免费商品） - 允许
+    // 2. 商品原价 > 0 但被折扣/篡改成0元（攻击） - 拦截并记录
+    if (originalAmount > 0.01 && totalAmount <= 0.01) {
+      // 这是价格篡改攻击：原价大于0，但折后价变成了0或负数
       try {
         await prisma.securityAlert.create({
           data: {
-            type: "ZERO_AMOUNT_ORDER",
+            type: "PRICE_MANIPULATION",
             severity: "high",
             userId: null, // 匿名订单暂无userId
             ipAddress: req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || "unknown",
             userAgent: req.headers.get("user-agent") || "unknown",
-            description: `检测到0元或异常金额订单尝试：原价${originalAmount}元，折后${totalAmount}元`,
+            description: `检测到价格篡改攻击：商品原价${originalAmount}元，被异常折扣至${totalAmount}元`,
             metadata: JSON.stringify({
               originalAmount,
               totalAmount,
@@ -258,11 +261,13 @@ export async function POST(req: Request) {
         {
           error: "订单金额异常",
           message: "检测到订单金额异常，系统已记录此行为并通知管理员。如果您认为这是一个错误，请联系客服。",
-          code: "INVALID_AMOUNT"
+          code: "PRICE_MANIPULATION"
         },
         { status: 400 }
       )
     }
+
+    // 如果 originalAmount <= 0.01 且 totalAmount <= 0.01，说明是管理员上架的合法0元商品，允许创建订单
 
     // 生成安全的唯一订单号
     const orderNumber = generateOrderNumber()

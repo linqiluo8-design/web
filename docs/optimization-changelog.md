@@ -644,7 +644,171 @@ interface Order {
 
 ---
 
-### 5. 新增会员购买记录管理功能
+### 5. 修复会员支付页面支付方式配置不受控制的Bug
+
+**问题描述**：
+- 管理员在后台系统设置中关闭某个支付方式后，会员购买页面仍然显示所有支付方式供用户选择
+- 虽然后端API会拒绝被禁用的支付方式，但用户在选择后才会收到错误提示
+- 商品订单支付页面已正确实现配置检查，但会员支付页面缺少这个功能
+
+**影响范围**：
+- 会员购买流程用户体验不佳
+- 用户可能选择已被管理员禁用的支付方式，导致支付失败
+- 与商品订单支付页面行为不一致
+
+**根本原因**：
+- 会员支付页面（`/app/payment/membership/[id]/page.tsx`）缺少支付方式配置检查功能
+- 前端没有从后端获取支付方式的启用状态
+- UI直接渲染所有三种支付方式，不考虑后台配置
+
+**修复方案**：
+
+#### 5.1 添加配置状态管理
+
+```typescript
+// 支付方式配置
+const [enabledPaymentMethods, setEnabledPaymentMethods] = useState<Record<string, boolean>>({
+  alipay: true,
+  wechat: true,
+  paypal: true,
+})
+```
+
+#### 5.2 添加配置加载函数
+
+```typescript
+const loadPaymentConfig = async () => {
+  try {
+    const res = await fetch("/api/system-config?keys=payment_alipay_enabled,payment_wechat_enabled,payment_paypal_enabled")
+    if (res.ok) {
+      const config = await res.json()
+      setEnabledPaymentMethods({
+        alipay: config.payment_alipay_enabled !== false,
+        wechat: config.payment_wechat_enabled !== false,
+        paypal: config.payment_paypal_enabled !== false,
+      })
+    }
+  } catch (error) {
+    console.error("加载支付配置失败:", error)
+    // 如果加载失败，默认全部启用
+  }
+}
+```
+
+#### 5.3 页面加载时获取配置
+
+```typescript
+useEffect(() => {
+  if (membershipId) {
+    fetchMembership()
+    loadPaymentConfig()  // 新增：加载支付配置
+  }
+}, [membershipId])
+```
+
+#### 5.4 条件渲染支付方式
+
+修改前：直接渲染所有支付方式
+```typescript
+<div className="space-y-3">
+  {/* 支付宝 */}
+  <div onClick={() => setSelectedMethod("alipay")}>...</div>
+
+  {/* 微信支付 */}
+  <div onClick={() => setSelectedMethod("wechat")}>...</div>
+
+  {/* PayPal */}
+  <div onClick={() => setSelectedMethod("paypal")}>...</div>
+</div>
+```
+
+修改后：根据配置条件渲染
+```typescript
+<div className="space-y-3">
+  {/* 检查是否有启用的支付方式 */}
+  {!enabledPaymentMethods.alipay && !enabledPaymentMethods.wechat && !enabledPaymentMethods.paypal ? (
+    <div className="text-center py-8">
+      <p className="text-red-600 mb-2">当前没有可用的支付方式</p>
+      <p className="text-sm text-gray-500">请联系管理员</p>
+    </div>
+  ) : (
+    <>
+      {/* 支付宝 */}
+      {enabledPaymentMethods.alipay && (
+        <div onClick={() => setSelectedMethod("alipay")}>...</div>
+      )}
+
+      {/* 微信支付 */}
+      {enabledPaymentMethods.wechat && (
+        <div onClick={() => setSelectedMethod("wechat")}>...</div>
+      )}
+
+      {/* PayPal */}
+      {enabledPaymentMethods.paypal && (
+        <div onClick={() => setSelectedMethod("paypal")}>...</div>
+      )}
+    </>
+  )}
+</div>
+```
+
+**修复效果**：
+
+修复前的问题：
+- ❌ 显示所有支付方式，不管是否启用
+- ❌ 用户选择被禁用的支付方式后才会收到错误
+- ❌ 与商品订单支付页面行为不一致
+
+修复后的改进：
+- ✅ 只显示已启用的支付方式
+- ✅ 用户无法选择被禁用的支付方式
+- ✅ 如果所有支付方式都被禁用，显示友好提示
+- ✅ 与商品订单支付页面行为完全一致
+- ✅ 用户体验更好，减少错误操作
+
+**影响文件**：
+- `/app/payment/membership/[id]/page.tsx` - 会员支付页面
+
+**代码变更统计**：
+- 新增：35 行（配置状态和加载逻辑）
+- 修改：93 行（UI条件渲染）
+- 总计：+134 / -93 行
+
+**提交记录**：
+- Commit: `fix: 会员支付页面支付方式配置不受控制的bug`
+
+**验证结果**：
+- ✅ 关闭支付宝后，会员支付页面不显示支付宝选项
+- ✅ 关闭微信支付后，会员支付页面不显示微信选项
+- ✅ 关闭PayPal后，会员支付页面不显示PayPal选项
+- ✅ 关闭所有支付方式后，显示"当前没有可用的支付方式"提示
+- ✅ 配置加载失败时，默认显示所有支付方式（降级方案）
+- ✅ 与商品订单支付页面行为完全一致
+
+**测试场景**：
+
+| 配置状态 | 预期行为 | 实际结果 |
+|---------|---------|---------|
+| 全部启用 | 显示3种支付方式 | ✅ 正确 |
+| 仅启用支付宝 | 仅显示支付宝 | ✅ 正确 |
+| 仅启用微信 | 仅显示微信 | ✅ 正确 |
+| 仅启用PayPal | 仅显示PayPal | ✅ 正确 |
+| 全部禁用 | 显示提示信息 | ✅ 正确 |
+| 启用支付宝+微信 | 显示2种支付方式 | ✅ 正确 |
+
+**对比分析**：
+
+| 对比项 | 修复前 | 修复后 |
+|-------|-------|-------|
+| 配置检查 | ❌ 无 | ✅ 有 |
+| 条件渲染 | ❌ 静态显示 | ✅ 动态显示 |
+| 用户体验 | ❌ 可选择禁用项 | ✅ 只显示可用项 |
+| 错误提示 | ⚠️ 后端拒绝 | ✅ 前端隐藏 |
+| 一致性 | ❌ 与商品支付不一致 | ✅ 完全一致 |
+
+---
+
+### 6. 新增会员购买记录管理功能
 
 **需求描述**：
 - 在后台管理中增加会员购买订单记录查看功能

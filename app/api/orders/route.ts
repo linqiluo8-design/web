@@ -227,6 +227,43 @@ export async function POST(req: Request) {
       totalAmount = originalAmount
     }
 
+    // 安全检查：检测0元或负数订单（可能是价格篡改攻击）
+    if (totalAmount <= 0.01) {
+      // 记录安全警报
+      try {
+        await prisma.securityAlert.create({
+          data: {
+            type: "ZERO_AMOUNT_ORDER",
+            severity: "high",
+            userId: null, // 匿名订单暂无userId
+            ipAddress: req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || "unknown",
+            userAgent: req.headers.get("user-agent") || "unknown",
+            description: `检测到0元或异常金额订单尝试：原价${originalAmount}元，折后${totalAmount}元`,
+            metadata: JSON.stringify({
+              originalAmount,
+              totalAmount,
+              discount: membershipDiscount,
+              membershipCode: data.membershipCode,
+              items: data.items,
+              timestamp: new Date().toISOString()
+            }),
+            status: "unresolved"
+          }
+        })
+      } catch (alertError) {
+        console.error("创建安全警报失败:", alertError)
+      }
+
+      return NextResponse.json(
+        {
+          error: "订单金额异常",
+          message: "检测到订单金额异常，系统已记录此行为并通知管理员。如果您认为这是一个错误，请联系客服。",
+          code: "INVALID_AMOUNT"
+        },
+        { status: 400 }
+      )
+    }
+
     // 生成安全的唯一订单号
     const orderNumber = generateOrderNumber()
 

@@ -184,6 +184,16 @@ export default function MyOrdersPage() {
     return filtered.length
   }
 
+  // 获取过滤后的订单
+  const getFilteredOrders = () => {
+    if (searchQuery.trim()) {
+      return allOrders.filter(order =>
+        order.orderNumber.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    }
+    return allOrders
+  }
+
   const getStatusText = (status: string) => {
     const statusMap: Record<string, string> = {
       pending: "待支付",
@@ -306,7 +316,8 @@ export default function MyOrdersPage() {
 
   // 导出选中的订单
   const exportSelectedOrders = (format: "json" | "csv") => {
-    const ordersToExport = allOrders.filter(order => selectedOrders.has(order.id))
+    const filteredOrders = getFilteredOrders()
+    const ordersToExport = filteredOrders.filter(order => selectedOrders.has(order.id))
     if (ordersToExport.length === 0) {
       alert("请先选择要导出的订单")
       return
@@ -321,17 +332,19 @@ export default function MyOrdersPage() {
     setSelectedOrders(new Set())
   }
 
-  // 导出全部订单
+  // 导出全部订单（导出当前搜索结果的所有订单）
   const exportAllOrders = (format: "json" | "csv") => {
-    if (allOrders.length === 0) {
+    const filteredOrders = getFilteredOrders()
+    if (filteredOrders.length === 0) {
       alert("没有可导出的订单")
       return
     }
-    const filename = `全部订单_${allOrders.length}条_${new Date().toISOString().split("T")[0]}`
+    const searchInfo = searchQuery.trim() ? `搜索结果_` : ''
+    const filename = `${searchInfo}全部订单_${filteredOrders.length}条_${new Date().toISOString().split("T")[0]}`
     if (format === "json") {
-      exportToJSON(allOrders, filename)
+      exportToJSON(filteredOrders, filename)
     } else {
-      exportToCSV(allOrders, filename)
+      exportToCSV(filteredOrders, filename)
     }
   }
 

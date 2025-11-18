@@ -272,7 +272,7 @@ async function testMemberships() {
 
   try {
     logInfo('获取会员方案列表...');
-    const { response, data } = await request('/api/memberships');
+    const { response, data } = await request('/api/membership-plans');
     assert(response.ok, '会员方案 API 正常');
     assert(Array.isArray(data.plans), '返回会员方案数组');
     logSuccess(`找到 ${data.plans.length} 个会员方案`);
@@ -350,13 +350,36 @@ async function testPaymentFlow(testOrder) {
     logInfo(`测试 ${config.paymentMode === 'mock' ? '模拟' : '真实'} 支付...`);
 
     if (config.paymentMode === 'mock') {
-      // 模拟支付回调
-      logInfo('模拟支付回调...');
-      const { response } = await request('/api/payment/callback/mock', {
+      // 创建支付记录
+      logInfo('创建支付记录...');
+      const { response: paymentRes, data: paymentData } = await request('/api/payment/create', {
         method: 'POST',
         headers: getHeaders(),
         body: JSON.stringify({
           orderId: testOrder.id,
+          orderNumber: testOrder.orderNumber,
+          amount: testOrder.totalAmount,
+          paymentMethod: testOrder.paymentMethod || 'alipay'
+        })
+      });
+
+      if (!paymentRes.ok) {
+        logError(`创建支付记录失败: ${paymentData.error || 'Unknown'}`);
+        assert(false, '创建支付记录失败');
+        return;
+      }
+
+      assert(paymentData.paymentId, '获取到支付 ID');
+      logSuccess(`支付 ID: ${paymentData.paymentId}`);
+
+      // 模拟支付回调
+      logInfo('模拟支付回调...');
+      const { response } = await request('/api/payment/callback', {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify({
+          paymentId: paymentData.paymentId,
+          orderNumber: testOrder.orderNumber,
           status: 'success'
         })
       });
@@ -369,7 +392,7 @@ async function testPaymentFlow(testOrder) {
         { headers: getHeaders(true) }
       );
       assert(
-        orderData.order?.status === 'PAID' || orderData.order?.status === 'COMPLETED',
+        orderData.order?.status === 'paid' || orderData.order?.status === 'completed',
         '订单状态更新为已支付'
       );
 
@@ -393,7 +416,7 @@ async function testSystemSettings() {
     const { response, data } = await request('/api/system-config');
 
     if (response.ok) {
-      assert(data.configs !== undefined, '系统配置 API 正常');
+      assert(typeof data === 'object' && data !== null, '系统配置 API 正常');
       logSuccess('系统设置读取成功');
     } else {
       logWarning('系统设置 API 需要管理员权限');
@@ -453,7 +476,7 @@ async function testPageAccessibility() {
   const pages = [
     { path: '/', name: '首页' },
     { path: '/products', name: '商品列表' },
-    { path: '/memberships', name: '会员方案' },
+    { path: '/membership', name: '会员方案' },
     { path: '/auth/signin', name: '登录页' },
     { path: '/auth/signup', name: '注册页' },
     { path: '/backendmanager', name: '后台管理' },

@@ -80,33 +80,11 @@ export function Navbar() {
                 我的订单
               </Link>
               {session?.user?.role === "ADMIN" && (
-                <>
-                  <Link
-                    href="/backendmanager"
-                    className={isActive("/backendmanager") ? "px-3 py-2 rounded-md text-sm font-medium text-blue-600 bg-blue-50" : "px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50"}
-                  >
-                    后台管理
-                  </Link>
-                  <Link
-                    href="/order-lookup"
-                    className={isActive("/order-lookup") ? "px-3 py-2 rounded-md text-sm font-medium text-blue-600 bg-blue-50" : "px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50"}
-                  >
-                    订单查询
-                  </Link>
-                  <Link
-                    href="/backendmanager/users"
-                    className={isActive("/backendmanager/users") ? "px-3 py-2 rounded-md text-sm font-medium text-blue-600 bg-blue-50" : "px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50"}
-                  >
-                    用户管理
-                  </Link>
-                </>
-              )}
-              {(session?.user?.role === "ADMIN" || hasPermission('CUSTOMER_CHAT')) && (
                 <Link
-                  href="/backendmanager/chat"
-                  className={isActive("/backendmanager/chat") ? "px-3 py-2 rounded-md text-sm font-medium text-blue-600 bg-blue-50" : "px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50"}
+                  href="/backendmanager"
+                  className={isActive("/backendmanager") ? "px-3 py-2 rounded-md text-sm font-medium text-blue-600 bg-blue-50" : "px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50"}
                 >
-                  💬 客服聊天
+                  后台管理
                 </Link>
               )}
             </div>

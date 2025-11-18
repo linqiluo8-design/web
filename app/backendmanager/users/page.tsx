@@ -13,6 +13,8 @@ type PermissionModule =
   | 'SYSTEM_SETTINGS'
   | 'SECURITY_ALERTS'
   | 'CUSTOMER_CHAT'
+  | 'USER_MANAGEMENT'
+  | 'ORDER_LOOKUP'
 
 type PermissionLevel = 'NONE' | 'READ' | 'WRITE'
 
@@ -43,6 +45,8 @@ const MODULE_NAMES: Record<PermissionModule, string> = {
   SYSTEM_SETTINGS: '系统设置',
   SECURITY_ALERTS: '安全警报',
   CUSTOMER_CHAT: '客服聊天',
+  USER_MANAGEMENT: '用户管理',
+  ORDER_LOOKUP: '订单查询',
 }
 
 const STATUS_NAMES: Record<string, string> = {
@@ -73,7 +77,27 @@ export default function UserManagementPage() {
     SYSTEM_SETTINGS: 'NONE',
     SECURITY_ALERTS: 'NONE',
     CUSTOMER_CHAT: 'NONE',
+    USER_MANAGEMENT: 'NONE',
+    ORDER_LOOKUP: 'NONE',
   })
+  const [userPermissions, setUserPermissions] = useState<Record<string, string>>({})
+  const [hasAccess, setHasAccess] = useState(false)
+
+  // 获取当前用户权限
+  useEffect(() => {
+    if (session?.user) {
+      fetch('/api/auth/permissions')
+        .then(res => res.json())
+        .then(data => {
+          setUserPermissions(data.permissions || {})
+          // 检查是否有访问权限
+          const isAdmin = session?.user?.role === 'ADMIN'
+          const hasUserManagementPermission = data.permissions?.USER_MANAGEMENT === 'READ' || data.permissions?.USER_MANAGEMENT === 'WRITE'
+          setHasAccess(isAdmin || hasUserManagementPermission)
+        })
+        .catch(err => console.error('获取权限失败:', err))
+    }
+  }, [session])
 
   useEffect(() => {
     if (sessionStatus === 'unauthenticated') {
@@ -81,15 +105,15 @@ export default function UserManagementPage() {
       return
     }
 
-    if (sessionStatus === 'authenticated' && session?.user?.role !== 'ADMIN') {
+    if (sessionStatus === 'authenticated' && !hasAccess && Object.keys(userPermissions).length > 0) {
       router.push('/')
       return
     }
 
-    if (sessionStatus === 'authenticated') {
+    if (sessionStatus === 'authenticated' && hasAccess) {
       loadUsers()
     }
-  }, [sessionStatus, session, router])
+  }, [sessionStatus, session, router, hasAccess, userPermissions])
 
   const loadUsers = async () => {
     try {

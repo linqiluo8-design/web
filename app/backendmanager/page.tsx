@@ -61,6 +61,7 @@ export default function AdminPage() {
       status: "active"
     }
   ])
+  const [permissions, setPermissions] = useState<Record<string, string>>({})
 
   // 分页和搜索状态
   const [page, setPage] = useState(1)
@@ -84,6 +85,26 @@ export default function AdminPage() {
     fetchProducts()
     fetchCategories()
   }, [status, session, router, page, limit, searchQuery])
+
+  // 获取用户权限
+  useEffect(() => {
+    if (session?.user) {
+      fetch('/api/auth/permissions')
+        .then(res => res.json())
+        .then(data => setPermissions(data.permissions || {}))
+        .catch(err => console.error('获取权限失败:', err))
+    }
+  }, [session])
+
+  // 检查是否有读或写权限
+  const hasPermission = (module: string) => {
+    // ADMIN拥有所有权限
+    if (session?.user?.role === 'ADMIN') {
+      return true
+    }
+    const level = permissions[module]
+    return level === 'READ' || level === 'WRITE'
+  }
 
   const fetchProducts = async () => {
     try {
@@ -380,60 +401,94 @@ export default function AdminPage() {
       <div className="mb-8">
         <h1 className="text-3xl font-bold mb-4">后台管理</h1>
         <div className="flex flex-wrap gap-3">
-          <Link
-            href="/backendmanager/categories"
-            className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200"
-          >
-            分类管理
-          </Link>
-          <Link
-            href="/backendmanager/memberships"
-            className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200"
-          >
-            会员方案管理
-          </Link>
-          <Link
-            href="/backendmanager/membership-records"
-            className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200"
-          >
-            会员购买记录
-          </Link>
-          <Link
-            href="/backendmanager/orders"
-            className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200"
-          >
-            订单数据管理
-          </Link>
-          <Link
-            href="/backendmanager/analytics"
-            className="px-4 py-2 bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 font-medium"
-          >
-            📊 浏览量统计
-          </Link>
-          <Link
-            href="/backendmanager/banners"
-            className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200"
-          >
-            轮播图管理
-          </Link>
-          <Link
-            href="/backendmanager/settings"
-            className="px-4 py-2 bg-purple-100 text-purple-700 rounded-md hover:bg-purple-200 font-medium"
-          >
-            ⚙️ 系统设置
-          </Link>
-          <Link
-            href="/backendmanager/security-alerts"
-            className="px-4 py-2 bg-red-100 text-red-700 rounded-md hover:bg-red-200 font-medium"
-          >
-            🔒 安全警报
-          </Link>
-          <Link
-            href="/backendmanager/chat"
-            className="px-4 py-2 bg-green-100 text-green-700 rounded-md hover:bg-green-200 font-medium"
-          >
-            💬 客服聊天
-          </Link>
+          {hasPermission('CATEGORIES') && (
+            <Link
+              href="/backendmanager/categories"
+              className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200"
+            >
+              分类管理
+            </Link>
+          )}
+          {hasPermission('MEMBERSHIPS') && (
+            <Link
+              href="/backendmanager/memberships"
+              className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200"
+            >
+              会员方案管理
+            </Link>
+          )}
+          {hasPermission('MEMBERSHIPS') && (
+            <Link
+              href="/backendmanager/membership-records"
+              className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200"
+            >
+              会员购买记录
+            </Link>
+          )}
+          {hasPermission('ORDERS') && (
+            <Link
+              href="/backendmanager/orders"
+              className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200"
+            >
+              订单数据管理
+            </Link>
+          )}
+          {hasPermission('PRODUCTS') && (
+            <Link
+              href="/backendmanager/analytics"
+              className="px-4 py-2 bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 font-medium"
+            >
+              📊 浏览量统计
+            </Link>
+          )}
+          {hasPermission('BANNERS') && (
+            <Link
+              href="/backendmanager/banners"
+              className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200"
+            >
+              轮播图管理
+            </Link>
+          )}
+          {hasPermission('USER_MANAGEMENT') && (
+            <Link
+              href="/backendmanager/users"
+              className="px-4 py-2 bg-indigo-100 text-indigo-700 rounded-md hover:bg-indigo-200 font-medium"
+            >
+              👥 用户管理
+            </Link>
+          )}
+          {hasPermission('ORDER_LOOKUP') && (
+            <Link
+              href="/order-lookup"
+              className="px-4 py-2 bg-orange-100 text-orange-700 rounded-md hover:bg-orange-200 font-medium"
+            >
+              🔍 订单查询
+            </Link>
+          )}
+          {hasPermission('SYSTEM_SETTINGS') && (
+            <Link
+              href="/backendmanager/settings"
+              className="px-4 py-2 bg-purple-100 text-purple-700 rounded-md hover:bg-purple-200 font-medium"
+            >
+              ⚙️ 系统设置
+            </Link>
+          )}
+          {hasPermission('SECURITY_ALERTS') && (
+            <Link
+              href="/backendmanager/security-alerts"
+              className="px-4 py-2 bg-red-100 text-red-700 rounded-md hover:bg-red-200 font-medium"
+            >
+              🔒 安全警报
+            </Link>
+          )}
+          {hasPermission('CUSTOMER_CHAT') && (
+            <Link
+              href="/backendmanager/chat"
+              className="px-4 py-2 bg-green-100 text-green-700 rounded-md hover:bg-green-200 font-medium"
+            >
+              💬 客服聊天
+            </Link>
+          )}
         </div>
       </div>
 

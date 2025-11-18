@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react"
 import Image from "next/image"
 import Link from "next/link"
+import { useSession } from "next-auth/react"
+import { useRouter } from "next/navigation"
 
 interface OrderItem {
   id: string
@@ -34,23 +36,58 @@ interface Order {
 }
 
 export default function OrderLookupPage() {
+  const { data: session, status } = useSession()
+  const router = useRouter()
   const [orderNumber, setOrderNumber] = useState("")
   const [order, setOrder] = useState<Order | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [permissions, setPermissions] = useState<Record<string, string>>({})
+  const [hasAccess, setHasAccess] = useState(false)
+
+  // 获取用户权限
+  useEffect(() => {
+    if (session?.user) {
+      fetch('/api/auth/permissions')
+        .then(res => res.json())
+        .then(data => {
+          setPermissions(data.permissions || {})
+          // 检查是否有访问权限
+          const isAdmin = session?.user?.role === 'ADMIN'
+          const hasOrderLookupPermission = data.permissions?.ORDER_LOOKUP === 'READ' || data.permissions?.ORDER_LOOKUP === 'WRITE'
+          setHasAccess(isAdmin || hasOrderLookupPermission)
+        })
+        .catch(err => console.error('获取权限失败:', err))
+    }
+  }, [session])
+
+  // 权限检查
+  useEffect(() => {
+    if (status === 'unauthenticated') {
+      router.push('/auth/signin')
+      return
+    }
+
+    if (status === 'authenticated' && !hasAccess && Object.keys(permissions).length > 0) {
+      router.push('/')
+      return
+    }
+  }, [status, hasAccess, permissions, router])
 
   // 支持从URL参数获取订单号
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search)
-    const urlOrderNumber = params.get('orderNumber')
-    if (urlOrderNumber) {
-      setOrderNumber(urlOrderNumber)
-      // 自动查询
-      setTimeout(() => {
-        handleSearchWithNumber(urlOrderNumber)
-      }, 100)
+    if (hasAccess) {
+      const params = new URLSearchParams(window.location.search)
+      const urlOrderNumber = params.get('orderNumber')
+      if (urlOrderNumber) {
+        setOrderNumber(urlOrderNumber)
+        // 自动查询
+        setTimeout(() => {
+          handleSearchWithNumber(urlOrderNumber)
+        }, 100)
+      }
     }
-  }, [])
+  }, [hasAccess])
 
   const handleSearchWithNumber = async (number: string) => {
     if (!number.trim()) {

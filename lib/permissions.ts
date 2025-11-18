@@ -14,6 +14,8 @@ export type PermissionModule =
   | 'SYSTEM_SETTINGS'
   | 'SECURITY_ALERTS'
   | 'CUSTOMER_CHAT'
+  | 'USER_MANAGEMENT'
+  | 'ORDER_LOOKUP'
 
 export type PermissionLevel = 'NONE' | 'READ' | 'WRITE'
 
@@ -186,6 +188,8 @@ function getModuleName(module: PermissionModule): string {
     SYSTEM_SETTINGS: '系统设置',
     SECURITY_ALERTS: '安全警报',
     CUSTOMER_CHAT: '客服聊天',
+    USER_MANAGEMENT: '用户管理',
+    ORDER_LOOKUP: '订单查询',
   }
   return names[module] || module
 }

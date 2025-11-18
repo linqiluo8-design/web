@@ -1,18 +1,12 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { requireAuth } from "@/lib/session"
+import { requireRead } from "@/lib/permissions"
 
 // GET /api/backendmanager/membership-records - 获取所有会员购买记录
 export async function GET(req: Request) {
   try {
-    const user = await requireAuth()
-
-    if (user.role !== "ADMIN") {
-      return NextResponse.json(
-        { error: "需要管理员权限" },
-        { status: 403 }
-      )
-    }
+    // 需要会员管理的读权限
+    await requireRead('MEMBERSHIPS')
 
     const { searchParams } = new URL(req.url)
     const page = parseInt(searchParams.get("page") || "1")
@@ -81,17 +75,10 @@ export async function GET(req: Request) {
     })
 
   } catch (error: any) {
-    if (error.message === "未授权，请先登录") {
-      return NextResponse.json(
-        { error: error.message },
-        { status: 401 }
-      )
-    }
-
     console.error("获取会员购买记录失败:", error)
     return NextResponse.json(
-      { error: "获取会员购买记录失败" },
-      { status: 500 }
+      { error: error.message || "获取会员购买记录失败" },
+      { status: error.message === '未登录' ? 401 : error.message?.includes('权限') ? 403 : 500 }
     )
   }
 }

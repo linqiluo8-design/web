@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
+import { requireWrite } from "@/lib/permissions"
 import { z } from "zod"
 
 const updateCategorySchema = z.object({
@@ -11,17 +10,14 @@ const updateCategorySchema = z.object({
   sortOrder: z.number().optional()
 })
 
-// PATCH /api/categories/[id] - 更新分类（仅管理员）
+// PATCH /api/categories/[id] - 更新分类
 export async function PATCH(
   request: Request,
   context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions)
-
-    if (!session || session.user?.role !== "ADMIN") {
-      return NextResponse.json({ error: "无权限" }, { status: 403 })
-    }
+    // 需要分类管理的写权限
+    await requireWrite('CATEGORIES')
 
     const params = await context.params
     const body = await request.json()
@@ -57,21 +53,21 @@ export async function PATCH(
       return NextResponse.json({ error: error.errors[0].message }, { status: 400 })
     }
     console.error("更新分类失败:", error)
-    return NextResponse.json({ error: "更新分类失败" }, { status: 500 })
+    return NextResponse.json(
+      { error: error.message || "更新分类失败" },
+      { status: error.message === '未登录' ? 401 : error.message?.includes('权限') ? 403 : 500 }
+    )
   }
 }
 
-// DELETE /api/categories/[id] - 删除分类（仅管理员）
+// DELETE /api/categories/[id] - 删除分类
 export async function DELETE(
   request: Request,
   context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions)
-
-    if (!session || session.user?.role !== "ADMIN") {
-      return NextResponse.json({ error: "无权限" }, { status: 403 })
-    }
+    // 需要分类管理的写权限（删除操作需要写权限）
+    await requireWrite('CATEGORIES')
 
     const params = await context.params
 
@@ -92,8 +88,11 @@ export async function DELETE(
     })
 
     return NextResponse.json({ success: true })
-  } catch (error) {
+  } catch (error: any) {
     console.error("删除分类失败:", error)
-    return NextResponse.json({ error: "删除分类失败" }, { status: 500 })
+    return NextResponse.json(
+      { error: error.message || "删除分类失败" },
+      { status: error.message === '未登录' ? 401 : error.message?.includes('权限') ? 403 : 500 }
+    )
   }
 }

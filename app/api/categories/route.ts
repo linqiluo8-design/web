@@ -1,10 +1,9 @@
 import { NextResponse } from "next/server"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
+import { requireWrite } from "@/lib/permissions"
 import { z } from "zod"
 
-// GET /api/categories - 获取所有分类
+// GET /api/categories - 获取所有分类（公开接口，无需权限）
 export async function GET() {
   try {
     const categories = await prisma.category.findMany({
@@ -34,14 +33,11 @@ const bulkCategorySchema = z.object({
   categories: z.array(createCategorySchema).min(1, "至少需要一个分类"),
 })
 
-// POST /api/categories - 创建新分类（仅管理员，支持单个和批量）
+// POST /api/categories - 创建新分类（支持单个和批量）
 export async function POST(request: Request) {
   try {
-    const session = await getServerSession(authOptions)
-
-    if (!session || session.user?.role !== "ADMIN") {
-      return NextResponse.json({ error: "无权限" }, { status: 403 })
-    }
+    // 需要分类管理的写权限
+    await requireWrite('CATEGORIES')
 
     const body = await request.json()
 
@@ -113,6 +109,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: error.errors[0].message }, { status: 400 })
     }
     console.error("创建分类失败:", error)
-    return NextResponse.json({ error: "创建分类失败" }, { status: 500 })
+    return NextResponse.json(
+      { error: error.message || "创建分类失败" },
+      { status: error.message === '未登录' ? 401 : error.message?.includes('权限') ? 403 : 500 }
+    )
   }
 }

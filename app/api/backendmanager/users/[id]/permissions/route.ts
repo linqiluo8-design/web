@@ -19,7 +19,8 @@ const permissionSchema = z.object({
         'SECURITY_ALERTS',
         'CUSTOMER_CHAT',
         'USER_MANAGEMENT',
-        'ORDER_LOOKUP'
+        'ORDER_LOOKUP',
+        'ANALYTICS'
       ]),
       level: z.enum(['NONE', 'READ', 'WRITE']),
     })

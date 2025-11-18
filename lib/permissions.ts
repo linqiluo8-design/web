@@ -201,20 +201,24 @@ export async function setUserPermissions(
   userId: string,
   permissions: { module: PermissionModule; level: PermissionLevel }[]
 ) {
-  // 删除现有权限
-  await prisma.permission.deleteMany({
-    where: { userId },
-  })
-
-  // 创建新权限（跳过 NONE 级别）
-  const validPermissions = permissions.filter((p) => p.level !== 'NONE')
-  if (validPermissions.length > 0) {
-    await prisma.permission.createMany({
-      data: validPermissions.map((p) => ({
-        userId,
-        module: p.module,
-        level: p.level,
-      })),
+  // 使用事务确保原子性操作
+  await prisma.$transaction(async (tx) => {
+    // 删除现有权限
+    await tx.permission.deleteMany({
+      where: { userId },
     })
-  }
+
+    // 创建新权限（跳过 NONE 级别）
+    const validPermissions = permissions.filter((p) => p.level !== 'NONE')
+    if (validPermissions.length > 0) {
+      await tx.permission.createMany({
+        data: validPermissions.map((p) => ({
+          userId,
+          module: p.module,
+          level: p.level,
+        })),
+        skipDuplicates: true, // 跳过重复记录，避免唯一约束错误
+      })
+    }
+  })
 }

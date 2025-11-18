@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { z } from "zod"
+import { requireWrite } from "@/lib/permissions"
 
 const updateProductSchema = z.object({
   status: z.enum(["active", "inactive", "archived"]).optional(),
@@ -22,25 +21,11 @@ export async function PATCH(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
+    // 验证用户登录和权限 - 需要PRODUCTS模块的写权限
+    await requireWrite('PRODUCTS')
+
     // 等待params解析（Next.js 16+要求）
     const params = await context.params
-
-    // 验证用户登录和权限
-    const session = await getServerSession(authOptions)
-
-    if (!session || !session.user) {
-      return NextResponse.json(
-        { error: "未授权，请先登录" },
-        { status: 401 }
-      )
-    }
-
-    if (session.user.role !== "ADMIN") {
-      return NextResponse.json(
-        { error: "无权限访问" },
-        { status: 403 }
-      )
-    }
 
     // 解析请求数据
     const body = await request.json()
@@ -109,7 +94,7 @@ export async function PATCH(
       message: "商品更新成功",
       product: updatedProduct,
     })
-  } catch (error) {
+  } catch (error: any) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { error: "请求数据格式错误", details: error.errors },
@@ -119,8 +104,8 @@ export async function PATCH(
 
     console.error("更新商品状态失败:", error)
     return NextResponse.json(
-      { error: "更新商品状态失败" },
-      { status: 500 }
+      { error: error.message || "更新商品状态失败" },
+      { status: error.message === '未登录' ? 401 : error.message?.includes('权限') ? 403 : 500 }
     )
   }
 }

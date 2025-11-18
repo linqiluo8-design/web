@@ -107,9 +107,18 @@ export async function GET(req: Request) {
 
     // 检查是否有客服聊天权限
     const authSession = await getServerSession(authOptions)
-    const hasPermission = authSession?.user?.id
-      ? await canRead('CUSTOMER_CHAT', authSession.user.id)
-      : false
+    let hasPermission = false
+
+    if (authSession?.user?.id) {
+      // 获取用户角色
+      const user = await prisma.user.findUnique({
+        where: { id: authSession.user.id },
+        select: { role: true }
+      })
+
+      // 管理员自动拥有所有权限，或检查客服聊天读权限
+      hasPermission = user?.role === 'ADMIN' || await canRead('CUSTOMER_CHAT', authSession.user.id)
+    }
 
     // 安全检查：验证访问权限
     if (!hasPermission) {

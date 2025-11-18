@@ -118,8 +118,8 @@ export default function UserManagementPage() {
 
   const loadUsers = async () => {
     try {
-      const url = filter === 'all' ? '/api/backendmanager/users' : `/api/backendmanager/users?status=${filter}`
-      const response = await fetch(url)
+      // 始终加载所有用户，客户端进行筛选
+      const response = await fetch('/api/backendmanager/users')
       const data = await response.json()
 
       if (response.ok) {
@@ -229,9 +229,7 @@ export default function UserManagementPage() {
     }
   }
 
-  useEffect(() => {
-    loadUsers()
-  }, [filter])
+  // 不再需要在filter改变时重新加载，使用客户端筛选即可
 
   if (sessionStatus === 'loading' || loading) {
     return (

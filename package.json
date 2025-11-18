@@ -12,6 +12,7 @@
     "db:reset": "tsx scripts/reset-and-seed.ts",
     "security:scan": "node scripts/security-vulnerability-scan.js mock",
     "security:scan:real": "node scripts/security-vulnerability-scan.js real",
+    "security:test-alerts": "node scripts/test-security-alerts.js",
     "test:all": "node scripts/test-all-features.js mock",
     "test:all:real": "node scripts/test-all-features.js real"
   },

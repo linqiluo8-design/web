@@ -48,9 +48,14 @@ export async function POST(req: Request) {
         select: { role: true }
       })
 
+      console.log('[DEBUG] POST /api/chat/messages - User role:', user?.role, 'User ID:', authSession.user.id)
+
       // 管理员自动拥有所有权限，或检查客服聊天写权限
       const hasPermission = user?.role === 'ADMIN' || await canWrite('CUSTOMER_CHAT', authSession.user.id)
+      console.log('[DEBUG] POST /api/chat/messages - hasPermission:', hasPermission)
+
       if (!hasPermission) {
+        console.log('[DEBUG] POST /api/chat/messages - Permission denied')
         return NextResponse.json(
           { error: "需要客服聊天权限" },
           { status: 403 }
@@ -116,8 +121,13 @@ export async function GET(req: Request) {
         select: { role: true }
       })
 
+      console.log('[DEBUG] GET /api/chat/messages - User role:', user?.role, 'User ID:', authSession.user.id)
+
       // 管理员自动拥有所有权限，或检查客服聊天读权限
       hasPermission = user?.role === 'ADMIN' || await canRead('CUSTOMER_CHAT', authSession.user.id)
+      console.log('[DEBUG] GET /api/chat/messages - hasPermission:', hasPermission)
+    } else {
+      console.log('[DEBUG] GET /api/chat/messages - No auth session')
     }
 
     // 安全检查：验证访问权限

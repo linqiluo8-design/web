@@ -87,9 +87,7 @@ export function Navbar() {
             </div>
           </div>
           <div className="flex items-center space-x-4">
-            {status === "loading" ? (
-              <div className="text-sm text-gray-500">加载中...</div>
-            ) : session?.user ? (
+            {session?.user && (
               <div className="relative">
                 <button
                   onClick={() => setShowUserMenu(!showUserMenu)}
@@ -128,21 +126,6 @@ export function Navbar() {
                     </button>
                   </div>
                 )}
-              </div>
-            ) : (
-              <div className="flex items-center space-x-2">
-                <Link
-                  href="/auth/signin"
-                  className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-blue-600"
-                >
-                  登录
-                </Link>
-                <Link
-                  href="/auth/signup"
-                  className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md"
-                >
-                  注册
-                </Link>
               </div>
             )}
           </div>

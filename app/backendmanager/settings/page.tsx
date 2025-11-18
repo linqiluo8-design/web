@@ -1,6 +1,8 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useSession } from "next-auth/react"
+import { useRouter } from "next/navigation"
 
 interface SystemConfig {
   key: string
@@ -11,6 +13,9 @@ interface SystemConfig {
 }
 
 export default function SettingsPage() {
+  const { data: session, status } = useSession()
+  const router = useRouter()
+  const [userPermission, setUserPermission] = useState<"NONE" | "READ" | "WRITE">("NONE")
   const [configs, setConfigs] = useState<Record<string, boolean>>({
     banner_enabled: true,
     payment_alipay_enabled: true,
@@ -24,8 +29,41 @@ export default function SettingsPage() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
 
   useEffect(() => {
-    loadConfigs()
-  }, [])
+    if (status === "unauthenticated") {
+      router.push("/auth/signin")
+      return
+    }
+
+    if (status === "authenticated" && session?.user) {
+      checkPermissionAndFetch()
+    }
+  }, [status, session, router])
+
+  const checkPermissionAndFetch = async () => {
+    try {
+      if (session?.user?.role === "ADMIN") {
+        setUserPermission("WRITE")
+        loadConfigs()
+        return
+      }
+
+      const res = await fetch("/api/auth/permissions")
+      const data = await res.json()
+      const permission = data.permissions?.SYSTEM_SETTINGS || "NONE"
+
+      setUserPermission(permission)
+
+      if (permission === "NONE") {
+        router.push("/")
+        return
+      }
+
+      loadConfigs()
+    } catch (error) {
+      console.error("检查权限失败:", error)
+      router.push("/")
+    }
+  }
 
   const loadConfigs = async () => {
     try {
@@ -144,7 +182,14 @@ export default function SettingsPage() {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-8">系统设置</h1>
+      <div className="flex items-center gap-3 mb-8">
+        <h1 className="text-3xl font-bold">系统设置</h1>
+        {userPermission === "READ" && (
+          <span className="px-3 py-1 bg-yellow-100 text-yellow-800 text-sm font-medium rounded-full">
+            只读模式
+          </span>
+        )}
+      </div>
 
       {/* 错误提示 */}
       {error && (
@@ -182,9 +227,10 @@ export default function SettingsPage() {
               </div>
               <button
                 onClick={() => toggleConfig("banner_enabled")}
+                disabled={userPermission === "READ"}
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
                   configs.banner_enabled ? "bg-blue-600" : "bg-gray-200"
-                }`}
+                } ${userPermission === "READ" ? "opacity-50 cursor-not-allowed" : ""}`}
                 aria-label="切换轮播图开关"
               >
                 <span
@@ -212,13 +258,14 @@ export default function SettingsPage() {
                 </p>
               </div>
               <div className="flex gap-4">
-                <label className="flex items-center gap-2 cursor-pointer">
+                <label className={`flex items-center gap-2 ${userPermission === "READ" ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}>
                   <input
                     type="radio"
                     name="paymentMode"
                     value="mock"
                     checked={paymentMode === "mock"}
                     onChange={(e) => setPaymentMode(e.target.value as "mock" | "real")}
+                    disabled={userPermission === "READ"}
                     className="w-4 h-4 text-blue-600"
                   />
                   <span className="text-sm">
@@ -226,13 +273,14 @@ export default function SettingsPage() {
                     <span className="text-gray-500 ml-1">(开发/测试)</span>
                   </span>
                 </label>
-                <label className="flex items-center gap-2 cursor-pointer">
+                <label className={`flex items-center gap-2 ${userPermission === "READ" ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}>
                   <input
                     type="radio"
                     name="paymentMode"
                     value="real"
                     checked={paymentMode === "real"}
                     onChange={(e) => setPaymentMode(e.target.value as "mock" | "real")}
+                    disabled={userPermission === "READ"}
                     className="w-4 h-4 text-blue-600"
                   />
                   <span className="text-sm">
@@ -270,9 +318,10 @@ export default function SettingsPage() {
               </div>
               <button
                 onClick={() => toggleConfig("payment_alipay_enabled")}
+                disabled={userPermission === "READ"}
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
                   configs.payment_alipay_enabled ? "bg-blue-600" : "bg-gray-200"
-                }`}
+                } ${userPermission === "READ" ? "opacity-50 cursor-not-allowed" : ""}`}
                 aria-label="切换支付宝支付开关"
               >
                 <span
@@ -290,9 +339,10 @@ export default function SettingsPage() {
               </div>
               <button
                 onClick={() => toggleConfig("payment_wechat_enabled")}
+                disabled={userPermission === "READ"}
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
                   configs.payment_wechat_enabled ? "bg-blue-600" : "bg-gray-200"
-                }`}
+                } ${userPermission === "READ" ? "opacity-50 cursor-not-allowed" : ""}`}
                 aria-label="切换微信支付开关"
               >
                 <span
@@ -310,9 +360,10 @@ export default function SettingsPage() {
               </div>
               <button
                 onClick={() => toggleConfig("payment_paypal_enabled")}
+                disabled={userPermission === "READ"}
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
                   configs.payment_paypal_enabled ? "bg-blue-600" : "bg-gray-200"
-                }`}
+                } ${userPermission === "READ" ? "opacity-50 cursor-not-allowed" : ""}`}
                 aria-label="切换PayPal支付开关"
               >
                 <span
@@ -367,23 +418,31 @@ export default function SettingsPage() {
 
         {/* 保存按钮 */}
         <div className="flex justify-end gap-3">
-          <button
-            onClick={loadConfigs}
-            disabled={saving}
-            className="px-6 py-2 border rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            重置
-          </button>
-          <button
-            onClick={saveConfigs}
-            disabled={saving}
-            className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-          >
-            {saving && (
-              <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-            )}
-            {saving ? "保存中..." : "保存设置"}
-          </button>
+          {userPermission === "WRITE" ? (
+            <>
+              <button
+                onClick={loadConfigs}
+                disabled={saving}
+                className="px-6 py-2 border rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                重置
+              </button>
+              <button
+                onClick={saveConfigs}
+                disabled={saving}
+                className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                {saving && (
+                  <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                )}
+                {saving ? "保存中..." : "保存设置"}
+              </button>
+            </>
+          ) : (
+            <div className="text-sm text-gray-500 py-2">
+              只读模式：无法修改设置
+            </div>
+          )}
         </div>
       </div>
     </div>

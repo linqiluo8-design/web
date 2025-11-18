@@ -24,6 +24,7 @@ export default function BannersAdminPage() {
   const [banners, setBanners] = useState<Banner[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [userPermission, setUserPermission] = useState<"NONE" | "READ" | "WRITE">("NONE")
   const [editingId, setEditingId] = useState<string | null>(null)
   const [isCreating, setIsCreating] = useState(false)
   const [formData, setFormData] = useState({
@@ -41,13 +42,36 @@ export default function BannersAdminPage() {
       return
     }
 
-    if (session?.user?.role !== "ADMIN") {
-      router.push("/")
-      return
+    if (status === "authenticated" && session?.user) {
+      checkPermissionAndFetch()
     }
-
-    fetchBanners()
   }, [status, session, router])
+
+  const checkPermissionAndFetch = async () => {
+    try {
+      if (session?.user?.role === "ADMIN") {
+        setUserPermission("WRITE")
+        fetchBanners()
+        return
+      }
+
+      const res = await fetch("/api/auth/permissions")
+      const data = await res.json()
+      const permission = data.permissions?.BANNERS || "NONE"
+
+      setUserPermission(permission)
+
+      if (permission === "NONE") {
+        router.push("/")
+        return
+      }
+
+      fetchBanners()
+    } catch (error) {
+      console.error("检查权限失败:", error)
+      router.push("/")
+    }
+  }
 
   const fetchBanners = async () => {
     try {
@@ -238,19 +262,28 @@ export default function BannersAdminPage() {
     <div className="container mx-auto px-4 py-8">
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-bold mb-2">轮播图管理</h1>
+          <div className="flex items-center gap-3 mb-2">
+            <h1 className="text-3xl font-bold">轮播图管理</h1>
+            {userPermission === "READ" && (
+              <span className="px-3 py-1 bg-yellow-100 text-yellow-800 text-sm font-medium rounded-full">
+                只读模式
+              </span>
+            )}
+          </div>
           <div className="flex gap-4 text-sm">
             <Link href="/backendmanager" className="text-gray-600 hover:text-blue-600">
               ← 返回商品管理
             </Link>
           </div>
         </div>
-        <button
-          onClick={startCreate}
-          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-        >
-          + 新建轮播图
-        </button>
+        {userPermission === "WRITE" && (
+          <button
+            onClick={startCreate}
+            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+          >
+            + 新建轮播图
+          </button>
+        )}
       </div>
 
       {/* 创建/编辑表单 */}
@@ -447,28 +480,34 @@ export default function BannersAdminPage() {
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-                    <button
-                      onClick={() => toggleStatus(banner.id, banner.status)}
-                      className={`${
-                        banner.status === "active"
-                          ? "text-red-600 hover:text-red-900"
-                          : "text-green-600 hover:text-green-900"
-                      }`}
-                    >
-                      {banner.status === "active" ? "禁用" : "启用"}
-                    </button>
-                    <button
-                      onClick={() => startEdit(banner)}
-                      className="text-blue-600 hover:text-blue-900"
-                    >
-                      编辑
-                    </button>
-                    <button
-                      onClick={() => handleDelete(banner.id, banner.title)}
-                      className="text-red-600 hover:text-red-900"
-                    >
-                      删除
-                    </button>
+                    {userPermission === "WRITE" ? (
+                      <>
+                        <button
+                          onClick={() => toggleStatus(banner.id, banner.status)}
+                          className={`${
+                            banner.status === "active"
+                              ? "text-red-600 hover:text-red-900"
+                              : "text-green-600 hover:text-green-900"
+                          }`}
+                        >
+                          {banner.status === "active" ? "禁用" : "启用"}
+                        </button>
+                        <button
+                          onClick={() => startEdit(banner)}
+                          className="text-blue-600 hover:text-blue-900"
+                        >
+                          编辑
+                        </button>
+                        <button
+                          onClick={() => handleDelete(banner.id, banner.title)}
+                          className="text-red-600 hover:text-red-900"
+                        >
+                          删除
+                        </button>
+                      </>
+                    ) : (
+                      <span className="text-gray-400 text-sm">只读</span>
+                    )}
                   </td>
                 </tr>
               ))}

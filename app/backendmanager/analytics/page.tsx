@@ -44,6 +44,7 @@ interface AnalyticsData {
 export default function AnalyticsPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
+  const [userPermission, setUserPermission] = useState<"NONE" | "READ" | "WRITE">("NONE")
   const [data, setData] = useState<AnalyticsData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -60,13 +61,42 @@ export default function AnalyticsPage() {
       return
     }
 
-    if (session?.user?.role !== "ADMIN") {
-      router.push("/")
-      return
+    if (status === "authenticated" && session?.user) {
+      checkPermissionAndFetch()
     }
+  }, [status, session, router])
 
-    fetchAnalytics()
-  }, [status, session, router, dateRange, granularity])
+  useEffect(() => {
+    if (userPermission !== "NONE") {
+      fetchAnalytics()
+    }
+  }, [dateRange, granularity, userPermission])
+
+  const checkPermissionAndFetch = async () => {
+    try {
+      if (session?.user?.role === "ADMIN") {
+        setUserPermission("WRITE")
+        fetchAnalytics()
+        return
+      }
+
+      const res = await fetch("/api/auth/permissions")
+      const data = await res.json()
+      const permission = data.permissions?.PRODUCTS || "NONE"
+
+      setUserPermission(permission)
+
+      if (permission === "NONE") {
+        router.push("/")
+        return
+      }
+
+      fetchAnalytics()
+    } catch (error) {
+      console.error("检查权限失败:", error)
+      router.push("/")
+    }
+  }
 
   const fetchAnalytics = async () => {
     try {

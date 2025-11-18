@@ -686,8 +686,8 @@ export default function ProductsPage() {
               {membership && (
                 <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-md">
                   <p className="text-sm text-green-800">
-                    ✓ 会员验证成功！{membership.planName}
-                    {membership.discount < 1 && ` (${(membership.discount * 100).toFixed(0)}折)`}
+                    ✓ 会员验证成功！{membership.planSnapshot?.name}
+                    {membership.discount < 1 && ` (${(membership.discount * 10).toFixed(1)}折)`}
                   </p>
                   {membership.remainingToday !== undefined && (
                     <p className="text-xs text-gray-600 mt-1">

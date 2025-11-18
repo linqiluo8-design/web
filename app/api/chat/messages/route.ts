@@ -42,9 +42,29 @@ export async function POST(req: Request) {
         )
       }
 
-      // 检查是否有客服聊天写权限
-      const hasPermission = await canWrite('CUSTOMER_CHAT', authSession.user.id)
+      // 获取用户角色
+      const user = await prisma.user.findUnique({
+        where: { id: authSession.user.id },
+        select: { role: true }
+      })
+
+      console.log('[DEBUG] POST /api/chat/messages - User role:', user?.role, 'User ID:', authSession.user.id)
+
+      // 用户不存在（可能是数据库被重置但 session 还在）
+      if (!user) {
+        console.log('[DEBUG] POST /api/chat/messages - User not found in database')
+        return NextResponse.json(
+          { error: "用户不存在，请重新登录" },
+          { status: 401 }
+        )
+      }
+
+      // 管理员自动拥有所有权限，或检查客服聊天写权限
+      const hasPermission = user.role === 'ADMIN' || await canWrite('CUSTOMER_CHAT', authSession.user.id)
+      console.log('[DEBUG] POST /api/chat/messages - hasPermission:', hasPermission)
+
       if (!hasPermission) {
+        console.log('[DEBUG] POST /api/chat/messages - Permission denied')
         return NextResponse.json(
           { error: "需要客服聊天权限" },
           { status: 403 }
@@ -101,9 +121,32 @@ export async function GET(req: Request) {
 
     // 检查是否有客服聊天权限
     const authSession = await getServerSession(authOptions)
-    const hasPermission = authSession?.user?.id
-      ? await canRead('CUSTOMER_CHAT', authSession.user.id)
-      : false
+    let hasPermission = false
+
+    if (authSession?.user?.id) {
+      // 获取用户角色
+      const user = await prisma.user.findUnique({
+        where: { id: authSession.user.id },
+        select: { role: true }
+      })
+
+      console.log('[DEBUG] GET /api/chat/messages - User role:', user?.role, 'User ID:', authSession.user.id)
+
+      // 用户不存在（可能是数据库被重置但 session 还在）
+      if (!user) {
+        console.log('[DEBUG] GET /api/chat/messages - User not found in database')
+        return NextResponse.json(
+          { error: "用户不存在，请重新登录" },
+          { status: 401 }
+        )
+      }
+
+      // 管理员自动拥有所有权限，或检查客服聊天读权限
+      hasPermission = user.role === 'ADMIN' || await canRead('CUSTOMER_CHAT', authSession.user.id)
+      console.log('[DEBUG] GET /api/chat/messages - hasPermission:', hasPermission)
+    } else {
+      console.log('[DEBUG] GET /api/chat/messages - No auth session')
+    }
 
     // 安全检查：验证访问权限
     if (!hasPermission) {

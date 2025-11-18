@@ -3,15 +3,15 @@
  */
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { requireAdmin } from '@/lib/permissions'
+import { requireWrite } from '@/lib/permissions'
 
 export async function POST(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    // 检查管理员权限
-    await requireAdmin()
+    // 检查用户管理的写权限
+    await requireWrite('USER_MANAGEMENT')
 
     // Next.js 16: params 是 Promise，需要 await
     const { id: userId } = await params
@@ -36,7 +36,7 @@ export async function POST(
     console.error('拒绝用户失败:', error)
     return NextResponse.json(
       { error: error.message || '拒绝用户失败' },
-      { status: error.message === '未登录' ? 401 : error.message === '需要管理员权限' ? 403 : 500 }
+      { status: error.message === '未登录' ? 401 : error.message?.includes('权限') ? 403 : 500 }
     )
   }
 }

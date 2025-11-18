@@ -31,6 +31,14 @@ export function Navbar() {
     return level === 'READ' || level === 'WRITE'
   }
 
+  // 检查用户是否有任何后台管理权限
+  const hasAnyPermission = () => {
+    // 管理员始终有权限
+    if (session?.user?.role === 'ADMIN') return true
+    // 检查是否至少有一个模块的权限
+    return Object.values(permissions).some(level => level === 'READ' || level === 'WRITE')
+  }
+
   const handleSignOut = async () => {
     await signOut({ callbackUrl: "/" })
   }
@@ -79,7 +87,7 @@ export function Navbar() {
               >
                 我的订单
               </Link>
-              {session?.user?.role === "ADMIN" && (
+              {hasAnyPermission() && (
                 <Link
                   href="/backendmanager"
                   className={isActive("/backendmanager") ? "px-3 py-2 rounded-md text-sm font-medium text-blue-600 bg-blue-50" : "px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50"}
@@ -109,7 +117,7 @@ export function Navbar() {
                     <div className="px-4 py-2 text-sm text-gray-500 border-b">
                       {session.user.email}
                     </div>
-                    {session.user.role === "ADMIN" && (
+                    {(session.user.role === "ADMIN" || hasPermission('SYSTEM_SETTINGS')) && (
                       <>
                         <Link
                           href="/backendmanager/settings"

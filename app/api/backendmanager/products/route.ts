@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { z } from "zod"
+import { requireRead, requireWrite } from "@/lib/permissions"
 
 // 单个商品验证模式
 const productSchema = z.object({
@@ -25,22 +24,8 @@ const bulkProductSchema = z.object({
 
 export async function GET(req: Request) {
   try {
-    // 验证用户登录和权限
-    const session = await getServerSession(authOptions)
-
-    if (!session || !session.user) {
-      return NextResponse.json(
-        { error: "未授权，请先登录" },
-        { status: 401 }
-      )
-    }
-
-    if (session.user.role !== "ADMIN") {
-      return NextResponse.json(
-        { error: "无权限访问" },
-        { status: 403 }
-      )
-    }
+    // 验证用户登录和权限 - 需要PRODUCTS模块的读权限
+    await requireRead('PRODUCTS')
 
     // 获取查询参数
     const { searchParams } = new URL(req.url)
@@ -106,11 +91,11 @@ export async function GET(req: Request) {
         totalPages: Math.ceil(total / limit),
       },
     })
-  } catch (error) {
+  } catch (error: any) {
     console.error("获取商品列表失败:", error)
     return NextResponse.json(
-      { error: "获取商品列表失败" },
-      { status: 500 }
+      { error: error.message || "获取商品列表失败" },
+      { status: error.message === '未登录' ? 401 : error.message?.includes('权限') ? 403 : 500 }
     )
   }
 }
@@ -118,22 +103,8 @@ export async function GET(req: Request) {
 // 创建商品（支持单个和批量）
 export async function POST(req: Request) {
   try {
-    // 验证用户登录和权限
-    const session = await getServerSession(authOptions)
-
-    if (!session || !session.user) {
-      return NextResponse.json(
-        { error: "未授权，请先登录" },
-        { status: 401 }
-      )
-    }
-
-    if (session.user.role !== "ADMIN") {
-      return NextResponse.json(
-        { error: "无权限访问" },
-        { status: 403 }
-      )
-    }
+    // 验证用户登录和权限 - 需要PRODUCTS模块的写权限
+    await requireWrite('PRODUCTS')
 
     const body = await req.json()
 
@@ -190,7 +161,7 @@ export async function POST(req: Request) {
         { status: 201 }
       )
     }
-  } catch (error) {
+  } catch (error: any) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { error: error.errors[0].message },
@@ -200,8 +171,8 @@ export async function POST(req: Request) {
 
     console.error("创建商品失败:", error)
     return NextResponse.json(
-      { error: "创建商品失败" },
-      { status: 500 }
+      { error: error.message || "创建商品失败" },
+      { status: error.message === '未登录' ? 401 : error.message?.includes('权限') ? 403 : 500 }
     )
   }
 }

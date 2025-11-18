@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
+import { requireWrite } from "@/lib/permissions"
 import { z } from "zod"
 
 const cleanupSchema = z.object({
@@ -16,22 +15,8 @@ const cleanupSchema = z.object({
 // 清理订单数据（删除）
 export async function POST(req: Request) {
   try {
-    // 验证用户登录和权限
-    const session = await getServerSession(authOptions)
-
-    if (!session || !session.user) {
-      return NextResponse.json(
-        { error: "未授权，请先登录" },
-        { status: 401 }
-      )
-    }
-
-    if (session.user.role !== "ADMIN") {
-      return NextResponse.json(
-        { error: "无权限访问" },
-        { status: 403 }
-      )
-    }
+    // 验证订单管理的写权限（删除操作需要写权限）
+    await requireWrite('ORDERS')
 
     const body = await req.json()
     const data = cleanupSchema.parse(body)
@@ -84,8 +69,8 @@ export async function POST(req: Request) {
 
     console.error("清理订单数据失败:", error)
     return NextResponse.json(
-      { error: "清理订单数据失败" },
-      { status: 500 }
+      { error: error.message || "清理订单数据失败" },
+      { status: error.message === '未登录' ? 401 : error.message?.includes('权限') ? 403 : 500 }
     )
   }
 }

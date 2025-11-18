@@ -1,9 +1,9 @@
 /**
- * 用户管理 API（管理员专用）
+ * 用户管理 API
  */
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { requireAdmin } from '@/lib/permissions'
+import { requireRead } from '@/lib/permissions'
 
 /**
  * GET /api/backendmanager/users - 获取所有用户列表
@@ -12,8 +12,8 @@ import { requireAdmin } from '@/lib/permissions'
  */
 export async function GET(req: Request) {
   try {
-    // 检查管理员权限
-    await requireAdmin()
+    // 检查用户管理的读权限
+    await requireRead('USER_MANAGEMENT')
 
     const { searchParams } = new URL(req.url)
     const status = searchParams.get('status')
@@ -52,7 +52,7 @@ export async function GET(req: Request) {
     console.error('获取用户列表失败:', error)
     return NextResponse.json(
       { error: error.message || '获取用户列表失败' },
-      { status: error.message === '未登录' ? 401 : error.message === '需要管理员权限' ? 403 : 500 }
+      { status: error.message === '未登录' ? 401 : error.message?.includes('权限') ? 403 : 500 }
     )
   }
 }

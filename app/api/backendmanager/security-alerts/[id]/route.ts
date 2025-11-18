@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
+import { requireWrite, getCurrentUser } from "@/lib/permissions"
 import { z } from "zod"
 
 const updateAlertSchema = z.object({
@@ -12,30 +11,14 @@ const updateAlertSchema = z.object({
 /**
  * PATCH /api/backendmanager/security-alerts/[id]
  * 更新安全警报状态
- * 仅限管理员访问
  */
 export async function PATCH(
   req: Request,
   { params }: { params: { id: string } }
 ) {
   try {
-    // 验证用户登录
-    const session = await getServerSession(authOptions)
-
-    if (!session || !session.user) {
-      return NextResponse.json(
-        { error: "未授权，请先登录" },
-        { status: 401 }
-      )
-    }
-
-    // 验证管理员权限
-    if (session.user.role !== "ADMIN") {
-      return NextResponse.json(
-        { error: "无权限访问，仅管理员可访问" },
-        { status: 403 }
-      )
-    }
+    // 验证安全警报的写权限
+    const user = await requireWrite('SECURITY_ALERTS')
 
     const body = await req.json()
     const data = updateAlertSchema.parse(body)
@@ -59,7 +42,7 @@ export async function PATCH(
       updateData.status = data.status
       // 如果状态改为已处理或误报，记录处理信息
       if (data.status === "resolved" || data.status === "false_positive") {
-        updateData.resolvedBy = session.user.id
+        updateData.resolvedBy = user.id
         updateData.resolvedAt = new Date()
       }
     }
@@ -87,8 +70,8 @@ export async function PATCH(
 
     console.error("更新安全警报失败:", error)
     return NextResponse.json(
-      { error: "更新安全警报失败" },
-      { status: 500 }
+      { error: error.message || "更新安全警报失败" },
+      { status: error.message === '未登录' ? 401 : error.message?.includes('权限') ? 403 : 500 }
     )
   }
 }
@@ -96,30 +79,14 @@ export async function PATCH(
 /**
  * DELETE /api/backendmanager/security-alerts/[id]
  * 删除安全警报
- * 仅限管理员访问
  */
 export async function DELETE(
   req: Request,
   { params }: { params: { id: string } }
 ) {
   try {
-    // 验证用户登录
-    const session = await getServerSession(authOptions)
-
-    if (!session || !session.user) {
-      return NextResponse.json(
-        { error: "未授权，请先登录" },
-        { status: 401 }
-      )
-    }
-
-    // 验证管理员权限
-    if (session.user.role !== "ADMIN") {
-      return NextResponse.json(
-        { error: "无权限访问，仅管理员可访问" },
-        { status: 403 }
-      )
-    }
+    // 验证安全警报的写权限（删除操作需要写权限）
+    await requireWrite('SECURITY_ALERTS')
 
     // 检查警报是否存在
     const alert = await prisma.securityAlert.findUnique({
@@ -141,11 +108,11 @@ export async function DELETE(
     return NextResponse.json({
       message: "警报删除成功"
     })
-  } catch (error) {
+  } catch (error: any) {
     console.error("删除安全警报失败:", error)
     return NextResponse.json(
-      { error: "删除安全警报失败" },
-      { status: 500 }
+      { error: error.message || "删除安全警报失败" },
+      { status: error.message === '未登录' ? 401 : error.message?.includes('权限') ? 403 : 500 }
     )
   }
 }

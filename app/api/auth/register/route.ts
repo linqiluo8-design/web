@@ -4,9 +4,15 @@ import bcrypt from "bcryptjs"
 import { z } from "zod"
 
 const registerSchema = z.object({
-  name: z.string().min(2, "名字至少2个字符"),
-  email: z.string().email("请输入有效的邮箱地址"),
-  password: z.string().min(6, "密码至少6个字符"),
+  name: z.string()
+    .min(2, "名字至少2个字符")
+    .max(100, "名字长度不能超过100个字符"),
+  email: z.string()
+    .email("请输入有效的邮箱地址")
+    .max(254, "邮箱长度不能超过254个字符"), // RFC 5321标准
+  password: z.string()
+    .min(6, "密码至少6个字符")
+    .max(128, "密码长度不能超过128个字符"),
 })
 
 export async function POST(req: Request) {

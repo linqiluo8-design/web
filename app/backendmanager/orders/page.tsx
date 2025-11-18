@@ -50,6 +50,7 @@ export default function OrderManagementPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
   const [loading, setLoading] = useState(false)
+  const [userPermission, setUserPermission] = useState<"NONE" | "READ" | "WRITE">("NONE")
   const [stats, setStats] = useState<OrderStats>({
     total: 0,
     pending: 0,
@@ -100,11 +101,38 @@ export default function OrderManagementPage() {
       return
     }
 
-    if (session?.user?.role !== "ADMIN") {
-      router.push("/")
-      return
+    if (status === "authenticated" && session?.user) {
+      checkPermissionAndFetch()
     }
+  }, [status, session, router])
 
+  const checkPermissionAndFetch = async () => {
+    try {
+      if (session?.user?.role === "ADMIN") {
+        setUserPermission("WRITE")
+        initializePage()
+        return
+      }
+
+      const res = await fetch("/api/auth/permissions")
+      const data = await res.json()
+      const permission = data.permissions?.ORDERS || "NONE"
+
+      setUserPermission(permission)
+
+      if (permission === "NONE") {
+        router.push("/")
+        return
+      }
+
+      initializePage()
+    } catch (error) {
+      console.error("检查权限失败:", error)
+      router.push("/")
+    }
+  }
+
+  const initializePage = () => {
     fetchStats()
     fetchOrders()
 
@@ -117,14 +145,14 @@ export default function OrderManagementPage() {
     setExportEndDate(lastDay.toISOString().split('T')[0])
     setCleanupStartDate(firstDay.toISOString().split('T')[0])
     setCleanupEndDate(lastDay.toISOString().split('T')[0])
-  }, [status, session, router])
+  }
 
   // 监听分页和筛选变化
   useEffect(() => {
-    if (session?.user?.role === "ADMIN") {
+    if (userPermission !== "NONE") {
       fetchOrders()
     }
-  }, [pagination.page, pagination.limit, statusFilter])
+  }, [pagination.page, pagination.limit, statusFilter, userPermission])
 
   const fetchStats = async () => {
     try {

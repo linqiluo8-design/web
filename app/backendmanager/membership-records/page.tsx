@@ -65,6 +65,7 @@ export default function MembershipRecordsPage() {
   const [selectedRecord, setSelectedRecord] = useState<MembershipRecord | null>(null)
   const [showDetailModal, setShowDetailModal] = useState(false)
   const [jumpToPage, setJumpToPage] = useState("")
+  const [userPermission, setUserPermission] = useState<"NONE" | "READ" | "WRITE">("NONE")
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -72,13 +73,42 @@ export default function MembershipRecordsPage() {
       return
     }
 
-    if (session?.user?.role !== "ADMIN") {
-      router.push("/")
-      return
+    if (status === "authenticated" && session?.user) {
+      checkPermissionAndFetch()
     }
+  }, [status, session, router])
 
-    fetchRecords()
-  }, [status, session, router, pagination.page, search, statusFilter, paymentStatusFilter])
+  useEffect(() => {
+    if (userPermission !== "NONE") {
+      fetchRecords()
+    }
+  }, [pagination.page, search, statusFilter, paymentStatusFilter, userPermission])
+
+  const checkPermissionAndFetch = async () => {
+    try {
+      // 管理员拥有所有权限
+      if (session?.user?.role === "ADMIN") {
+        setUserPermission("WRITE")
+        return
+      }
+
+      // 获取用户权限 - 会员记录属于MEMBERSHIPS模块
+      const res = await fetch("/api/auth/permissions")
+      const data = await res.json()
+      const permission = data.permissions?.MEMBERSHIPS || "NONE"
+
+      setUserPermission(permission)
+
+      if (permission === "NONE") {
+        // 没有权限，跳转到首页
+        router.push("/")
+        return
+      }
+    } catch (error) {
+      console.error("检查权限失败:", error)
+      router.push("/")
+    }
+  }
 
   const fetchRecords = async () => {
     try {

@@ -37,6 +37,7 @@ export default function CategoriesAdminPage() {
   const [batchCategories, setBatchCategories] = useState([
     { name: "", description: "", coverImage: "", sortOrder: 0 }
   ])
+  const [userPermission, setUserPermission] = useState<"NONE" | "READ" | "WRITE">("NONE")
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -44,13 +45,40 @@ export default function CategoriesAdminPage() {
       return
     }
 
-    if (session?.user?.role !== "ADMIN") {
-      router.push("/")
-      return
+    if (status === "authenticated" && session?.user) {
+      checkPermissionAndFetch()
     }
-
-    fetchCategories()
   }, [status, session, router])
+
+  const checkPermissionAndFetch = async () => {
+    try {
+      // 管理员拥有所有权限
+      if (session?.user?.role === "ADMIN") {
+        setUserPermission("WRITE")
+        fetchCategories()
+        return
+      }
+
+      // 获取用户权限
+      const res = await fetch("/api/auth/permissions")
+      const data = await res.json()
+      const permission = data.permissions?.CATEGORIES || "NONE"
+
+      setUserPermission(permission)
+
+      if (permission === "NONE") {
+        // 没有权限，跳转到首页
+        router.push("/")
+        return
+      }
+
+      // 有 READ 或 WRITE 权限，加载数据
+      fetchCategories()
+    } catch (error) {
+      console.error("检查权限失败:", error)
+      router.push("/")
+    }
+  }
 
   const fetchCategories = async () => {
     try {
@@ -229,27 +257,36 @@ export default function CategoriesAdminPage() {
     <div className="container mx-auto px-4 py-8">
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-bold mb-2">分类管理</h1>
+          <h1 className="text-3xl font-bold mb-2">
+            分类管理
+            {userPermission === "READ" && (
+              <span className="ml-3 text-sm text-yellow-600 bg-yellow-50 px-3 py-1 rounded-full">
+                只读模式
+              </span>
+            )}
+          </h1>
           <div className="flex gap-4 text-sm">
             <Link href="/backendmanager" className="text-gray-600 hover:text-blue-600">
               ← 返回商品管理
             </Link>
           </div>
         </div>
-        <div className="flex gap-2">
-          <button
-            onClick={() => startCreate("single")}
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-          >
-            + 新建分类
-          </button>
-          <button
-            onClick={() => startCreate("batch")}
-            className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
-          >
-            + 批量添加
-          </button>
-        </div>
+        {userPermission === "WRITE" && (
+          <div className="flex gap-2">
+            <button
+              onClick={() => startCreate("single")}
+              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+            >
+              + 新建分类
+            </button>
+            <button
+              onClick={() => startCreate("batch")}
+              className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+            >
+              + 批量添加
+            </button>
+          </div>
+        )}
       </div>
 
       {/* 单个创建表单 */}
@@ -530,20 +567,26 @@ export default function CategoriesAdminPage() {
                       <div className="text-sm text-gray-900">{category._count.products}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-                      <button
-                        onClick={() => startEdit(category)}
-                        className="text-blue-600 hover:text-blue-900"
-                      >
-                        编辑
-                      </button>
-                      <button
-                        onClick={() => handleDelete(category.id, category.name)}
-                        className="text-red-600 hover:text-red-900"
-                        disabled={category._count.products > 0}
-                        title={category._count.products > 0 ? "该分类下还有商品，无法删除" : ""}
-                      >
-                        删除
-                      </button>
+                      {userPermission === "WRITE" ? (
+                        <>
+                          <button
+                            onClick={() => startEdit(category)}
+                            className="text-blue-600 hover:text-blue-900"
+                          >
+                            编辑
+                          </button>
+                          <button
+                            onClick={() => handleDelete(category.id, category.name)}
+                            className="text-red-600 hover:text-red-900"
+                            disabled={category._count.products > 0}
+                            title={category._count.products > 0 ? "该分类下还有商品，无法删除" : ""}
+                          >
+                            删除
+                          </button>
+                        </>
+                      ) : (
+                        <span className="text-gray-400">只读</span>
+                      )}
                     </td>
                   </tr>
                 )

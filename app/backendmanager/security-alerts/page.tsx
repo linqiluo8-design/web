@@ -25,6 +25,7 @@ interface SecurityAlert {
 export default function SecurityAlertsPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
+  const [userPermission, setUserPermission] = useState<"NONE" | "READ" | "WRITE">("NONE")
   const [alerts, setAlerts] = useState<SecurityAlert[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -44,13 +45,42 @@ export default function SecurityAlertsPage() {
       return
     }
 
-    if (session?.user?.role !== "ADMIN") {
-      router.push("/")
-      return
+    if (status === "authenticated" && session?.user) {
+      checkPermissionAndFetch()
     }
+  }, [status, session, router])
 
-    fetchAlerts()
-  }, [status, session, router, page, statusFilter, severityFilter])
+  useEffect(() => {
+    if (userPermission !== "NONE") {
+      fetchAlerts()
+    }
+  }, [page, statusFilter, severityFilter, userPermission])
+
+  const checkPermissionAndFetch = async () => {
+    try {
+      if (session?.user?.role === "ADMIN") {
+        setUserPermission("WRITE")
+        fetchAlerts()
+        return
+      }
+
+      const res = await fetch("/api/auth/permissions")
+      const data = await res.json()
+      const permission = data.permissions?.SECURITY_ALERTS || "NONE"
+
+      setUserPermission(permission)
+
+      if (permission === "NONE") {
+        router.push("/")
+        return
+      }
+
+      fetchAlerts()
+    } catch (error) {
+      console.error("检查权限失败:", error)
+      router.push("/")
+    }
+  }
 
   const fetchAlerts = async () => {
     try {
@@ -286,7 +316,14 @@ export default function SecurityAlertsPage() {
     <div className="container mx-auto px-4 py-8">
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-bold mb-2">安全警报中心</h1>
+          <div className="flex items-center gap-3 mb-2">
+            <h1 className="text-3xl font-bold">安全警报中心</h1>
+            {userPermission === "READ" && (
+              <span className="px-3 py-1 bg-yellow-100 text-yellow-800 text-sm font-medium rounded-full">
+                只读模式
+              </span>
+            )}
+          </div>
           <div className="flex gap-4 text-sm">
             <Link href="/backendmanager" className="text-gray-600 hover:text-blue-600">
               ← 返回管理后台
@@ -351,7 +388,7 @@ export default function SecurityAlertsPage() {
       ) : (
         <>
           {/* 批量操作工具栏 */}
-          {selectedIds.length > 0 && (
+          {selectedIds.length > 0 && userPermission === "WRITE" && (
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4 flex items-center justify-between">
               <div className="text-sm text-blue-900">
                 已选择 <span className="font-bold">{selectedIds.length}</span> 条警报
@@ -396,12 +433,14 @@ export default function SecurityAlertsPage() {
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-6 py-3 text-left">
-                    <input
-                      type="checkbox"
-                      checked={selectedIds.length === alerts.length && alerts.length > 0}
-                      onChange={handleSelectAll}
-                      className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                    />
+                    {userPermission === "WRITE" && (
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.length === alerts.length && alerts.length > 0}
+                        onChange={handleSelectAll}
+                        className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                      />
+                    )}
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     时间
@@ -427,12 +466,14 @@ export default function SecurityAlertsPage() {
                 {alerts.map((alert) => (
                   <tr key={alert.id} className={alert.status === "unresolved" ? "bg-red-50" : ""}>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <input
-                        type="checkbox"
-                        checked={selectedIds.includes(alert.id)}
-                        onChange={() => handleToggleSelect(alert.id)}
-                        className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                      />
+                      {userPermission === "WRITE" && (
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.includes(alert.id)}
+                          onChange={() => handleToggleSelect(alert.id)}
+                          className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                        />
+                      )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-900">
@@ -598,17 +639,39 @@ export default function SecurityAlertsPage() {
                 </div>
               )}
 
-              <div className="border-t pt-4 space-y-2">
-                <label className="block text-sm font-medium text-gray-700">操作</label>
-                <div className="flex flex-wrap gap-2">
-                  {selectedAlert.status === "unresolved" && (
-                    <>
-                      <button
-                        onClick={() => handleUpdateStatus(selectedAlert.id, "investigating")}
-                        className="px-4 py-2 bg-yellow-600 text-white rounded-md hover:bg-yellow-700"
-                      >
-                        标记为调查中
-                      </button>
+              {userPermission === "WRITE" && (
+                <div className="border-t pt-4 space-y-2">
+                  <label className="block text-sm font-medium text-gray-700">操作</label>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedAlert.status === "unresolved" && (
+                      <>
+                        <button
+                          onClick={() => handleUpdateStatus(selectedAlert.id, "investigating")}
+                          className="px-4 py-2 bg-yellow-600 text-white rounded-md hover:bg-yellow-700"
+                        >
+                          标记为调查中
+                        </button>
+                        <button
+                          onClick={() => {
+                            const notes = prompt("请输入处理备注（可选）:")
+                            handleUpdateStatus(selectedAlert.id, "resolved", notes || undefined)
+                          }}
+                          className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+                        >
+                          标记为已解决
+                        </button>
+                        <button
+                          onClick={() => {
+                            const notes = prompt("请说明为什么这是误报:")
+                            handleUpdateStatus(selectedAlert.id, "false_positive", notes || undefined)
+                          }}
+                          className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
+                        >
+                          标记为误报
+                        </button>
+                      </>
+                    )}
+                    {selectedAlert.status === "investigating" && (
                       <button
                         onClick={() => {
                           const notes = prompt("请输入处理备注（可选）:")
@@ -618,36 +681,21 @@ export default function SecurityAlertsPage() {
                       >
                         标记为已解决
                       </button>
-                      <button
-                        onClick={() => {
-                          const notes = prompt("请说明为什么这是误报:")
-                          handleUpdateStatus(selectedAlert.id, "false_positive", notes || undefined)
-                        }}
-                        className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
-                      >
-                        标记为误报
-                      </button>
-                    </>
-                  )}
-                  {selectedAlert.status === "investigating" && (
+                    )}
                     <button
-                      onClick={() => {
-                        const notes = prompt("请输入处理备注（可选）:")
-                        handleUpdateStatus(selectedAlert.id, "resolved", notes || undefined)
-                      }}
-                      className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+                      onClick={() => handleDelete(selectedAlert.id)}
+                      className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
                     >
-                      标记为已解决
+                      删除警报
                     </button>
-                  )}
-                  <button
-                    onClick={() => handleDelete(selectedAlert.id)}
-                    className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
-                  >
-                    删除警报
-                  </button>
+                  </div>
                 </div>
-              </div>
+              )}
+              {userPermission === "READ" && (
+                <div className="border-t pt-4">
+                  <p className="text-sm text-gray-500">只读模式：无法执行操作</p>
+                </div>
+              )}
             </div>
           </div>
         </div>

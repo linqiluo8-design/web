@@ -32,6 +32,7 @@ export default function MembershipsAdminPage() {
     dailyLimit: 10,
     sortOrder: 0
   })
+  const [userPermission, setUserPermission] = useState<"NONE" | "READ" | "WRITE">("NONE")
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -39,13 +40,40 @@ export default function MembershipsAdminPage() {
       return
     }
 
-    if (session?.user?.role !== "ADMIN") {
-      router.push("/")
-      return
+    if (status === "authenticated" && session?.user) {
+      checkPermissionAndFetch()
     }
-
-    fetchPlans()
   }, [status, session, router])
+
+  const checkPermissionAndFetch = async () => {
+    try {
+      // 管理员拥有所有权限
+      if (session?.user?.role === "ADMIN") {
+        setUserPermission("WRITE")
+        fetchPlans()
+        return
+      }
+
+      // 获取用户权限
+      const res = await fetch("/api/auth/permissions")
+      const data = await res.json()
+      const permission = data.permissions?.MEMBERSHIPS || "NONE"
+
+      setUserPermission(permission)
+
+      if (permission === "NONE") {
+        // 没有权限，跳转到首页
+        router.push("/")
+        return
+      }
+
+      // 有 READ 或 WRITE 权限，加载数据
+      fetchPlans()
+    } catch (error) {
+      console.error("检查权限失败:", error)
+      router.push("/")
+    }
+  }
 
   const fetchPlans = async () => {
     try {
@@ -229,20 +257,29 @@ export default function MembershipsAdminPage() {
     <div className="container mx-auto px-4 py-8">
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-bold mb-2">会员方案管理</h1>
+          <h1 className="text-3xl font-bold mb-2">
+            会员方案管理
+            {userPermission === "READ" && (
+              <span className="ml-3 text-sm text-yellow-600 bg-yellow-50 px-3 py-1 rounded-full">
+                只读模式
+              </span>
+            )}
+          </h1>
           <div className="flex gap-4 text-sm">
             <Link href="/backendmanager" className="text-gray-600 hover:text-blue-600">
               ← 返回商品管理
             </Link>
           </div>
         </div>
-        <button
-          onClick={startCreate}
-          disabled={isCreating}
-          className="px-6 py-3 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed font-semibold"
-        >
-          + 新增会员方案
-        </button>
+        {userPermission === "WRITE" && (
+          <button
+            onClick={startCreate}
+            disabled={isCreating}
+            className="px-6 py-3 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed font-semibold"
+          >
+            + 新增会员方案
+          </button>
+        )}
       </div>
 
       {/* 创建表单 */}
@@ -511,30 +548,34 @@ export default function MembershipsAdminPage() {
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <div className="flex gap-3">
-                        <button
-                          onClick={() => handleStatusToggle(plan.id, plan.status)}
-                          className={`${
-                            plan.status === "active"
-                              ? "text-orange-600 hover:text-orange-900"
-                              : "text-green-600 hover:text-green-900"
-                          }`}
-                        >
-                          {plan.status === "active" ? "停用" : "启用"}
-                        </button>
-                        <button
-                          onClick={() => startEdit(plan)}
-                          className="text-blue-600 hover:text-blue-900"
-                        >
-                          编辑
-                        </button>
-                        <button
-                          onClick={() => handleDelete(plan.id, plan.name)}
-                          className="text-red-600 hover:text-red-900"
-                        >
-                          删除
-                        </button>
-                      </div>
+                      {userPermission === "WRITE" ? (
+                        <div className="flex gap-3">
+                          <button
+                            onClick={() => handleStatusToggle(plan.id, plan.status)}
+                            className={`${
+                              plan.status === "active"
+                                ? "text-orange-600 hover:text-orange-900"
+                                : "text-green-600 hover:text-green-900"
+                            }`}
+                          >
+                            {plan.status === "active" ? "停用" : "启用"}
+                          </button>
+                          <button
+                            onClick={() => startEdit(plan)}
+                            className="text-blue-600 hover:text-blue-900"
+                          >
+                            编辑
+                          </button>
+                          <button
+                            onClick={() => handleDelete(plan.id, plan.name)}
+                            className="text-red-600 hover:text-red-900"
+                          >
+                            删除
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="text-gray-400">只读</span>
+                      )}
                     </td>
                   </tr>
                 )

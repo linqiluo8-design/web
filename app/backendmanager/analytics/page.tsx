@@ -44,6 +44,7 @@ interface AnalyticsData {
 export default function AnalyticsPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
+  const [userPermission, setUserPermission] = useState<"NONE" | "READ" | "WRITE">("NONE")
   const [data, setData] = useState<AnalyticsData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -60,13 +61,42 @@ export default function AnalyticsPage() {
       return
     }
 
-    if (session?.user?.role !== "ADMIN") {
-      router.push("/")
-      return
+    if (status === "authenticated" && session?.user) {
+      checkPermissionAndFetch()
     }
+  }, [status, session, router])
 
-    fetchAnalytics()
-  }, [status, session, router, dateRange, granularity])
+  useEffect(() => {
+    if (userPermission !== "NONE") {
+      fetchAnalytics()
+    }
+  }, [dateRange, granularity, userPermission])
+
+  const checkPermissionAndFetch = async () => {
+    try {
+      if (session?.user?.role === "ADMIN") {
+        setUserPermission("WRITE")
+        fetchAnalytics()
+        return
+      }
+
+      const res = await fetch("/api/auth/permissions")
+      const data = await res.json()
+      const permission = data.permissions?.PRODUCTS || "NONE"
+
+      setUserPermission(permission)
+
+      if (permission === "NONE") {
+        router.push("/")
+        return
+      }
+
+      fetchAnalytics()
+    } catch (error) {
+      console.error("检查权限失败:", error)
+      router.push("/")
+    }
+  }
 
   const fetchAnalytics = async () => {
     try {
@@ -80,13 +110,22 @@ export default function AnalyticsPage() {
       const response = await fetch(`/api/analytics/stats?${params}`)
 
       if (!response.ok) {
-        throw new Error("获取统计数据失败")
+        // 根据不同的HTTP状态码显示不同的错误信息
+        if (response.status === 403) {
+          throw new Error("权限不足：您没有访问浏览量统计的权限")
+        } else if (response.status === 401) {
+          throw new Error("未登录：请先登录后再访问")
+        } else {
+          const errorData = await response.json().catch(() => ({}))
+          throw new Error(errorData.error || "获取统计数据失败")
+        }
       }
 
       const result = await response.json()
       setData(result)
       setError(null)
     } catch (err) {
+      console.error('获取统计数据失败:', err)
       setError(err instanceof Error ? err.message : "未知错误")
     } finally {
       setLoading(false)
@@ -113,7 +152,69 @@ export default function AnalyticsPage() {
   if (error) {
     return (
       <div className="container mx-auto px-4 py-8">
-        <div className="text-center text-red-600">{error}</div>
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold mb-2">用户浏览量统计</h1>
+          <p className="text-gray-600">网站访问数据分析与可视化</p>
+        </div>
+
+        <div className="bg-white rounded-lg shadow-lg p-8">
+          <div className="flex flex-col items-center justify-center py-12">
+            {/* 错误图标 */}
+            <div className="mb-6">
+              <svg
+                className="w-20 h-20 text-red-500"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={1.5}
+                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                />
+              </svg>
+            </div>
+
+            {/* 错误信息 */}
+            <h2 className="text-2xl font-bold text-gray-900 mb-3">
+              {error.includes('权限') ? '权限不足' : '加载失败'}
+            </h2>
+            <p className="text-gray-600 text-center max-w-md mb-8">
+              {error}
+            </p>
+
+            {/* 操作按钮 */}
+            <div className="flex gap-4">
+              <button
+                onClick={() => router.push('/backendmanager')}
+                className="px-6 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
+              >
+                返回后台管理
+              </button>
+              {!error.includes('权限') && (
+                <button
+                  onClick={() => {
+                    setError(null)
+                    fetchAnalytics()
+                  }}
+                  className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                >
+                  重新加载
+                </button>
+              )}
+            </div>
+
+            {/* 权限提示 */}
+            {error.includes('权限') && (
+              <div className="mt-8 p-4 bg-yellow-50 border border-yellow-200 rounded-lg max-w-md">
+                <p className="text-sm text-yellow-800">
+                  <strong>💡 提示：</strong>如需访问浏览量统计，请联系管理员为您开通"商品管理"模块的读取权限。
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     )
   }

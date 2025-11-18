@@ -49,3 +49,9 @@ next-env.d.ts
 *.sqlite3
 prisma/dev.db
 prisma/dev.db-journal
+
+# Project analysis documents (auto-generated)
+PROJECT_ANALYSIS.md
+PROJECT_STRUCTURE_INDEX.md
+QUICK_REFERENCE.md
+SECURITY_DESIGN.md

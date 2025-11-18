@@ -42,8 +42,14 @@ export async function POST(req: Request) {
         )
       }
 
-      // 检查是否有客服聊天写权限
-      const hasPermission = await canWrite('CUSTOMER_CHAT', authSession.user.id)
+      // 获取用户角色
+      const user = await prisma.user.findUnique({
+        where: { id: authSession.user.id },
+        select: { role: true }
+      })
+
+      // 管理员自动拥有所有权限，或检查客服聊天写权限
+      const hasPermission = user?.role === 'ADMIN' || await canWrite('CUSTOMER_CHAT', authSession.user.id)
       if (!hasPermission) {
         return NextResponse.json(
           { error: "需要客服聊天权限" },

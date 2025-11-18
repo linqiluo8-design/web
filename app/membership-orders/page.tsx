@@ -279,17 +279,51 @@ export default function MembershipOrdersPage() {
     setSelectedOrders(new Set())
   }
 
-  // 导出全部订单
-  const exportAllOrders = (format: "json" | "csv") => {
-    if (orders.length === 0) {
+  // 导出全部订单（导出所有搜索结果，包括所有分页）
+  const exportAllOrders = async (format: "json" | "csv") => {
+    if (pagination.total === 0) {
       alert("没有可导出的会员订单")
       return
     }
-    const filename = `全部会员订单_${pagination.total}条_${new Date().toISOString().split("T")[0]}`
-    if (format === "json") {
-      exportToJSON(orders, filename)
-    } else {
-      exportToCSV(orders, filename)
+
+    try {
+      // 获取所有数据（不分页）
+      const codes = getMembershipCodesFromStorage()
+      const params = new URLSearchParams({
+        page: "1",
+        limit: "10000", // 使用一个很大的值获取所有数据
+        membershipCodes: codes.join(",")
+      })
+
+      if (search) {
+        params.append("search", search)
+      }
+
+      const res = await fetch(`/api/membership-orders?${params}`)
+
+      if (!res.ok) {
+        throw new Error("获取数据失败")
+      }
+
+      const data = await res.json()
+      const allOrders = data.memberships || []
+
+      if (allOrders.length === 0) {
+        alert("没有可导出的会员订单")
+        return
+      }
+
+      const searchInfo = search ? `搜索结果_` : ''
+      const filename = `${searchInfo}全部会员订单_${allOrders.length}条_${new Date().toISOString().split("T")[0]}`
+
+      if (format === "json") {
+        exportToJSON(allOrders, filename)
+      } else {
+        exportToCSV(allOrders, filename)
+      }
+    } catch (error) {
+      console.error("导出失败:", error)
+      alert("导出失败，请重试")
     }
   }
 

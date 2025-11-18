@@ -203,21 +203,22 @@ export async function setUserPermissions(
 ) {
   // 使用事务确保原子性操作
   await prisma.$transaction(async (tx) => {
-    // 删除现有权限
+    // 1. 删除该用户的所有现有权限
     await tx.permission.deleteMany({
       where: { userId },
     })
 
-    // 创建新权限（跳过 NONE 级别）
+    // 2. 创建新权限（跳过 NONE 级别，因为 NONE 表示无权限，不需要记录）
     const validPermissions = permissions.filter((p) => p.level !== 'NONE')
+
     if (validPermissions.length > 0) {
+      // 因为已经删除了所有旧权限，所以不会有重复，可以直接创建
       await tx.permission.createMany({
         data: validPermissions.map((p) => ({
           userId,
           module: p.module,
           level: p.level,
         })),
-        skipDuplicates: true, // 跳过重复记录，避免唯一约束错误
       })
     }
   })

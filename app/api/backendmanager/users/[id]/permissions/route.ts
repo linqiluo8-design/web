@@ -3,7 +3,7 @@
  */
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { requireAdmin, setUserPermissions } from '@/lib/permissions'
+import { requireRead, requireWrite, setUserPermissions } from '@/lib/permissions'
 import { z } from 'zod'
 
 const permissionSchema = z.object({
@@ -34,7 +34,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requireAdmin()
+    await requireRead('USER_MANAGEMENT')
 
     // Next.js 16: params 是 Promise，需要 await
     const { id: userId } = await params
@@ -52,7 +52,7 @@ export async function GET(
     console.error('获取用户权限失败:', error)
     return NextResponse.json(
       { error: error.message || '获取用户权限失败' },
-      { status: error.message === '未登录' ? 401 : error.message === '需要管理员权限' ? 403 : 500 }
+      { status: error.message === '未登录' ? 401 : error.message?.includes('权限') ? 403 : 500 }
     )
   }
 }
@@ -71,7 +71,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requireAdmin()
+    await requireWrite('USER_MANAGEMENT')
 
     // Next.js 16: params 是 Promise，需要 await
     const { id: userId } = await params
@@ -120,7 +120,7 @@ export async function POST(
     console.error('设置用户权限失败:', error)
     return NextResponse.json(
       { error: error.message || '设置用户权限失败' },
-      { status: error.message === '未登录' ? 401 : error.message === '需要管理员权限' ? 403 : 500 }
+      { status: error.message === '未登录' ? 401 : error.message?.includes('权限') ? 403 : 500 }
     )
   }
 }

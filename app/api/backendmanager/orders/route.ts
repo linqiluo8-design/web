@@ -1,27 +1,12 @@
 import { NextResponse } from "next/server"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
+import { requireRead } from "@/lib/permissions"
 
-// 获取所有订单列表（管理员权限，支持分页和搜索）
+// 获取所有订单列表（支持分页和搜索）
 export async function GET(req: Request) {
   try {
-    // 验证用户登录和权限
-    const session = await getServerSession(authOptions)
-
-    if (!session || !session.user) {
-      return NextResponse.json(
-        { error: "未授权，请先登录" },
-        { status: 401 }
-      )
-    }
-
-    if (session.user.role !== "ADMIN") {
-      return NextResponse.json(
-        { error: "无权限访问" },
-        { status: 403 }
-      )
-    }
+    // 验证订单管理的读权限
+    await requireRead('ORDERS')
 
     const { searchParams } = new URL(req.url)
 
@@ -108,11 +93,11 @@ export async function GET(req: Request) {
         totalPages: Math.ceil(total / limit)
       }
     })
-  } catch (error) {
+  } catch (error: any) {
     console.error("获取订单列表失败:", error)
     return NextResponse.json(
-      { error: "获取订单列表失败" },
-      { status: 500 }
+      { error: error.message || "获取订单列表失败" },
+      { status: error.message === '未登录' ? 401 : error.message?.includes('权限') ? 403 : 500 }
     )
   }
 }

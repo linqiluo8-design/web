@@ -1,32 +1,15 @@
 import { NextResponse } from "next/server"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
+import { requireRead } from "@/lib/permissions"
 
 /**
  * GET /api/backendmanager/membership-plans
  * 获取所有会员方案（包括停用的方案）
- * 仅限管理员访问
  */
 export async function GET() {
   try {
-    // 验证用户登录
-    const session = await getServerSession(authOptions)
-
-    if (!session || !session.user) {
-      return NextResponse.json(
-        { error: "未授权，请先登录" },
-        { status: 401 }
-      )
-    }
-
-    // 验证管理员权限
-    if (session.user.role !== "ADMIN") {
-      return NextResponse.json(
-        { error: "无权限访问，仅管理员可访问" },
-        { status: 403 }
-      )
-    }
+    // 验证会员管理的读权限
+    await requireRead('MEMBERSHIPS')
 
     // 获取所有会员方案（包括 inactive 状态的）
     const plans = await prisma.membershipPlan.findMany({
@@ -37,11 +20,11 @@ export async function GET() {
       plans,
       total: plans.length
     })
-  } catch (error) {
+  } catch (error: any) {
     console.error("获取会员方案失败:", error)
     return NextResponse.json(
-      { error: "获取会员方案失败" },
-      { status: 500 }
+      { error: error.message || "获取会员方案失败" },
+      { status: error.message === '未登录' ? 401 : error.message?.includes('权限') ? 403 : 500 }
     )
   }
 }

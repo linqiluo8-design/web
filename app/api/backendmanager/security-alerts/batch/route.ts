@@ -1,33 +1,16 @@
 import { NextResponse } from "next/server"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
+import { requireWrite } from "@/lib/permissions"
 import { z } from "zod"
 
 /**
  * PATCH /api/backendmanager/security-alerts/batch
  * 批量更新安全警报状态
- * 仅限管理员访问
  */
 export async function PATCH(req: Request) {
   try {
-    // 验证用户登录
-    const session = await getServerSession(authOptions)
-
-    if (!session || !session.user) {
-      return NextResponse.json(
-        { error: "未授权，请先登录" },
-        { status: 401 }
-      )
-    }
-
-    // 验证管理员权限
-    if (session.user.role !== "ADMIN") {
-      return NextResponse.json(
-        { error: "无权限访问，仅管理员可访问" },
-        { status: 403 }
-      )
-    }
+    // 验证安全警报的写权限
+    const user = await requireWrite('SECURITY_ALERTS')
 
     const body = await req.json()
 
@@ -47,7 +30,7 @@ export async function PATCH(req: Request) {
       },
       data: {
         status: data.status,
-        resolvedBy: session.user.id,
+        resolvedBy: user.id,
         resolvedAt: new Date(),
         notes: data.notes,
         updatedAt: new Date()
@@ -86,8 +69,8 @@ export async function PATCH(req: Request) {
 
     console.error("批量更新警报失败:", error)
     return NextResponse.json(
-      { error: "批量更新失败" },
-      { status: 500 }
+      { error: error.message || "批量更新失败" },
+      { status: error.message === '未登录' ? 401 : error.message?.includes('权限') ? 403 : 500 }
     )
   }
 }
@@ -95,27 +78,11 @@ export async function PATCH(req: Request) {
 /**
  * DELETE /api/backendmanager/security-alerts/batch
  * 批量删除安全警报
- * 仅限管理员访问
  */
 export async function DELETE(req: Request) {
   try {
-    // 验证用户登录
-    const session = await getServerSession(authOptions)
-
-    if (!session || !session.user) {
-      return NextResponse.json(
-        { error: "未授权，请先登录" },
-        { status: 401 }
-      )
-    }
-
-    // 验证管理员权限
-    if (session.user.role !== "ADMIN") {
-      return NextResponse.json(
-        { error: "无权限访问，仅管理员可访问" },
-        { status: 403 }
-      )
-    }
+    // 验证安全警报的写权限（删除操作需要写权限）
+    const user = await requireWrite('SECURITY_ALERTS')
 
     const body = await req.json()
 
@@ -151,10 +118,10 @@ export async function DELETE(req: Request) {
       data: {
         type: "BATCH_ALERT_DELETE",
         severity: "info",
-        userId: session.user.id,
+        userId: user.id,
         ipAddress: req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || "unknown",
         userAgent: req.headers.get("user-agent") || "unknown",
-        description: `管理员批量删除了 ${result.count} 条警报`,
+        description: `批量删除了 ${result.count} 条警报`,
         metadata: JSON.stringify({
           deletedAlerts: alertsToDelete,
           deletedCount: result.count
@@ -176,8 +143,8 @@ export async function DELETE(req: Request) {
 
     console.error("批量删除警报失败:", error)
     return NextResponse.json(
-      { error: "批量删除失败" },
-      { status: 500 }
+      { error: error.message || "批量删除失败" },
+      { status: error.message === '未登录' ? 401 : error.message?.includes('权限') ? 403 : 500 }
     )
   }
 }

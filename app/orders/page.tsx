@@ -52,7 +52,7 @@ export default function OrdersPage() {
   const [pagination, setPagination] = useState<Pagination>({
     total: 0,
     page: 1,
-    limit: 10,
+    limit: 5,
     totalPages: 0
   })
   const [search, setSearch] = useState("")
@@ -352,7 +352,7 @@ export default function OrdersPage() {
               <div className="flex justify-center items-center gap-3 flex-wrap">
                 <span className="text-sm text-gray-600">每页显示：</span>
                 <div className="flex gap-2">
-                  {[10, 15, 20, 30, 50].map((num) => (
+                  {[5, 10, 15, 20, 25, 30, 40, 50].map((num) => (
                     <button
                       key={num}
                       onClick={() => handleLimitChange(num)}

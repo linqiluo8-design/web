@@ -49,7 +49,7 @@ export default function ProductsPage() {
   const [showCategoryFilter, setShowCategoryFilter] = useState(false)
   const [showExchangeModal, setShowExchangeModal] = useState(false)
   const [page, setPage] = useState(1)
-  const [limit, setLimit] = useState(15) // 默认每页15件商品
+  const [limit, setLimit] = useState(5) // 默认每页5件商品
   const [jumpToPage, setJumpToPage] = useState("")
   const [buyingProductId, setBuyingProductId] = useState<string | null>(null)
 
@@ -517,7 +517,7 @@ export default function ProductsPage() {
               <div className="flex justify-center items-center gap-3">
                 <span className="text-sm text-gray-600">每页显示：</span>
                 <div className="flex gap-2">
-                  {[10, 15, 20, 30, 50].map((num) => (
+                  {[5, 10, 15, 20, 25, 30, 40, 50].map((num) => (
                     <button
                       key={num}
                       onClick={() => handleLimitChange(num)}

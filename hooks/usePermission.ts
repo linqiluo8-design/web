@@ -14,6 +14,7 @@ type PermissionModule =
   | "CUSTOMER_CHAT"
   | "USER_MANAGEMENT"
   | "ORDER_LOOKUP"
+  | "ANALYTICS"
 
 interface UsePermissionOptions {
   module: PermissionModule

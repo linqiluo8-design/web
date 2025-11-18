@@ -16,6 +16,7 @@ type PermissionModule =
   | 'CUSTOMER_CHAT'
   | 'USER_MANAGEMENT'
   | 'ORDER_LOOKUP'
+  | 'ANALYTICS'
 
 type PermissionLevel = 'NONE' | 'READ' | 'WRITE'
 
@@ -48,6 +49,7 @@ const MODULE_NAMES: Record<PermissionModule, string> = {
   CUSTOMER_CHAT: '客服聊天',
   USER_MANAGEMENT: '用户管理',
   ORDER_LOOKUP: '订单查询',
+  ANALYTICS: '浏览量统计',
 }
 
 const STATUS_NAMES: Record<string, string> = {
@@ -80,6 +82,7 @@ export default function UserManagementPage() {
     CUSTOMER_CHAT: 'NONE',
     USER_MANAGEMENT: 'NONE',
     ORDER_LOOKUP: 'NONE',
+    ANALYTICS: 'NONE',
   })
   const [userPermissions, setUserPermissions] = useState<Record<string, string>>({})
   const [hasAccess, setHasAccess] = useState(false)
@@ -192,6 +195,9 @@ export default function UserManagementPage() {
       SYSTEM_SETTINGS: 'NONE',
       SECURITY_ALERTS: 'NONE',
       CUSTOMER_CHAT: 'NONE',
+      USER_MANAGEMENT: 'NONE',
+      ORDER_LOOKUP: 'NONE',
+      ANALYTICS: 'NONE',
     }
 
     user.permissions.forEach((p) => {

@@ -83,7 +83,7 @@ export default function AnalyticsPage() {
 
       const res = await fetch("/api/auth/permissions")
       const data = await res.json()
-      const permission = data.permissions?.PRODUCTS || "NONE"
+      const permission = data.permissions?.ANALYTICS || "NONE"
 
       setUserPermission(permission)
 

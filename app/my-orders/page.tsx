@@ -314,13 +314,16 @@ export default function MyOrdersPage() {
                 </div>
                 {/* 待支付订单显示倒计时 */}
                 {order.status === "pending" && order.expiresAt && (
-                  <div className="flex items-center justify-start">
+                  <div className="bg-orange-50 border border-orange-200 rounded px-3 py-2">
                     <OrderCountdown
                       expiresAt={order.expiresAt}
                       onExpire={handleOrderExpire}
                       showIcon={true}
                       className="text-xs"
                     />
+                    <p className="text-xs text-gray-600 mt-1">
+                      订单将在倒计时结束后自动取消，请尽快完成支付
+                    </p>
                   </div>
                 )}
               </div>

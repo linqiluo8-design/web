@@ -9,7 +9,12 @@
     "lint": "eslint",
     "db:backup": "tsx scripts/backup-data.ts",
     "db:restore": "tsx scripts/restore-data.ts",
-    "db:reset": "tsx scripts/reset-and-seed.ts"
+    "db:reset": "tsx scripts/reset-and-seed.ts",
+    "security:scan": "node scripts/security-vulnerability-scan.js mock",
+    "security:scan:real": "node scripts/security-vulnerability-scan.js real",
+    "security:test-alerts": "node scripts/test-security-alerts.js",
+    "test:all": "node scripts/test-all-features.js mock",
+    "test:all:real": "node scripts/test-all-features.js real"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.1",

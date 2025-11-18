@@ -137,7 +137,7 @@ export async function requireRead(module: PermissionModule) {
   const user = await getCurrentUser()
 
   if (!user) {
-    throw new Error('未登录')
+    throw new Error('未授权，请先登录')
   }
 
   // 管理员拥有所有权限
@@ -160,7 +160,7 @@ export async function requireWrite(module: PermissionModule) {
   const user = await getCurrentUser()
 
   if (!user) {
-    throw new Error('未登录')
+    throw new Error('未授权，请先登录')
   }
 
   // 管理员拥有所有权限

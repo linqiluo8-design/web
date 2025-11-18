@@ -10,6 +10,8 @@ const ALL_MODULES: PermissionModule[] = [
   'SYSTEM_SETTINGS',
   'SECURITY_ALERTS',
   'CUSTOMER_CHAT',
+  'USER_MANAGEMENT',
+  'ORDER_LOOKUP',
 ]
 
 export async function GET() {

@@ -175,6 +175,7 @@ model Order {
   discount      Float?   // 使用的折扣率
   status        String   @default("pending") // pending, paid, cancelled, refunded
   paymentMethod String?  // alipay, wechat, paypal
+  expiresAt     DateTime? // 订单过期时间（15分钟后自动取消）
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 

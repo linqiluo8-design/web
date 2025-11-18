@@ -622,6 +622,10 @@ export async function POST(req: Request) {
     // 生成安全的唯一订单号
     const orderNumber = generateOrderNumber()
 
+    // 计算订单过期时间（15分钟后）
+    const expiresAt = new Date()
+    expiresAt.setMinutes(expiresAt.getMinutes() + 15)
+
     // 创建订单
     const order = await prisma.order.create({
       data: {
@@ -632,6 +636,7 @@ export async function POST(req: Request) {
         membershipId: membership?.id,
         status: "pending",
         paymentMethod: data.paymentMethod,
+        expiresAt, // 设置订单过期时间
         orderItems: {
           create: validatedItems.map(item => ({
             productId: item.productId,

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
+import OrderCountdown from "@/components/OrderCountdown"
 
 interface OrderItem {
   id: string
@@ -21,6 +22,7 @@ interface Order {
   status: string
   paymentMethod: string | null
   createdAt: string
+  expiresAt: string | null
   orderItems: OrderItem[]
   payment: {
     status: string
@@ -61,6 +63,28 @@ export default function OrdersPage() {
     fetchOrders()
   }, [pagination.page, pagination.limit, statusFilter])
 
+  // 定期检查并取消过期订单
+  useEffect(() => {
+    const cancelExpiredOrders = async () => {
+      try {
+        await fetch("/api/orders/cancel-expired")
+        // 静默处理，不需要提示用户
+      } catch (err) {
+        console.error("取消过期订单失败:", err)
+      }
+    }
+
+    // 初始化时执行一次
+    cancelExpiredOrders()
+
+    // 每30秒检查一次过期订单
+    const interval = setInterval(() => {
+      cancelExpiredOrders()
+    }, 30000)
+
+    return () => clearInterval(interval)
+  }, [])
+
   const fetchOrders = async () => {
     try {
       setLoading(true)
@@ -95,6 +119,11 @@ export default function OrdersPage() {
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleOrderExpire = () => {
+    // 订单过期后重新获取订单列表
+    fetchOrders()
   }
 
   const handleSearch = () => {
@@ -257,6 +286,15 @@ export default function OrdersPage() {
                       <p className="text-sm text-gray-600">
                         支付方式: {order.paymentMethod}
                       </p>
+                    )}
+                    {/* 待支付订单显示倒计时 */}
+                    {order.status === "pending" && order.expiresAt && (
+                      <div className="mt-2">
+                        <OrderCountdown
+                          expiresAt={order.expiresAt}
+                          onExpire={handleOrderExpire}
+                        />
+                      </div>
                     )}
                   </div>
                   <div className="text-right">

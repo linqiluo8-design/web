@@ -52,7 +52,8 @@ export async function POST(request: Request) {
           where: { id: payment.orderId },
           data: {
             status: "paid",
-            paymentMethod: payment.paymentMethod
+            paymentMethod: payment.paymentMethod,
+            expiresAt: null // 支付成功后清除过期时间
           }
         })
       ])

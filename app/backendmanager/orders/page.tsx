@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
+import AdvancedFilter, { type FilterGroup } from "@/components/AdvancedFilter"
 
 interface OrderStats {
   total: number
@@ -80,6 +81,16 @@ export default function OrderManagementPage() {
   const [exportStatus, setExportStatus] = useState("all")
   const [exportType, setExportType] = useState<"custom" | "month">("month")
   const [customDays, setCustomDays] = useState(30)
+  const [exportPaymentMethod, setExportPaymentMethod] = useState("all")
+  const [exportMinPrice, setExportMinPrice] = useState("")
+  const [exportMaxPrice, setExportMaxPrice] = useState("")
+
+  // 高级筛选
+  const [useAdvancedFilter, setUseAdvancedFilter] = useState(false)
+  const [advancedFilter, setAdvancedFilter] = useState<FilterGroup>({
+    logic: 'AND',
+    conditions: []
+  })
 
   // 清理配置
   const [cleanupStartDate, setCleanupStartDate] = useState("")
@@ -272,16 +283,34 @@ export default function OrderManagementPage() {
         format: exportFormat,
       })
 
-      if (exportStartDate) {
-        params.append("startDate", exportStartDate)
-      }
+      // 使用高级筛选
+      if (useAdvancedFilter && advancedFilter.conditions.length > 0) {
+        params.append("filters", JSON.stringify(advancedFilter))
+      } else {
+        // 使用简单筛选（兼容旧版）
+        if (exportStartDate) {
+          params.append("startDate", exportStartDate)
+        }
 
-      if (exportEndDate) {
-        params.append("endDate", exportEndDate)
-      }
+        if (exportEndDate) {
+          params.append("endDate", exportEndDate)
+        }
 
-      if (exportStatus !== "all") {
-        params.append("status", exportStatus)
+        if (exportStatus !== "all") {
+          params.append("status", exportStatus)
+        }
+
+        if (exportPaymentMethod !== "all") {
+          params.append("paymentMethod", exportPaymentMethod)
+        }
+
+        if (exportMinPrice) {
+          params.append("minPrice", exportMinPrice)
+        }
+
+        if (exportMaxPrice) {
+          params.append("maxPrice", exportMaxPrice)
+        }
       }
 
       // 下载文件
@@ -660,9 +689,41 @@ export default function OrderManagementPage() {
 
       {/* 导出订单数据 */}
       <div className="bg-white rounded-lg shadow p-6 mb-6">
-        <h2 className="text-xl font-semibold mb-4">导出订单数据</h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-semibold">导出订单数据</h2>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          {/* 模式切换 */}
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-600">筛选模式：</span>
+            <button
+              onClick={() => setUseAdvancedFilter(!useAdvancedFilter)}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                useAdvancedFilter
+                  ? 'bg-purple-600 text-white'
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}
+            >
+              {useAdvancedFilter ? '高级模式 ⚡' : '简单模式'}
+            </button>
+          </div>
+        </div>
+
+        {/* 高级筛选界面 */}
+        {useAdvancedFilter ? (
+          <div className="mb-6">
+            <div className="mb-3 p-3 bg-purple-50 border border-purple-200 rounded-md">
+              <p className="text-sm text-purple-800">
+                <strong>高级模式：</strong>支持复杂的筛选条件组合，可使用 AND/OR 逻辑。
+              </p>
+            </div>
+            <AdvancedFilter
+              onFilterChange={setAdvancedFilter}
+              initialFilter={advancedFilter}
+            />
+          </div>
+        ) : (
+          /* 简单筛选界面 */
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               导出范围
@@ -760,7 +821,54 @@ export default function OrderManagementPage() {
               <option value="refunded">已退款</option>
             </select>
           </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              支付方式
+            </label>
+            <select
+              value={exportPaymentMethod}
+              onChange={(e) => setExportPaymentMethod(e.target.value)}
+              className="w-full px-3 py-2 border rounded-md"
+            >
+              <option value="all">全部支付方式</option>
+              <option value="wechat">微信支付</option>
+              <option value="alipay">支付宝</option>
+              <option value="paypal">PayPal</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              最低金额
+            </label>
+            <input
+              type="number"
+              value={exportMinPrice}
+              onChange={(e) => setExportMinPrice(e.target.value)}
+              className="w-full px-3 py-2 border rounded-md"
+              placeholder="留空表示不限"
+              step="0.01"
+              min="0"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              最高金额
+            </label>
+            <input
+              type="number"
+              value={exportMaxPrice}
+              onChange={(e) => setExportMaxPrice(e.target.value)}
+              className="w-full px-3 py-2 border rounded-md"
+              placeholder="留空表示不限"
+              step="0.01"
+              min="0"
+            />
+          </div>
         </div>
+        )}
 
         <button
           onClick={handleExport}
@@ -894,9 +1002,22 @@ export default function OrderManagementPage() {
       <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
         <h3 className="font-semibold mb-2 text-blue-900">使用说明</h3>
         <ul className="text-sm text-blue-800 space-y-1">
+          <li>• <strong>筛选模式</strong>：
+            <ul className="ml-4 mt-1 space-y-1">
+              <li>- 简单模式：快速筛选常用条件（日期、状态、支付方式、价格范围等）</li>
+              <li>- 高级模式：支持复杂条件组合，可使用 AND/OR 逻辑，支持多条件嵌套</li>
+            </ul>
+          </li>
           <li>• 导出功能支持CSV和JSON两种格式，CSV可直接用Excel打开</li>
           <li>• 按自然月导出：导出当前自然月的所有订单</li>
           <li>• 自定义天数：导出最近N天的订单（默认30天）</li>
+          <li>• <strong>高级筛选示例</strong>：
+            <ul className="ml-4 mt-1 space-y-1">
+              <li>- 筛选微信支付且金额大于100的已支付订单：添加3个条件，使用 AND 逻辑</li>
+              <li>- 筛选已支付或已完成的订单：添加2个状态条件，使用 OR 逻辑</li>
+              <li>- 复杂组合：可添加多个条件，灵活切换 AND/OR 关系</li>
+            </ul>
+          </li>
           <li>• <strong>安全机制</strong>：清理前必须先导出相同配置的订单数据，系统会自动验证</li>
           <li>• 导出和清理的配置（日期范围、状态）必须完全一致才能执行清理</li>
           <li>• 清理成功后，导出记录会被清除，需要重新导出才能再次清理</li>

@@ -3,45 +3,47 @@ import { prisma } from "@/lib/prisma"
 import { requireRead } from "@/lib/permissions"
 import { buildWhereClause, type FilterGroup } from "@/lib/filter-builder"
 
-// 将订单数据转换为CSV格式
-function convertToCSV(orders: any[]): string {
-  if (orders.length === 0) {
+// 将会员订单数据转换为CSV格式
+function convertToCSV(records: any[]): string {
+  if (records.length === 0) {
     return ""
   }
 
   // CSV表头
   const headers = [
+    "会员码",
     "订单号",
     "用户邮箱",
-    "订单总额",
-    "原价",
-    "折扣",
-    "订单状态",
+    "会员套餐",
+    "购买价格",
+    "折扣率",
+    "每日限额",
+    "有效期(天)",
+    "开始日期",
+    "结束日期",
+    "会员状态",
     "支付方式",
-    "会员码",
-    "商品列表",
-    "创建时间",
-    "更新时间"
+    "支付状态",
+    "创建时间"
   ]
 
   // CSV数据行
-  const rows = orders.map(order => {
-    const products = order.orderItems
-      .map((item: any) => `${item.product.title}(x${item.quantity})`)
-      .join("; ")
-
+  const rows = records.map(record => {
     return [
-      order.orderNumber,
-      order.user?.email || "匿名用户",
-      order.totalAmount.toFixed(2),
-      order.originalAmount?.toFixed(2) || "",
-      order.discount || "",
-      order.status,
-      order.paymentMethod || "",
-      order.membership?.membershipCode || "",
-      `"${products}"`, // 使用引号包裹，避免逗号分隔问题
-      new Date(order.createdAt).toLocaleString("zh-CN"),
-      new Date(order.updatedAt).toLocaleString("zh-CN")
+      record.membershipCode,
+      record.orderNumber || "",
+      record.user?.email || "匿名用户",
+      record.plan?.name || "",
+      record.purchasePrice.toFixed(2),
+      `${(record.discount * 100).toFixed(0)}%`,
+      record.dailyLimit,
+      record.duration,
+      new Date(record.startDate).toLocaleDateString("zh-CN"),
+      record.endDate ? new Date(record.endDate).toLocaleDateString("zh-CN") : "",
+      record.status,
+      record.paymentMethod || "",
+      record.paymentStatus,
+      new Date(record.createdAt).toLocaleString("zh-CN")
     ]
   })
 
@@ -55,11 +57,11 @@ function convertToCSV(orders: any[]): string {
   return "\uFEFF" + csvContent
 }
 
-// 导出订单数据
+// 导出会员订单数据
 export async function GET(req: Request) {
   try {
-    // 验证订单管理的读权限
-    await requireRead('ORDERS')
+    // 验证会员管理的读权限
+    await requireRead('MEMBERSHIPS')
 
     const { searchParams } = new URL(req.url)
 
@@ -71,6 +73,7 @@ export async function GET(req: Request) {
     const startDate = searchParams.get("startDate")
     const endDate = searchParams.get("endDate")
     const status = searchParams.get("status")
+    const paymentStatus = searchParams.get("paymentStatus")
     const paymentMethod = searchParams.get("paymentMethod")
     const minPrice = searchParams.get("minPrice")
     const maxPrice = searchParams.get("maxPrice")
@@ -94,9 +97,14 @@ export async function GET(req: Request) {
       // 兼容旧版简单筛选
       const conditions: any = {}
 
-      // 订单状态
+      // 会员状态
       if (status && status !== "all") {
         conditions.status = status
+      }
+
+      // 支付状态
+      if (paymentStatus && paymentStatus !== "all") {
+        conditions.paymentStatus = paymentStatus
       }
 
       // 支付方式
@@ -119,20 +127,20 @@ export async function GET(req: Request) {
 
       // 价格范围
       if (minPrice || maxPrice) {
-        conditions.totalAmount = {}
+        conditions.purchasePrice = {}
         if (minPrice) {
-          conditions.totalAmount.gte = parseFloat(minPrice)
+          conditions.purchasePrice.gte = parseFloat(minPrice)
         }
         if (maxPrice) {
-          conditions.totalAmount.lte = parseFloat(maxPrice)
+          conditions.purchasePrice.lte = parseFloat(maxPrice)
         }
       }
 
       where = conditions
     }
 
-    // 查询订单数据
-    const orders = await prisma.order.findMany({
+    // 查询会员订单数据
+    const records = await prisma.membership.findMany({
       where,
       include: {
         user: {
@@ -142,23 +150,10 @@ export async function GET(req: Request) {
             name: true,
           }
         },
-        orderItems: {
-          include: {
-            product: {
-              select: {
-                id: true,
-                title: true,
-                price: true,
-              }
-            }
-          }
-        },
-        payment: true,
-        membership: {
+        plan: {
           select: {
             id: true,
-            membershipCode: true,
-            discount: true,
+            name: true,
           }
         }
       },
@@ -168,29 +163,29 @@ export async function GET(req: Request) {
     // 根据格式返回数据
     if (format === "json") {
       // JSON格式
-      const jsonData = JSON.stringify(orders, null, 2)
+      const jsonData = JSON.stringify(records, null, 2)
 
       return new NextResponse(jsonData, {
         headers: {
           "Content-Type": "application/json",
-          "Content-Disposition": `attachment; filename=orders_${Date.now()}.json`
+          "Content-Disposition": `attachment; filename=membership_records_${Date.now()}.json`
         }
       })
     } else {
       // CSV格式（默认）
-      const csvData = convertToCSV(orders)
+      const csvData = convertToCSV(records)
 
       return new NextResponse(csvData, {
         headers: {
           "Content-Type": "text/csv; charset=utf-8",
-          "Content-Disposition": `attachment; filename=orders_${Date.now()}.csv`
+          "Content-Disposition": `attachment; filename=membership_records_${Date.now()}.csv`
         }
       })
     }
   } catch (error: any) {
-    console.error("导出订单数据失败:", error)
+    console.error("导出会员订单数据失败:", error)
     return NextResponse.json(
-      { error: error.message || "导出订单数据失败" },
+      { error: error.message || "导出会员订单数据失败" },
       { status: error.message === '未登录' ? 401 : error.message?.includes('权限') ? 403 : 500 }
     )
   }

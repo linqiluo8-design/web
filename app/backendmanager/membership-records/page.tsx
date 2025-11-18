@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
+import AdvancedFilter, { type FilterGroup } from "@/components/AdvancedFilter"
 
 interface User {
   id: string
@@ -66,6 +67,24 @@ export default function MembershipRecordsPage() {
   const [showDetailModal, setShowDetailModal] = useState(false)
   const [jumpToPage, setJumpToPage] = useState("")
   const [userPermission, setUserPermission] = useState<"NONE" | "READ" | "WRITE">("NONE")
+
+  // 导出配置
+  const [exportLoading, setExportLoading] = useState(false)
+  const [exportFormat, setExportFormat] = useState("csv")
+  const [exportStartDate, setExportStartDate] = useState("")
+  const [exportEndDate, setExportEndDate] = useState("")
+  const [exportStatus, setExportStatus] = useState("all")
+  const [exportPaymentStatus, setExportPaymentStatus] = useState("all")
+  const [exportPaymentMethod, setExportPaymentMethod] = useState("all")
+  const [exportMinPrice, setExportMinPrice] = useState("")
+  const [exportMaxPrice, setExportMaxPrice] = useState("")
+
+  // 高级筛选
+  const [useAdvancedFilter, setUseAdvancedFilter] = useState(false)
+  const [advancedFilter, setAdvancedFilter] = useState<FilterGroup>({
+    logic: 'AND',
+    conditions: []
+  })
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -228,6 +247,73 @@ export default function MembershipRecordsPage() {
     navigator.clipboard.writeText(code).then(() => {
       alert("会员码已复制到剪贴板")
     })
+  }
+
+  const handleExport = async () => {
+    try {
+      setExportLoading(true)
+
+      const params = new URLSearchParams({
+        format: exportFormat,
+      })
+
+      // 使用高级筛选
+      if (useAdvancedFilter && advancedFilter.conditions.length > 0) {
+        params.append("filters", JSON.stringify(advancedFilter))
+      } else {
+        // 使用简单筛选（兼容旧版）
+        if (exportStartDate) {
+          params.append("startDate", exportStartDate)
+        }
+
+        if (exportEndDate) {
+          params.append("endDate", exportEndDate)
+        }
+
+        if (exportStatus !== "all") {
+          params.append("status", exportStatus)
+        }
+
+        if (exportPaymentStatus !== "all") {
+          params.append("paymentStatus", exportPaymentStatus)
+        }
+
+        if (exportPaymentMethod !== "all") {
+          params.append("paymentMethod", exportPaymentMethod)
+        }
+
+        if (exportMinPrice) {
+          params.append("minPrice", exportMinPrice)
+        }
+
+        if (exportMaxPrice) {
+          params.append("maxPrice", exportMaxPrice)
+        }
+      }
+
+      // 下载文件
+      const response = await fetch(`/api/backendmanager/membership-records/export?${params}`)
+
+      if (!response.ok) {
+        throw new Error("导出失败")
+      }
+
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = `membership_records_${Date.now()}.${exportFormat}`
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+
+      alert("✓ 导出成功")
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "导出失败")
+    } finally {
+      setExportLoading(false)
+    }
   }
 
   if (status === "loading" || loading) {
@@ -551,6 +637,191 @@ export default function MembershipRecordsPage() {
           )}
         </>
       )}
+
+      {/* 导出会员订单数据 */}
+      <div className="bg-white rounded-lg shadow p-6 mt-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-semibold">导出会员订单数据</h2>
+
+          {/* 模式切换 */}
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-600">筛选模式：</span>
+            <button
+              onClick={() => setUseAdvancedFilter(!useAdvancedFilter)}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                useAdvancedFilter
+                  ? 'bg-purple-600 text-white'
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}
+            >
+              {useAdvancedFilter ? '高级模式 ⚡' : '简单模式'}
+            </button>
+          </div>
+        </div>
+
+        {/* 高级筛选界面 */}
+        {useAdvancedFilter ? (
+          <div className="mb-6">
+            <div className="mb-3 p-3 bg-purple-50 border border-purple-200 rounded-md">
+              <p className="text-sm text-purple-800">
+                <strong>高级模式：</strong>支持复杂的筛选条件组合，可使用 AND/OR 逻辑。
+              </p>
+            </div>
+            <AdvancedFilter
+              onFilterChange={setAdvancedFilter}
+              initialFilter={advancedFilter}
+            />
+          </div>
+        ) : (
+          /* 简单筛选界面 */
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                导出格式
+              </label>
+              <select
+                value={exportFormat}
+                onChange={(e) => setExportFormat(e.target.value)}
+                className="w-full px-3 py-2 border rounded-md"
+              >
+                <option value="csv">CSV (Excel)</option>
+                <option value="json">JSON</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                会员状态
+              </label>
+              <select
+                value={exportStatus}
+                onChange={(e) => setExportStatus(e.target.value)}
+                className="w-full px-3 py-2 border rounded-md"
+              >
+                <option value="all">全部状态</option>
+                <option value="active">有效</option>
+                <option value="expired">已过期</option>
+                <option value="cancelled">已取消</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                支付状态
+              </label>
+              <select
+                value={exportPaymentStatus}
+                onChange={(e) => setExportPaymentStatus(e.target.value)}
+                className="w-full px-3 py-2 border rounded-md"
+              >
+                <option value="all">全部状态</option>
+                <option value="pending">待支付</option>
+                <option value="completed">已支付</option>
+                <option value="failed">支付失败</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                支付方式
+              </label>
+              <select
+                value={exportPaymentMethod}
+                onChange={(e) => setExportPaymentMethod(e.target.value)}
+                className="w-full px-3 py-2 border rounded-md"
+              >
+                <option value="all">全部支付方式</option>
+                <option value="wechat">微信支付</option>
+                <option value="alipay">支付宝</option>
+                <option value="paypal">PayPal</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                开始日期
+              </label>
+              <input
+                type="date"
+                value={exportStartDate}
+                onChange={(e) => setExportStartDate(e.target.value)}
+                className="w-full px-3 py-2 border rounded-md"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                结束日期
+              </label>
+              <input
+                type="date"
+                value={exportEndDate}
+                onChange={(e) => setExportEndDate(e.target.value)}
+                className="w-full px-3 py-2 border rounded-md"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                最低金额
+              </label>
+              <input
+                type="number"
+                value={exportMinPrice}
+                onChange={(e) => setExportMinPrice(e.target.value)}
+                className="w-full px-3 py-2 border rounded-md"
+                placeholder="留空表示不限"
+                step="0.01"
+                min="0"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                最高金额
+              </label>
+              <input
+                type="number"
+                value={exportMaxPrice}
+                onChange={(e) => setExportMaxPrice(e.target.value)}
+                className="w-full px-3 py-2 border rounded-md"
+                placeholder="留空表示不限"
+                step="0.01"
+                min="0"
+              />
+            </div>
+          </div>
+        )}
+
+        <button
+          onClick={handleExport}
+          disabled={exportLoading}
+          className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+        >
+          {exportLoading ? "导出中..." : "导出会员订单数据"}
+        </button>
+
+        {/* 使用说明 */}
+        <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <h3 className="font-semibold mb-2 text-blue-900">使用说明</h3>
+          <ul className="text-sm text-blue-800 space-y-1">
+            <li>• <strong>筛选模式</strong>：
+              <ul className="ml-4 mt-1 space-y-1">
+                <li>- 简单模式：快速筛选常用条件（日期、状态、支付方式、价格范围等）</li>
+                <li>- 高级模式：支持复杂条件组合，可使用 AND/OR 逻辑，支持多条件嵌套</li>
+              </ul>
+            </li>
+            <li>• 导出功能支持CSV和JSON两种格式，CSV可直接用Excel打开</li>
+            <li>• 可根据会员状态、支付状态、购买时间、价格等多个维度进行筛选导出</li>
+            <li>• <strong>高级筛选示例</strong>：
+              <ul className="ml-4 mt-1 space-y-1">
+                <li>- 筛选微信支付且价格大于100的已支付订单：添加3个条件，使用 AND 逻辑</li>
+                <li>- 筛选有效或已过期的会员：添加2个状态条件，使用 OR 逻辑</li>
+              </ul>
+            </li>
+          </ul>
+        </div>
+      </div>
 
       {/* 详情模态框 */}
       {showDetailModal && selectedRecord && (

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import Image from "next/image"
+import OrderCountdown from "@/components/OrderCountdown"
 
 interface OrderItem {
   id: string
@@ -24,6 +25,7 @@ interface Order {
   discount: number | null
   membershipId: string | null
   status: string
+  expiresAt: string | null
   orderItems: OrderItem[]
 }
 
@@ -98,6 +100,11 @@ export default function PaymentPage({ params }: { params: Promise<{ orderId: str
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleOrderExpire = () => {
+    // 订单过期后重新获取订单状态
+    fetchOrder()
   }
 
   // 验证会员码（预览折扣）
@@ -302,6 +309,20 @@ export default function PaymentPage({ params }: { params: Promise<{ orderId: str
             <p className="text-sm text-gray-600">订单号</p>
             <p className="font-mono font-medium">{order.orderNumber}</p>
           </div>
+
+          {/* 订单倒计时 */}
+          {order.expiresAt && (
+            <div className="mb-4 p-3 bg-orange-50 border border-orange-200 rounded-lg">
+              <OrderCountdown
+                expiresAt={order.expiresAt}
+                onExpire={handleOrderExpire}
+                showIcon={true}
+              />
+              <p className="text-xs text-gray-600 mt-2">
+                订单将在倒计时结束后自动取消，请尽快完成支付
+              </p>
+            </div>
+          )}
 
           <div className="border-t pt-4 mb-4">
             <h3 className="font-semibold mb-3">商品清单</h3>

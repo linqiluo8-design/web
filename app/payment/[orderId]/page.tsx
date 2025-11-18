@@ -37,6 +37,8 @@ export default function PaymentPage({ params }: { params: Promise<{ orderId: str
   const [error, setError] = useState<string | null>(null)
   const [selectedMethod, setSelectedMethod] = useState<string>("")
   const [processing, setProcessing] = useState(false)
+  const [showCancelDialog, setShowCancelDialog] = useState(false)
+  const [cancelling, setCancelling] = useState(false)
 
   // 会员码相关状态
   const [membershipCode, setMembershipCode] = useState("")
@@ -259,6 +261,30 @@ export default function PaymentPage({ params }: { params: Promise<{ orderId: str
     } catch (err) {
       alert(err instanceof Error ? err.message : "支付失败")
       setProcessing(false)
+    }
+  }
+
+  const handleCancelOrder = async () => {
+    if (!order) return
+
+    setCancelling(true)
+
+    try {
+      const res = await fetch(`/api/orders/${order.id}/cancel`, {
+        method: "POST"
+      })
+
+      if (!res.ok) {
+        const error = await res.json()
+        throw new Error(error.error || "取消订单失败")
+      }
+
+      // 取消成功后跳转到商品列表
+      router.push("/products")
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "取消订单失败")
+      setCancelling(false)
+      setShowCancelDialog(false)
     }
   }
 
@@ -573,10 +599,19 @@ export default function PaymentPage({ params }: { params: Promise<{ orderId: str
           {/* 支付按钮 */}
           <button
             onClick={handlePayment}
-            disabled={!selectedMethod || processing}
+            disabled={!selectedMethod || processing || cancelling}
             className="w-full mt-6 py-3 bg-red-600 text-white rounded-lg font-bold hover:bg-red-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
           >
             {processing ? "处理中..." : `确认支付 ¥${order.totalAmount.toFixed(2)}`}
+          </button>
+
+          {/* 取消订单按钮 */}
+          <button
+            onClick={() => setShowCancelDialog(true)}
+            disabled={processing || cancelling}
+            className="w-full mt-3 py-2 border-2 border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 hover:border-gray-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            取消订单
           </button>
 
           <p className="text-xs text-gray-500 text-center mt-4">
@@ -594,6 +629,34 @@ export default function PaymentPage({ params }: { params: Promise<{ orderId: str
           <li>• 如遇问题，请联系客服并提供订单号</li>
         </ul>
       </div>
+
+      {/* 取消订单确认对话框 */}
+      {showCancelDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+            <h3 className="text-xl font-bold mb-4">确认取消订单</h3>
+            <p className="text-gray-600 mb-6">
+              确定要取消此订单吗？取消后将返回商品列表页面。
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowCancelDialog(false)}
+                disabled={cancelling}
+                className="flex-1 px-4 py-2 border-2 border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                继续支付
+              </button>
+              <button
+                onClick={handleCancelOrder}
+                disabled={cancelling}
+                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
+              >
+                {cancelling ? "取消中..." : "确认取消"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

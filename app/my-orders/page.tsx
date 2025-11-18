@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import Image from "next/image"
 import Link from "next/link"
+import OrderCountdown from "@/components/OrderCountdown"
 
 interface OrderRecord {
   orderNumber: string
@@ -16,6 +17,7 @@ interface Order {
   totalAmount: number
   status: string
   createdAt: string
+  expiresAt: string | null
   orderItems: {
     id: string
     quantity: number
@@ -48,6 +50,28 @@ export default function MyOrdersPage() {
   useEffect(() => {
     updateDisplayedOrders()
   }, [allOrders, page, limit, searchQuery])
+
+  // 定期检查并取消过期订单
+  useEffect(() => {
+    const cancelExpiredOrders = async () => {
+      try {
+        await fetch("/api/orders/cancel-expired")
+        // 静默处理，不需要提示用户
+      } catch (err) {
+        console.error("取消过期订单失败:", err)
+      }
+    }
+
+    // 初始化时执行一次
+    cancelExpiredOrders()
+
+    // 每30秒检查一次过期订单
+    const interval = setInterval(() => {
+      cancelExpiredOrders()
+    }, 30000)
+
+    return () => clearInterval(interval)
+  }, [])
 
   const loadOrders = async () => {
     try {
@@ -161,6 +185,11 @@ export default function MyOrdersPage() {
     return colorMap[status] || "bg-gray-100 text-gray-800"
   }
 
+  const handleOrderExpire = () => {
+    // 订单过期后重新加载订单列表
+    loadOrders()
+  }
+
   const clearOrders = () => {
     if (confirm("确定要清空所有订单记录吗？\n\n注意：这只会清除本地记录，不会删除实际订单。")) {
       localStorage.removeItem(ORDER_STORAGE_KEY)
@@ -269,18 +298,31 @@ export default function MyOrdersPage() {
               className="bg-white rounded-lg shadow border overflow-hidden"
             >
               {/* 订单头部 */}
-              <div className="bg-gray-50 px-6 py-3 border-b flex items-center justify-between">
-                <div className="flex items-center gap-4 text-sm">
-                  <span className="text-gray-600">订单号:</span>
-                  <span className="font-mono font-medium">{order.orderNumber}</span>
-                  <span className="text-gray-400">|</span>
-                  <span className="text-gray-600">
-                    {new Date(order.createdAt).toLocaleString('zh-CN')}
+              <div className="bg-gray-50 px-6 py-3 border-b">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-4 text-sm">
+                    <span className="text-gray-600">订单号:</span>
+                    <span className="font-mono font-medium">{order.orderNumber}</span>
+                    <span className="text-gray-400">|</span>
+                    <span className="text-gray-600">
+                      {new Date(order.createdAt).toLocaleString('zh-CN')}
+                    </span>
+                  </div>
+                  <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(order.status)}`}>
+                    {getStatusText(order.status)}
                   </span>
                 </div>
-                <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(order.status)}`}>
-                  {getStatusText(order.status)}
-                </span>
+                {/* 待支付订单显示倒计时 */}
+                {order.status === "pending" && order.expiresAt && (
+                  <div className="flex items-center justify-start">
+                    <OrderCountdown
+                      expiresAt={order.expiresAt}
+                      onExpire={handleOrderExpire}
+                      showIcon={true}
+                      className="text-xs"
+                    />
+                  </div>
+                )}
               </div>
 
               {/* 订单商品列表 */}
@@ -448,6 +490,7 @@ export default function MyOrdersPage() {
       <div className="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-4">
         <h3 className="font-semibold mb-2 text-blue-900">💡 温馨提示</h3>
         <ul className="text-sm text-blue-800 space-y-1">
+          <li>• 未支付订单将在15分钟后自动取消，请及时完成支付</li>
           <li>• 订单记录保存在浏览器本地，清除浏览器数据会导致记录丢失</li>
           <li>• 请妥善保管订单号，可随时在"订单查询"页面查询</li>
           <li>• 换电脑或换浏览器需要使用订单号手动查询</li>

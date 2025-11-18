@@ -501,7 +501,7 @@ export default function MyOrdersPage() {
             {displayedOrders.map((order) => (
               <div
               key={order.id}
-              className="bg-white rounded-lg shadow border overflow-hidden flex"
+              className="bg-white rounded-lg shadow border flex"
             >
               {/* 复选框 */}
               <div className="flex items-center justify-center p-4 bg-gray-50 border-r">
@@ -618,7 +618,7 @@ export default function MyOrdersPage() {
                       </button>
                       {/* 下拉菜单 */}
                       {openExportMenu === order.id && (
-                        <div className="absolute right-0 top-full mt-2 bg-white shadow-lg rounded-md border z-10 min-w-[140px]">
+                        <div className="absolute right-0 top-full mt-2 bg-white shadow-lg rounded-md border z-50 min-w-[140px]">
                           <button
                             onClick={() => {
                               exportSingleOrder(order, "csv")

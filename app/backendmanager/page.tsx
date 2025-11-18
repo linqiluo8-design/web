@@ -71,21 +71,6 @@ export default function AdminPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [jumpToPage, setJumpToPage] = useState("")
 
-  useEffect(() => {
-    if (status === "unauthenticated") {
-      router.push("/auth/signin")
-      return
-    }
-
-    if (session?.user?.role !== "ADMIN") {
-      router.push("/")
-      return
-    }
-
-    fetchProducts()
-    fetchCategories()
-  }, [status, session, router, page, limit, searchQuery])
-
   // 获取用户权限
   useEffect(() => {
     if (session?.user) {
@@ -95,6 +80,35 @@ export default function AdminPage() {
         .catch(err => console.error('获取权限失败:', err))
     }
   }, [session])
+
+  useEffect(() => {
+    if (status === "unauthenticated") {
+      router.push("/auth/signin")
+      return
+    }
+
+    // 管理员始终可以访问
+    if (session?.user?.role === "ADMIN") {
+      fetchProducts()
+      fetchCategories()
+      return
+    }
+
+    // 普通用户需要检查是否有任何权限
+    if (session?.user && Object.keys(permissions).length > 0) {
+      const hasAnyPermission = Object.values(permissions).some(
+        level => level === 'READ' || level === 'WRITE'
+      )
+
+      if (hasAnyPermission) {
+        fetchProducts()
+        fetchCategories()
+      } else {
+        // 没有任何权限，重定向回首页
+        router.push("/")
+      }
+    }
+  }, [status, session, router, page, limit, searchQuery, permissions])
 
   // 检查是否有读或写权限
   const hasPermission = (module: string) => {

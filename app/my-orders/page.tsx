@@ -39,7 +39,7 @@ export default function MyOrdersPage() {
   const [orderRecords, setOrderRecords] = useState<OrderRecord[]>([])
   const [searchQuery, setSearchQuery] = useState("")
   const [page, setPage] = useState(1)
-  const [limit, setLimit] = useState(10) // 默认每页10条
+  const [limit, setLimit] = useState(5) // 默认每页5条
   const [jumpToPage, setJumpToPage] = useState("")
   const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set()) // 选中的订单ID
 
@@ -644,7 +644,7 @@ export default function MyOrdersPage() {
               <div className="flex justify-center items-center gap-3 flex-wrap">
                 <span className="text-sm text-gray-600">每页显示：</span>
                 <div className="flex gap-2">
-                  {[10, 15, 20, 30, 50].map((num) => (
+                  {[5, 10, 15, 20, 25, 30, 40, 50].map((num) => (
                     <button
                       key={num}
                       onClick={() => handleLimitChange(num)}

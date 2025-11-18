@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useSession, signOut } from "next-auth/react"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useCart } from "@/hooks/useCart"
 
 export function Navbar() {
@@ -11,8 +11,25 @@ export function Navbar() {
   const { data: session, status } = useSession()
   const [showUserMenu, setShowUserMenu] = useState(false)
   const { itemCount } = useCart()
+  const [permissions, setPermissions] = useState<Record<string, string>>({})
 
   const isActive = (path: string) => pathname === path
+
+  // 获取用户权限
+  useEffect(() => {
+    if (session?.user) {
+      fetch('/api/auth/permissions')
+        .then(res => res.json())
+        .then(data => setPermissions(data.permissions || {}))
+        .catch(err => console.error('获取权限失败:', err))
+    }
+  }, [session])
+
+  // 检查是否有读或写权限
+  const hasPermission = (module: string) => {
+    const level = permissions[module]
+    return level === 'READ' || level === 'WRITE'
+  }
 
   const handleSignOut = async () => {
     await signOut({ callbackUrl: "/" })
@@ -83,6 +100,14 @@ export function Navbar() {
                     用户管理
                   </Link>
                 </>
+              )}
+              {(session?.user?.role === "ADMIN" || hasPermission('CUSTOMER_CHAT')) && (
+                <Link
+                  href="/backendmanager/chat"
+                  className={isActive("/backendmanager/chat") ? "px-3 py-2 rounded-md text-sm font-medium text-blue-600 bg-blue-50" : "px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50"}
+                >
+                  💬 客服聊天
+                </Link>
               )}
             </div>
           </div>

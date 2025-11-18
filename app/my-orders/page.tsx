@@ -41,6 +41,7 @@ export default function MyOrdersPage() {
   const [page, setPage] = useState(1)
   const [limit, setLimit] = useState(10) // 默认每页10条
   const [jumpToPage, setJumpToPage] = useState("")
+  const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set()) // 选中的订单ID
 
   useEffect(() => {
     loadOrders()
@@ -199,6 +200,123 @@ export default function MyOrdersPage() {
     }
   }
 
+  // 复选框选择功能
+  const toggleSelectOrder = (orderId: string) => {
+    const newSelected = new Set(selectedOrders)
+    if (newSelected.has(orderId)) {
+      newSelected.delete(orderId)
+    } else {
+      newSelected.add(orderId)
+    }
+    setSelectedOrders(newSelected)
+  }
+
+  const toggleSelectAll = () => {
+    if (selectedOrders.size === displayedOrders.length) {
+      setSelectedOrders(new Set())
+    } else {
+      setSelectedOrders(new Set(displayedOrders.map(o => o.id)))
+    }
+  }
+
+  // 导出为JSON
+  const exportToJSON = (orders: Order[], filename: string) => {
+    const dataStr = JSON.stringify(orders, null, 2)
+    const dataBlob = new Blob([dataStr], { type: "application/json" })
+    const url = URL.createObjectURL(dataBlob)
+    const link = document.createElement("a")
+    link.href = url
+    link.download = `${filename}.json`
+    link.click()
+    URL.revokeObjectURL(url)
+  }
+
+  // 导出为CSV
+  const exportToCSV = (orders: Order[], filename: string) => {
+    // CSV 表头
+    const headers = [
+      "订单号",
+      "订单状态",
+      "订单金额",
+      "商品名称",
+      "商品数量",
+      "商品单价",
+      "创建时间",
+      "过期时间"
+    ]
+
+    // 构建CSV内容
+    const rows = orders.flatMap(order =>
+      order.orderItems.map((item, index) => [
+        index === 0 ? order.orderNumber : "", // 只在第一行显示订单号
+        index === 0 ? getStatusText(order.status) : "",
+        index === 0 ? order.totalAmount.toFixed(2) : "",
+        item.product.title,
+        item.quantity,
+        item.price.toFixed(2),
+        index === 0 ? new Date(order.createdAt).toLocaleString("zh-CN") : "",
+        index === 0 ? (order.expiresAt ? new Date(order.expiresAt).toLocaleString("zh-CN") : "无") : ""
+      ])
+    )
+
+    // 组合CSV内容
+    const csvContent = [
+      headers.join(","),
+      ...rows.map(row => row.map(cell => `"${cell}"`).join(","))
+    ].join("\n")
+
+    // 添加BOM以支持中文
+    const BOM = "\uFEFF"
+    const dataBlob = new Blob([BOM + csvContent], { type: "text/csv;charset=utf-8;" })
+    const url = URL.createObjectURL(dataBlob)
+    const link = document.createElement("a")
+    link.href = url
+    link.download = `${filename}.csv`
+    link.click()
+    URL.revokeObjectURL(url)
+  }
+
+  // 导出单个订单
+  const exportSingleOrder = (order: Order, format: "json" | "csv") => {
+    const filename = `订单_${order.orderNumber}_${new Date().toISOString().split("T")[0]}`
+    if (format === "json") {
+      exportToJSON([order], filename)
+    } else {
+      exportToCSV([order], filename)
+    }
+  }
+
+  // 导出选中的订单
+  const exportSelectedOrders = (format: "json" | "csv") => {
+    const ordersToExport = allOrders.filter(order => selectedOrders.has(order.id))
+    if (ordersToExport.length === 0) {
+      alert("请先选择要导出的订单")
+      return
+    }
+    const filename = `订单导出_${ordersToExport.length}条_${new Date().toISOString().split("T")[0]}`
+    if (format === "json") {
+      exportToJSON(ordersToExport, filename)
+    } else {
+      exportToCSV(ordersToExport, filename)
+    }
+    // 导出后清除选择
+    setSelectedOrders(new Set())
+  }
+
+  // 导出全部订单
+  const exportAllOrders = (format: "json" | "csv") => {
+    if (allOrders.length === 0) {
+      alert("没有可导出的订单")
+      return
+    }
+    const filename = `全部订单_${allOrders.length}条_${new Date().toISOString().split("T")[0]}`
+    if (format === "json") {
+      exportToJSON(allOrders, filename)
+    } else {
+      exportToCSV(allOrders, filename)
+    }
+  }
+
   if (loading) {
     return (
       <div className="container mx-auto px-4 py-8">
@@ -291,12 +409,94 @@ export default function MyOrdersPage() {
         </div>
       ) : (
         <>
+          {/* 批量操作工具栏 */}
+          <div className="bg-white rounded-lg shadow border p-4 mb-6">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={selectedOrders.size === displayedOrders.length && displayedOrders.length > 0}
+                    onChange={toggleSelectAll}
+                    className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+                  />
+                  <span className="text-sm font-medium">全选本页</span>
+                </label>
+                {selectedOrders.size > 0 && (
+                  <span className="text-sm text-gray-600">
+                    已选择 {selectedOrders.size} 条订单
+                  </span>
+                )}
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                {/* 导出选中按钮 */}
+                {selectedOrders.size > 0 && (
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => exportSelectedOrders("csv")}
+                      className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm flex items-center gap-2"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                      导出选中 (CSV)
+                    </button>
+                    <button
+                      onClick={() => exportSelectedOrders("json")}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm flex items-center gap-2"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                      导出选中 (JSON)
+                    </button>
+                  </div>
+                )}
+
+                {/* 导出全部按钮 */}
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => exportAllOrders("csv")}
+                    className="px-4 py-2 border border-green-600 text-green-600 rounded-md hover:bg-green-50 text-sm flex items-center gap-2"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    导出全部 (CSV)
+                  </button>
+                  <button
+                    onClick={() => exportAllOrders("json")}
+                    className="px-4 py-2 border border-blue-600 text-blue-600 rounded-md hover:bg-blue-50 text-sm flex items-center gap-2"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    导出全部 (JSON)
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div className="space-y-4">
             {displayedOrders.map((order) => (
               <div
               key={order.id}
-              className="bg-white rounded-lg shadow border overflow-hidden"
+              className="bg-white rounded-lg shadow border overflow-hidden flex"
             >
+              {/* 复选框 */}
+              <div className="flex items-center justify-center p-4 bg-gray-50 border-r">
+                <input
+                  type="checkbox"
+                  checked={selectedOrders.has(order.id)}
+                  onChange={() => toggleSelectOrder(order.id)}
+                  className="w-5 h-5 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                />
+              </div>
+
+              {/* 订单内容 */}
+              <div className="flex-1">
               {/* 订单头部 */}
               <div className="bg-gray-50 px-6 py-3 border-b">
                 <div className="flex items-center justify-between mb-2">
@@ -372,18 +572,49 @@ export default function MyOrdersPage() {
               </div>
 
               {/* 订单底部 */}
-              <div className="bg-gray-50 px-6 py-4 border-t flex items-center justify-between">
+              <div className="bg-gray-50 px-6 py-4 border-t flex items-center justify-between flex-wrap gap-4">
                 <div className="text-sm text-gray-600">
                   共 {order.orderItems.reduce((sum, item) => sum + item.quantity, 0)} 件商品
                 </div>
-                <div className="flex items-center gap-6">
+                <div className="flex items-center gap-6 flex-wrap">
                   <div className="text-right">
                     <span className="text-sm text-gray-600 mr-2">订单总额:</span>
                     <span className="text-xl font-bold text-red-600">
                       ¥{order.totalAmount.toFixed(2)}
                     </span>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 flex-wrap">
+                    {/* 导出按钮 */}
+                    <div className="relative group">
+                      <button className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 flex items-center gap-2">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        导出
+                      </button>
+                      {/* 下拉菜单 */}
+                      <div className="absolute right-0 bottom-full mb-2 hidden group-hover:block bg-white shadow-lg rounded-md border z-10 min-w-[120px]">
+                        <button
+                          onClick={() => exportSingleOrder(order, "csv")}
+                          className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2"
+                        >
+                          <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          </svg>
+                          导出CSV
+                        </button>
+                        <button
+                          onClick={() => exportSingleOrder(order, "json")}
+                          className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2 border-t"
+                        >
+                          <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                          </svg>
+                          导出JSON
+                        </button>
+                      </div>
+                    </div>
+
                     {order.status === "pending" && (
                       <Link
                         href={`/payment/${order.id}`}
@@ -400,6 +631,7 @@ export default function MyOrdersPage() {
                     </Link>
                   </div>
                 </div>
+              </div>
               </div>
             </div>
             ))}

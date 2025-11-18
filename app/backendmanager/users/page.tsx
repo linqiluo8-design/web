@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 
 type PermissionModule =
   | 'CATEGORIES'
@@ -248,6 +249,13 @@ export default function UserManagementPage() {
   return (
     <div className="min-h-screen bg-gray-50 p-8">
       <div className="max-w-7xl mx-auto">
+        <Link
+          href="/backendmanager"
+          className="inline-flex items-center text-gray-600 hover:text-gray-900 mb-4"
+        >
+          <span className="mr-2">←</span>
+          返回后台管理
+        </Link>
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">用户管理</h1>
           <p className="text-gray-600">管理用户账号审核和权限设置</p>

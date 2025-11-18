@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 
 interface SystemConfig {
   key: string
@@ -182,6 +183,13 @@ export default function SettingsPage() {
 
   return (
     <div className="container mx-auto px-4 py-8">
+      <Link
+        href="/backendmanager"
+        className="inline-flex items-center text-gray-600 hover:text-gray-900 mb-4"
+      >
+        <span className="mr-2">←</span>
+        返回后台管理
+      </Link>
       <div className="flex items-center gap-3 mb-8">
         <h1 className="text-3xl font-bold">系统设置</h1>
         {userPermission === "READ" && (

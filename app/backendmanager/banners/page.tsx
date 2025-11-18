@@ -260,6 +260,13 @@ export default function BannersAdminPage() {
 
   return (
     <div className="container mx-auto px-4 py-8">
+      <Link
+        href="/backendmanager"
+        className="inline-flex items-center text-gray-600 hover:text-gray-900 mb-4"
+      >
+        <span className="mr-2">←</span>
+        返回后台管理
+      </Link>
       <div className="flex items-center justify-between mb-8">
         <div>
           <div className="flex items-center gap-3 mb-2">
@@ -269,11 +276,6 @@ export default function BannersAdminPage() {
                 只读模式
               </span>
             )}
-          </div>
-          <div className="flex gap-4 text-sm">
-            <Link href="/backendmanager" className="text-gray-600 hover:text-blue-600">
-              ← 返回商品管理
-            </Link>
           </div>
         </div>
         {userPermission === "WRITE" && (

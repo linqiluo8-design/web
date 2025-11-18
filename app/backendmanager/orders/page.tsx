@@ -381,16 +381,15 @@ export default function OrderManagementPage() {
 
   return (
     <div className="container mx-auto px-4 py-8">
+      <Link
+        href="/backendmanager"
+        className="inline-flex items-center text-gray-600 hover:text-gray-900 mb-4"
+      >
+        <span className="mr-2">←</span>
+        返回后台管理
+      </Link>
       <div className="mb-8">
-        <div className="flex items-center justify-between mb-4">
-          <h1 className="text-3xl font-bold">订单数据管理</h1>
-          <Link
-            href="/backendmanager"
-            className="text-gray-600 hover:text-blue-600"
-          >
-            ← 返回商品管理
-          </Link>
-        </div>
+        <h1 className="text-3xl font-bold mb-4">订单数据管理</h1>
       </div>
 
       {/* 订单统计 */}

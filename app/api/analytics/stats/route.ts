@@ -1,18 +1,12 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { requireAuth } from "@/lib/session"
+import { requireRead } from "@/lib/permissions"
 
-// 获取统计数据（管理员权限）
+// 获取统计数据（需要浏览量统计读权限）
 export async function GET(req: Request) {
   try {
-    // 验证管理员权限
-    const user = await requireAuth()
-    if (user.role !== "ADMIN") {
-      return NextResponse.json(
-        { error: "需要管理员权限" },
-        { status: 403 }
-      )
-    }
+    // 验证浏览量统计读权限
+    await requireRead("ANALYTICS")
 
     const { searchParams } = new URL(req.url)
     const startDate = searchParams.get("startDate")

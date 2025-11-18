@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 import {
   LineChart,
   Line,
@@ -82,7 +83,7 @@ export default function AnalyticsPage() {
 
       const res = await fetch("/api/auth/permissions")
       const data = await res.json()
-      const permission = data.permissions?.PRODUCTS || "NONE"
+      const permission = data.permissions?.ANALYTICS || "NONE"
 
       setUserPermission(permission)
 
@@ -221,6 +222,13 @@ export default function AnalyticsPage() {
 
   return (
     <div className="container mx-auto px-4 py-8">
+      <Link
+        href="/backendmanager"
+        className="inline-flex items-center text-gray-600 hover:text-gray-900 mb-4"
+      >
+        <span className="mr-2">←</span>
+        返回后台管理
+      </Link>
       {/* 页面标题 */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold mb-2">用户浏览量统计</h1>

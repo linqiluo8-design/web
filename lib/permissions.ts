@@ -16,6 +16,7 @@ export type PermissionModule =
   | 'CUSTOMER_CHAT'
   | 'USER_MANAGEMENT'
   | 'ORDER_LOOKUP'
+  | 'ANALYTICS'
 
 export type PermissionLevel = 'NONE' | 'READ' | 'WRITE'
 
@@ -190,6 +191,7 @@ function getModuleName(module: PermissionModule): string {
     CUSTOMER_CHAT: '客服聊天',
     USER_MANAGEMENT: '用户管理',
     ORDER_LOOKUP: '订单查询',
+    ANALYTICS: '浏览量统计',
   }
   return names[module] || module
 }

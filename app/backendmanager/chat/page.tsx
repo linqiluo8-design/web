@@ -174,14 +174,16 @@ export default function ChatAdminPage() {
 
   return (
     <div className="container mx-auto px-4 py-8">
+      <Link
+        href="/backendmanager"
+        className="inline-flex items-center text-gray-600 hover:text-gray-900 mb-4"
+      >
+        <span className="mr-2">←</span>
+        返回后台管理
+      </Link>
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-3xl font-bold mb-2">客服聊天管理</h1>
-          <div className="flex gap-4 text-sm">
-            <Link href="/backendmanager" className="text-gray-600 hover:text-blue-600">
-              ← 返回后台管理
-            </Link>
-          </div>
         </div>
         <div className="text-sm text-gray-600">
           {sessions.length} 个活跃会话

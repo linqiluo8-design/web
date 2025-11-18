@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 
 type PermissionModule =
   | 'CATEGORIES'
@@ -15,6 +16,7 @@ type PermissionModule =
   | 'CUSTOMER_CHAT'
   | 'USER_MANAGEMENT'
   | 'ORDER_LOOKUP'
+  | 'ANALYTICS'
 
 type PermissionLevel = 'NONE' | 'READ' | 'WRITE'
 
@@ -47,6 +49,7 @@ const MODULE_NAMES: Record<PermissionModule, string> = {
   CUSTOMER_CHAT: '客服聊天',
   USER_MANAGEMENT: '用户管理',
   ORDER_LOOKUP: '订单查询',
+  ANALYTICS: '浏览量统计',
 }
 
 const STATUS_NAMES: Record<string, string> = {
@@ -79,6 +82,7 @@ export default function UserManagementPage() {
     CUSTOMER_CHAT: 'NONE',
     USER_MANAGEMENT: 'NONE',
     ORDER_LOOKUP: 'NONE',
+    ANALYTICS: 'NONE',
   })
   const [userPermissions, setUserPermissions] = useState<Record<string, string>>({})
   const [hasAccess, setHasAccess] = useState(false)
@@ -117,8 +121,8 @@ export default function UserManagementPage() {
 
   const loadUsers = async () => {
     try {
-      const url = filter === 'all' ? '/api/backendmanager/users' : `/api/backendmanager/users?status=${filter}`
-      const response = await fetch(url)
+      // 始终加载所有用户，客户端进行筛选
+      const response = await fetch('/api/backendmanager/users')
       const data = await response.json()
 
       if (response.ok) {
@@ -191,6 +195,9 @@ export default function UserManagementPage() {
       SYSTEM_SETTINGS: 'NONE',
       SECURITY_ALERTS: 'NONE',
       CUSTOMER_CHAT: 'NONE',
+      USER_MANAGEMENT: 'NONE',
+      ORDER_LOOKUP: 'NONE',
+      ANALYTICS: 'NONE',
     }
 
     user.permissions.forEach((p) => {
@@ -228,9 +235,7 @@ export default function UserManagementPage() {
     }
   }
 
-  useEffect(() => {
-    loadUsers()
-  }, [filter])
+  // 不再需要在filter改变时重新加载，使用客户端筛选即可
 
   if (sessionStatus === 'loading' || loading) {
     return (
@@ -248,6 +253,13 @@ export default function UserManagementPage() {
   return (
     <div className="min-h-screen bg-gray-50 p-8">
       <div className="max-w-7xl mx-auto">
+        <Link
+          href="/backendmanager"
+          className="inline-flex items-center text-gray-600 hover:text-gray-900 mb-4"
+        >
+          <span className="mr-2">←</span>
+          返回后台管理
+        </Link>
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">用户管理</h1>
           <p className="text-gray-600">管理用户账号审核和权限设置</p>

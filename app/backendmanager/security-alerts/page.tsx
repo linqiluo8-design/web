@@ -314,6 +314,13 @@ export default function SecurityAlertsPage() {
 
   return (
     <div className="container mx-auto px-4 py-8">
+      <Link
+        href="/backendmanager"
+        className="inline-flex items-center text-gray-600 hover:text-gray-900 mb-4"
+      >
+        <span className="mr-2">←</span>
+        返回后台管理
+      </Link>
       <div className="flex items-center justify-between mb-8">
         <div>
           <div className="flex items-center gap-3 mb-2">
@@ -324,16 +331,13 @@ export default function SecurityAlertsPage() {
               </span>
             )}
           </div>
-          <div className="flex gap-4 text-sm">
-            <Link href="/backendmanager" className="text-gray-600 hover:text-blue-600">
-              ← 返回管理后台
-            </Link>
-            {unresolvedCount > 0 && (
+          {unresolvedCount > 0 && (
+            <div className="text-sm">
               <span className="text-red-600 font-semibold">
                 ⚠️ {unresolvedCount} 条未处理警报
               </span>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </div>
 

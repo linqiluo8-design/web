@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
+import { canWrite, canRead } from "@/lib/permissions"
 
 // POST /api/chat/messages - 发送聊天消息
 export async function POST(req: Request) {
@@ -32,14 +33,24 @@ export async function POST(req: Request) {
     let senderName: string | null = null
 
     if (senderType === "admin") {
-      // 验证管理员身份
+      // 验证管理员身份或客服聊天写权限
       const authSession = await getServerSession(authOptions)
-      if (!authSession || authSession.user.role !== "ADMIN") {
+      if (!authSession?.user?.id) {
         return NextResponse.json(
-          { error: "需要管理员权限" },
+          { error: "需要登录" },
+          { status: 401 }
+        )
+      }
+
+      // 检查是否有客服聊天写权限
+      const hasPermission = await canWrite('CUSTOMER_CHAT', authSession.user.id)
+      if (!hasPermission) {
+        return NextResponse.json(
+          { error: "需要客服聊天权限" },
           { status: 403 }
         )
       }
+
       senderId = authSession.user.id
       senderName = "客服"
     } else if (senderType === "visitor") {
@@ -88,12 +99,14 @@ export async function GET(req: Request) {
       )
     }
 
-    // 检查是否是管理员
+    // 检查是否有客服聊天权限
     const authSession = await getServerSession(authOptions)
-    const isAdmin = authSession?.user?.role === "ADMIN"
+    const hasPermission = authSession?.user?.id
+      ? await canRead('CUSTOMER_CHAT', authSession.user.id)
+      : false
 
     // 安全检查：验证访问权限
-    if (!isAdmin) {
+    if (!hasPermission) {
       // 非管理员用户需要验证是否是会话的所有者
       const chatSession = await prisma.chatSession.findUnique({
         where: { id: sessionId },
@@ -133,8 +146,8 @@ export async function GET(req: Request) {
     })
 
     // 标记对方消息为已读
-    if (isAdmin) {
-      // 管理员查看时，将访客的未读消息标记为已读
+    if (hasPermission) {
+      // 有权限的用户查看时，将访客的未读消息标记为已读
       await prisma.chatMessage.updateMany({
         where: {
           sessionId,

@@ -33,20 +33,41 @@ export default function ChatAdminPage() {
   const [newMessage, setNewMessage] = useState("")
   const [sending, setSending] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [hasPermission, setHasPermission] = useState(false)
+  const [permissionChecked, setPermissionChecked] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
+  // 检查权限
   useEffect(() => {
     if (status === "unauthenticated") {
       router.push("/auth/signin")
       return
     }
 
-    if (session?.user?.role !== "ADMIN") {
-      router.push("/")
-      return
-    }
+    if (session?.user) {
+      // 检查是否有客服聊天权限
+      fetch('/api/auth/permissions')
+        .then(res => res.json())
+        .then(data => {
+          const permissions = data.permissions || {}
+          const level = permissions['CUSTOMER_CHAT']
+          const hasAccess = data.role === 'ADMIN' || level === 'READ' || level === 'WRITE'
 
-    fetchSessions()
+          setHasPermission(hasAccess)
+          setPermissionChecked(true)
+
+          if (!hasAccess) {
+            router.push("/")
+          } else {
+            fetchSessions()
+          }
+        })
+        .catch(err => {
+          console.error('权限检查失败:', err)
+          setPermissionChecked(true)
+          router.push("/")
+        })
+    }
   }, [status, session, router])
 
   // 自动刷新会话列表
@@ -135,10 +156,18 @@ export default function ChatAdminPage() {
     }
   }
 
-  if (loading) {
+  if (loading || !permissionChecked) {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="text-center">加载中...</div>
+      </div>
+    )
+  }
+
+  if (!hasPermission) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="text-center text-red-600">您没有访问此页面的权限</div>
       </div>
     )
   }

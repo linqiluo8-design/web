@@ -65,6 +65,8 @@ enum PermissionModule {
   SYSTEM_SETTINGS  // 系统设置
   SECURITY_ALERTS  // 安全警报
   CUSTOMER_CHAT    // 客服聊天
+  USER_MANAGEMENT  // 用户管理
+  ORDER_LOOKUP     // 订单查询
 }
 
 enum PermissionLevel {

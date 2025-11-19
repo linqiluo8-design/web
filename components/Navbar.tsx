@@ -12,6 +12,7 @@ export function Navbar() {
   const [showUserMenu, setShowUserMenu] = useState(false)
   const { itemCount } = useCart()
   const [permissions, setPermissions] = useState<Record<string, string>>({})
+  const [isAnimating, setIsAnimating] = useState(false)
 
   const isActive = (path: string) => pathname === path
 
@@ -24,6 +25,15 @@ export function Navbar() {
         .catch(err => console.error('获取权限失败:', err))
     }
   }, [session])
+
+  // 购物车数量变化时触发动画
+  useEffect(() => {
+    if (itemCount > 0) {
+      setIsAnimating(true)
+      const timer = setTimeout(() => setIsAnimating(false), 300)
+      return () => clearTimeout(timer)
+    }
+  }, [itemCount])
 
   // 检查是否有读或写权限
   const hasPermission = (module: string) => {
@@ -64,8 +74,12 @@ export function Navbar() {
               >
                 购物车
                 {itemCount > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                    {itemCount}
+                  <span
+                    className={`absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center transition-transform ${
+                      isAnimating ? 'animate-bounce' : ''
+                    }`}
+                  >
+                    {itemCount > 99 ? '99+' : itemCount}
                   </span>
                 )}
               </Link>

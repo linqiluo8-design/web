@@ -228,6 +228,19 @@ export default function BackendManagerPage() {
           </Link>
         )}
 
+        {hasPermission('SYSTEM_LOGS') && (
+          <Link
+            href="/backendmanager/logs"
+            className="block p-6 bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg shadow hover:shadow-lg transition-shadow border border-gray-300 hover:border-gray-600"
+          >
+            <div className="flex items-center gap-3 mb-2">
+              <span className="text-2xl">📝</span>
+              <h2 className="text-xl font-bold text-gray-900">系统日志</h2>
+            </div>
+            <p className="text-gray-700 text-sm">查看和导出系统运行日志（支持实时查看、历史查看、精确到秒级筛选）</p>
+          </Link>
+        )}
+
         {hasPermission('CUSTOMER_CHAT') && (
           <Link
             href="/backendmanager/chat"

@@ -68,6 +68,7 @@ enum PermissionModule {
   USER_MANAGEMENT  // 用户管理
   ORDER_LOOKUP     // 订单查询
   ANALYTICS        // 浏览量统计
+  SYSTEM_LOGS      // 系统日志管理
 }
 
 enum PermissionLevel {
@@ -372,4 +373,29 @@ model ChatMessage {
 
   @@index([sessionId])
   @@index([createdAt])
+}
+
+// 系统日志模型（记录系统运行日志）
+model SystemLog {
+  id          String   @id @default(cuid())
+  level       String   // info, warn, error, debug
+  category    String   // api, auth, payment, system, security, database
+  action      String   // 操作名称，如 "order_created", "user_login", "payment_failed"
+  message     String   // 日志消息
+  userId      String?  // 相关用户ID（如果有）
+  ipAddress   String?  // IP地址
+  userAgent   String?  // User Agent
+  path        String?  // API路径或页面路径
+  method      String?  // HTTP方法：GET, POST, PUT, DELETE
+  statusCode  Int?     // HTTP状态码
+  duration    Int?     // 请求处理时长（毫秒）
+  metadata    String?  // JSON字符串，存储额外数据
+  error       String?  // 错误堆栈信息（仅error级别）
+  createdAt   DateTime @default(now())
+
+  @@index([level])
+  @@index([category])
+  @@index([action])
+  @@index([createdAt])
+  @@index([userId])
 }

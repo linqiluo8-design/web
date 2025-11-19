@@ -7,6 +7,24 @@ import Link from "next/link"
 import AdvancedFilter, { type FilterGroup } from "@/components/AdvancedFilter"
 import { getVisitorId } from "@/lib/visitor-id"
 
+const ORDER_STORAGE_KEY = "my_orders"
+
+// 从 localStorage 读取订单号列表
+function getOrderNumbersFromStorage(): string[] {
+  if (typeof window === 'undefined') return []
+
+  try {
+    const stored = localStorage.getItem(ORDER_STORAGE_KEY)
+    if (!stored) return []
+
+    const orders = JSON.parse(stored)
+    return orders.map((order: any) => order.orderNumber).filter(Boolean)
+  } catch (error) {
+    console.error('读取订单号失败:', error)
+    return []
+  }
+}
+
 interface OrderStats {
   total: number
   pending: number
@@ -179,7 +197,14 @@ export default function OrderManagementPage() {
   const loadExportInfo = async () => {
     try {
       const visitorId = getVisitorId()
-      const response = await fetch(`/api/orders/export-info?visitorId=${visitorId}`)
+      const orderNumbers = getOrderNumbersFromStorage()
+
+      const params = new URLSearchParams({
+        visitorId,
+        orderNumbers: orderNumbers.join(',')
+      })
+
+      const response = await fetch(`/api/orders/export-info?${params}`)
 
       if (response.ok) {
         const data = await response.json()
@@ -313,9 +338,11 @@ export default function OrderManagementPage() {
         format: exportFormat,
       })
 
-      // 添加访客ID（用于导出限制）
+      // 添加访客ID和订单号列表（用于导出限制）
       const visitorId = getVisitorId()
+      const orderNumbers = getOrderNumbersFromStorage()
       params.append("visitorId", visitorId)
+      params.append("orderNumbers", orderNumbers.join(','))
 
       // 使用高级筛选
       if (useAdvancedFilter && advancedFilter.conditions.length > 0) {

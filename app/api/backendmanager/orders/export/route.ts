@@ -65,8 +65,12 @@ export async function GET(req: Request) {
     // 获取访客ID（用于匿名用户限制）
     const visitorId = searchParams.get("visitorId") || undefined
 
+    // 获取订单号列表（从 localStorage 读取）
+    const orderNumbersParam = searchParams.get("orderNumbers")
+    const orderNumbers = orderNumbersParam ? orderNumbersParam.split(',').filter(Boolean) : undefined
+
     // 检查导出限制
-    const limitResult = await checkOrderExportLimit(visitorId)
+    const limitResult = await checkOrderExportLimit(visitorId, orderNumbers)
 
     if (!limitResult.allowed) {
       return NextResponse.json(

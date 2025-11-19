@@ -10,8 +10,12 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url)
     const visitorId = searchParams.get("visitorId") || undefined
 
+    // 获取订单号列表
+    const orderNumbersParam = searchParams.get("orderNumbers")
+    const orderNumbers = orderNumbersParam ? orderNumbersParam.split(',').filter(Boolean) : undefined
+
     // 检查导出限制
-    const limitResult = await checkOrderExportLimit(visitorId)
+    const limitResult = await checkOrderExportLimit(visitorId, orderNumbers)
 
     return NextResponse.json({
       allowed: limitResult.allowed,

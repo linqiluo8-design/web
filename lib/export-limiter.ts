@@ -25,10 +25,12 @@ export interface ExportLimitResult {
  * - 非已支付订单不允许匿名用户导出
  *
  * @param visitorId 访客ID（用于识别匿名用户）
+ * @param orderNumbers 用户的订单号列表（从 localStorage 读取）
  * @returns 导出限制结果
  */
 export async function checkOrderExportLimit(
-  visitorId?: string
+  visitorId?: string,
+  orderNumbers?: string[]
 ): Promise<ExportLimitResult> {
   try {
     // 检查是否为已登录用户
@@ -61,11 +63,25 @@ export async function checkOrderExportLimit(
       }
     }
 
-    // 1. 查询匿名用户的已支付订单数
+    // 匿名用户需要提供订单号列表
+    if (!orderNumbers || orderNumbers.length === 0) {
+      return {
+        allowed: false,
+        reason: '您还没有订单，无法导出订单数据',
+        paidOrderCount: 0,
+        usedExports: 0,
+        remainingExports: 0,
+        totalAllowed: 0
+      }
+    }
+
+    // 1. 查询用户的订单中有多少是已支付的
     const paidOrderCount = await prisma.order.count({
       where: {
-        userId: null, // 匿名订单
-        status: 'paid' // 已支付
+        orderNumber: {
+          in: orderNumbers
+        },
+        status: 'paid' // 只计算已支付订单
       }
     })
 

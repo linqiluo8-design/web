@@ -36,7 +36,7 @@ export default function SystemLogsPage() {
   const [logs, setLogs] = useState<SystemLog[]>([])
   const [pagination, setPagination] = useState<Pagination>({
     page: 1,
-    limit: 50,
+    limit: 5,
     total: 0,
     totalPages: 0
   })
@@ -269,7 +269,7 @@ export default function SystemLogsPage() {
         </div>
 
         {/* 操作按钮 */}
-        <div className="flex flex-wrap gap-3">
+        <div className="flex flex-wrap gap-3 items-center">
           <button
             onClick={loadLogs}
             disabled={loading}
@@ -291,6 +291,23 @@ export default function SystemLogsPage() {
           >
             导出 JSON
           </button>
+
+          <div className="flex items-center gap-2">
+            <label className="text-sm text-gray-700">每页显示:</label>
+            <select
+              value={pagination.limit}
+              onChange={(e) => setPagination({ ...pagination, limit: Number(e.target.value), page: 1 })}
+              className="px-3 py-2 border rounded-lg text-sm"
+            >
+              <option value={5}>5 条</option>
+              <option value={10}>10 条</option>
+              <option value={15}>15 条</option>
+              <option value={20}>20 条</option>
+              <option value={25}>25 条</option>
+              <option value={50}>50 条</option>
+              <option value={100}>100 条</option>
+            </select>
+          </div>
 
           <div className="flex items-center gap-2">
             <label className="flex items-center gap-2 cursor-pointer">
@@ -373,25 +390,147 @@ export default function SystemLogsPage() {
         </div>
 
         {/* 分页 */}
-        <div className="px-6 py-4 border-t flex items-center justify-between">
-          <div className="text-sm text-gray-700">
-            共 {pagination.total} 条日志，第 {pagination.page} / {pagination.totalPages} 页
-          </div>
-          <div className="flex gap-2">
-            <button
-              onClick={() => setPagination({ ...pagination, page: pagination.page - 1 })}
-              disabled={pagination.page === 1}
-              className="px-4 py-2 border rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
-            >
-              上一页
-            </button>
-            <button
-              onClick={() => setPagination({ ...pagination, page: pagination.page + 1 })}
-              disabled={pagination.page === pagination.totalPages}
-              className="px-4 py-2 border rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
-            >
-              下一页
-            </button>
+        <div className="px-6 py-4 border-t">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+            {/* 分页信息 */}
+            <div className="text-sm text-gray-700">
+              共 {pagination.total} 条日志，第 {pagination.page} / {pagination.totalPages || 1} 页
+              {pagination.total > 0 && (
+                <span className="ml-2 text-gray-500">
+                  (显示第 {(pagination.page - 1) * pagination.limit + 1} - {Math.min(pagination.page * pagination.limit, pagination.total)} 条)
+                </span>
+              )}
+            </div>
+
+            {/* 分页控件 */}
+            <div className="flex items-center gap-2">
+              {/* 首页 */}
+              <button
+                onClick={() => setPagination({ ...pagination, page: 1 })}
+                disabled={pagination.page === 1}
+                className="px-3 py-2 border rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 text-sm"
+                title="首页"
+              >
+                首页
+              </button>
+
+              {/* 上一页 */}
+              <button
+                onClick={() => setPagination({ ...pagination, page: pagination.page - 1 })}
+                disabled={pagination.page === 1}
+                className="px-3 py-2 border rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 text-sm"
+                title="上一页"
+              >
+                上一页
+              </button>
+
+              {/* 页码显示 */}
+              <div className="flex items-center gap-1">
+                {/* 如果总页数较少，显示所有页码 */}
+                {pagination.totalPages <= 7 ? (
+                  Array.from({ length: pagination.totalPages }, (_, i) => i + 1).map((pageNum) => (
+                    <button
+                      key={pageNum}
+                      onClick={() => setPagination({ ...pagination, page: pageNum })}
+                      className={`px-3 py-2 border rounded-lg text-sm ${
+                        pagination.page === pageNum
+                          ? 'bg-blue-600 text-white border-blue-600'
+                          : 'hover:bg-gray-50'
+                      }`}
+                    >
+                      {pageNum}
+                    </button>
+                  ))
+                ) : (
+                  /* 如果总页数较多，只显示部分页码 */
+                  <>
+                    {pagination.page > 3 && (
+                      <>
+                        <button
+                          onClick={() => setPagination({ ...pagination, page: 1 })}
+                          className="px-3 py-2 border rounded-lg text-sm hover:bg-gray-50"
+                        >
+                          1
+                        </button>
+                        {pagination.page > 4 && <span className="px-2">...</span>}
+                      </>
+                    )}
+
+                    {[...Array(5)].map((_, i) => {
+                      const pageNum = pagination.page - 2 + i
+                      if (pageNum < 1 || pageNum > pagination.totalPages) return null
+                      return (
+                        <button
+                          key={pageNum}
+                          onClick={() => setPagination({ ...pagination, page: pageNum })}
+                          className={`px-3 py-2 border rounded-lg text-sm ${
+                            pagination.page === pageNum
+                              ? 'bg-blue-600 text-white border-blue-600'
+                              : 'hover:bg-gray-50'
+                          }`}
+                        >
+                          {pageNum}
+                        </button>
+                      )
+                    })}
+
+                    {pagination.page < pagination.totalPages - 2 && (
+                      <>
+                        {pagination.page < pagination.totalPages - 3 && <span className="px-2">...</span>}
+                        <button
+                          onClick={() => setPagination({ ...pagination, page: pagination.totalPages })}
+                          className="px-3 py-2 border rounded-lg text-sm hover:bg-gray-50"
+                        >
+                          {pagination.totalPages}
+                        </button>
+                      </>
+                    )}
+                  </>
+                )}
+              </div>
+
+              {/* 下一页 */}
+              <button
+                onClick={() => setPagination({ ...pagination, page: pagination.page + 1 })}
+                disabled={pagination.page === pagination.totalPages || pagination.totalPages === 0}
+                className="px-3 py-2 border rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 text-sm"
+                title="下一页"
+              >
+                下一页
+              </button>
+
+              {/* 末页 */}
+              <button
+                onClick={() => setPagination({ ...pagination, page: pagination.totalPages })}
+                disabled={pagination.page === pagination.totalPages || pagination.totalPages === 0}
+                className="px-3 py-2 border rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 text-sm"
+                title="末页"
+              >
+                末页
+              </button>
+
+              {/* 跳转到指定页 */}
+              <div className="flex items-center gap-2 ml-2">
+                <span className="text-sm text-gray-600">跳转到</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={pagination.totalPages}
+                  placeholder="页码"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      const value = parseInt(e.currentTarget.value)
+                      if (value >= 1 && value <= pagination.totalPages) {
+                        setPagination({ ...pagination, page: value })
+                        e.currentTarget.value = ''
+                      }
+                    }
+                  }}
+                  className="w-16 px-2 py-1 border rounded text-sm text-center"
+                />
+                <span className="text-sm text-gray-600">页</span>
+              </div>
+            </div>
           </div>
         </div>
       </div>

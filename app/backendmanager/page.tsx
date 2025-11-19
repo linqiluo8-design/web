@@ -137,6 +137,19 @@ export default function BackendManagerPage() {
           </Link>
         )}
 
+        {(hasPermission('ORDERS') || hasPermission('MEMBERSHIPS')) && (
+          <Link
+            href="/backendmanager/order-statistics"
+            className="block p-6 bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg shadow hover:shadow-lg transition-shadow border border-purple-200 hover:border-purple-500"
+          >
+            <div className="flex items-center gap-3 mb-2">
+              <span className="text-2xl">📈</span>
+              <h2 className="text-xl font-bold text-purple-900">订单统计分析</h2>
+            </div>
+            <p className="text-purple-700 text-sm">多维度订单统计图表（按小时/日/月/年）</p>
+          </Link>
+        )}
+
         {hasPermission('ANALYTICS') && (
           <Link
             href="/backendmanager/analytics"

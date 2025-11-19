@@ -33,6 +33,7 @@ export default function CartPage() {
   const [verifying, setVerifying] = useState(false)
   const [membershipError, setMembershipError] = useState<string | null>(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null)
+  const [isCheckingOut, setIsCheckingOut] = useState(false)
 
   const handleRemoveItem = (productId: string) => {
     removeFromCart(productId)
@@ -111,6 +112,9 @@ export default function CartPage() {
       return
     }
 
+    // 设置结算状态，防止页面闪现"购物车为空"
+    setIsCheckingOut(true)
+
     try {
       const orderData: any = {
         items: cart.map(item => ({
@@ -133,6 +137,7 @@ export default function CartPage() {
 
       if (!res.ok) {
         const error = await res.json()
+        setIsCheckingOut(false) // 创建订单失败，恢复正常状态
         throw new Error(error.error || "创建订单失败")
       }
 
@@ -160,14 +165,17 @@ export default function CartPage() {
         console.error("保存订单记录失败:", error)
       }
 
-      // 跳转到支付页面（产品思维：不要立即弹出订单号，而是引导用户完成支付）
+      // 先清空购物车（在跳转前）
+      clearCart()
+
+      // 再跳转到支付页面
+      // 由于已经设置了 isCheckingOut=true，即使购物车为空也不会显示空状态
       router.push(`/payment/${data.order.id}`)
 
-      // 延迟清空购物车，避免在页面跳转前闪现"购物车为空"
-      setTimeout(() => {
-        clearCart()
-      }, 100)
+      // 注意：不需要重置 isCheckingOut，因为页面即将跳转
+      // 如果跳转失败，用户刷新页面也会恢复正常状态
     } catch (err) {
+      setIsCheckingOut(false) // 出错时恢复正常状态
       showToast(err instanceof Error ? err.message : "创建订单失败", "error")
     }
   }
@@ -184,7 +192,14 @@ export default function CartPage() {
     <div className="container mx-auto px-4 py-8">
       <h1 className="text-3xl font-bold mb-8">购物车</h1>
 
-      {cart.length === 0 ? (
+      {/* 结算中状态：显示处理中提示，避免闪现"购物车为空" */}
+      {isCheckingOut ? (
+        <div className="text-center py-12">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
+          <p className="text-gray-700 text-lg font-medium">正在处理订单...</p>
+          <p className="text-gray-500 text-sm mt-2">请稍候，即将跳转到支付页面</p>
+        </div>
+      ) : cart.length === 0 ? (
         <div className="text-center py-12">
           <p className="text-gray-500 mb-4">购物车是空的</p>
           <Link
@@ -397,9 +412,13 @@ export default function CartPage() {
 
               <button
                 onClick={checkout}
-                className="w-full py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-medium transition-colors"
+                disabled={isCheckingOut}
+                className="w-full py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-medium transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
-                去结算
+                {isCheckingOut && (
+                  <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                )}
+                {isCheckingOut ? "处理中..." : "去结算"}
               </button>
 
               <Link

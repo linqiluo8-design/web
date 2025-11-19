@@ -308,11 +308,11 @@ export default function MembershipRecordsPage() {
       window.URL.revokeObjectURL(url)
       document.body.removeChild(a)
 
-      alert("✓ 导出成功")
-    } catch (err) {
-      alert(err instanceof Error ? err.message : "导出失败")
-    } finally {
+      // 文件下载成功，立即取消 loading 状态（不使用阻塞的 alert）
       setExportLoading(false)
+    } catch (err) {
+      setExportLoading(false)
+      alert(err instanceof Error ? err.message : "导出失败")
     }
   }
 

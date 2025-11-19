@@ -66,10 +66,12 @@ export function buildWhereClause(filterGroup: FilterGroup): any {
 
     // 如果是日期字段且值是字符串，转换为 Date 对象
     let processedValue = value
+    let isDateString = false
     if (isDateField && typeof value === 'string' && value) {
       // 检查是否是日期格式的字符串（YYYY-MM-DD 或 ISO格式）
       if (/^\d{4}-\d{2}-\d{2}/.test(value)) {
         processedValue = new Date(value)
+        isDateString = true
 
         // 对于 lt 和 lte 操作符，设置为当天结束时间（23:59:59.999）
         // 这样 "小于 2025-11-20" 就会匹配到 2025-11-19 的所有数据
@@ -90,7 +92,20 @@ export function buildWhereClause(filterGroup: FilterGroup): any {
 
     switch (operator) {
       case 'equals':
-        conditionValue = processedValue
+        // 对于日期字段的 equals 操作符，转换为日期范围查询
+        // 例如：createdAt 等于 2025-11-19 => createdAt >= 2025-11-19 00:00:00 AND createdAt <= 2025-11-19 23:59:59
+        if (isDateField && isDateString && processedValue instanceof Date) {
+          const startOfDay = new Date(processedValue)
+          startOfDay.setHours(0, 0, 0, 0)
+          const endOfDay = new Date(processedValue)
+          endOfDay.setHours(23, 59, 59, 999)
+          conditionValue = {
+            gte: startOfDay,
+            lte: endOfDay
+          }
+        } else {
+          conditionValue = processedValue
+        }
         break
       case 'not':
         conditionValue = { not: processedValue }

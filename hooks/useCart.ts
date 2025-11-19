@@ -11,13 +11,14 @@ export interface CartItem {
 }
 
 const CART_STORAGE_KEY = "shopping_cart"
+const CART_UPDATE_EVENT = "cart-updated"
 
 export function useCart() {
   const [cart, setCart] = useState<CartItem[]>([])
   const [isLoaded, setIsLoaded] = useState(false)
 
   // 从localStorage加载购物车
-  useEffect(() => {
+  const loadCart = () => {
     const stored = localStorage.getItem(CART_STORAGE_KEY)
     if (stored) {
       try {
@@ -26,14 +27,37 @@ export function useCart() {
         console.error("Failed to parse cart:", e)
         localStorage.removeItem(CART_STORAGE_KEY)
       }
+    } else {
+      setCart([])
     }
+  }
+
+  // 初始加载
+  useEffect(() => {
+    loadCart()
     setIsLoaded(true)
   }, [])
 
-  // 保存到localStorage
+  // 监听购物车更新事件（实时同步所有组件）
+  useEffect(() => {
+    const handleCartUpdate = () => {
+      loadCart()
+    }
+
+    window.addEventListener(CART_UPDATE_EVENT, handleCartUpdate)
+
+    return () => {
+      window.removeEventListener(CART_UPDATE_EVENT, handleCartUpdate)
+    }
+  }, [])
+
+  // 保存到localStorage并触发更新事件
   const saveCart = (newCart: CartItem[]) => {
     setCart(newCart)
     localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(newCart))
+
+    // 触发自定义事件，通知所有组件购物车已更新
+    window.dispatchEvent(new CustomEvent(CART_UPDATE_EVENT))
   }
 
   // 添加商品到购物车

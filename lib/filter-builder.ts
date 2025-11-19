@@ -59,45 +59,86 @@ export function buildWhereClause(filterGroup: FilterGroup): any {
       return { [parts[0]]: buildNestedObj(parts.slice(1), val) }
     }
 
+    // 智能转换日期字段值
+    // 检测是否为日期字段（常见的日期字段名）
+    const dateFields = ['createdAt', 'updatedAt', 'startDate', 'endDate', 'expiresAt', 'date']
+    const isDateField = dateFields.some(df => field.toLowerCase().includes(df.toLowerCase()))
+
+    // 如果是日期字段且值是字符串，转换为 Date 对象
+    let processedValue = value
+    let isDateString = false
+    if (isDateField && typeof value === 'string' && value) {
+      // 检查是否是日期格式的字符串（YYYY-MM-DD 或 ISO格式）
+      if (/^\d{4}-\d{2}-\d{2}/.test(value)) {
+        processedValue = new Date(value)
+        isDateString = true
+
+        // 对于 lt 和 lte 操作符，设置为当天结束时间（23:59:59.999）
+        // 这样 "小于 2025-11-20" 就会匹配到 2025-11-19 的所有数据
+        if (operator === 'lt' || operator === 'lte') {
+          if (operator === 'lt') {
+            // lt: 小于当天开始时间，等同于 lte 前一天结束时间
+            // 保持默认的 00:00:00 即可
+          } else {
+            // lte: 小于等于当天，设置为当天结束时间
+            processedValue.setHours(23, 59, 59, 999)
+          }
+        }
+      }
+    }
+
     // 根据操作符构建条件值
     let conditionValue: any
 
     switch (operator) {
       case 'equals':
-        conditionValue = value
+        // 对于日期字段的 equals 操作符，转换为日期范围查询
+        // 例如：createdAt 等于 2025-11-19 => createdAt >= 2025-11-19 00:00:00 AND createdAt <= 2025-11-19 23:59:59
+        if (isDateField && isDateString && processedValue instanceof Date) {
+          const startOfDay = new Date(processedValue)
+          startOfDay.setHours(0, 0, 0, 0)
+          const endOfDay = new Date(processedValue)
+          endOfDay.setHours(23, 59, 59, 999)
+          conditionValue = {
+            gte: startOfDay,
+            lte: endOfDay
+          }
+        } else {
+          conditionValue = processedValue
+        }
         break
       case 'not':
-        conditionValue = { not: value }
+        conditionValue = { not: processedValue }
         break
       case 'gt':
-        conditionValue = { gt: value }
+        conditionValue = { gt: processedValue }
         break
       case 'gte':
-        conditionValue = { gte: value }
+        conditionValue = { gte: processedValue }
         break
       case 'lt':
-        conditionValue = { lt: value }
+        conditionValue = { lt: processedValue }
         break
       case 'lte':
-        conditionValue = { lte: value }
+        conditionValue = { lte: processedValue }
         break
       case 'contains':
-        conditionValue = { contains: value, mode: 'insensitive' }
+        conditionValue = { contains: processedValue, mode: 'insensitive' }
         break
       case 'startsWith':
-        conditionValue = { startsWith: value, mode: 'insensitive' }
+        conditionValue = { startsWith: processedValue, mode: 'insensitive' }
         break
       case 'endsWith':
-        conditionValue = { endsWith: value, mode: 'insensitive' }
+        conditionValue = { endsWith: processedValue, mode: 'insensitive' }
         break
       case 'in':
-        conditionValue = { in: Array.isArray(value) ? value : [value] }
+        conditionValue = { in: Array.isArray(processedValue) ? processedValue : [processedValue] }
         break
       case 'notIn':
-        conditionValue = { notIn: Array.isArray(value) ? value : [value] }
+        conditionValue = { notIn: Array.isArray(processedValue) ? processedValue : [processedValue] }
         break
       default:
-        conditionValue = value
+        conditionValue = processedValue
     }
 
     whereObj = buildNestedObj(fieldParts, conditionValue)

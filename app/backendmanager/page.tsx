@@ -137,6 +137,19 @@ export default function BackendManagerPage() {
           </Link>
         )}
 
+        {(hasPermission('ORDERS') || hasPermission('MEMBERSHIPS')) && (
+          <Link
+            href="/backendmanager/order-statistics"
+            className="block p-6 bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg shadow hover:shadow-lg transition-shadow border border-purple-200 hover:border-purple-500"
+          >
+            <div className="flex items-center gap-3 mb-2">
+              <span className="text-2xl">📈</span>
+              <h2 className="text-xl font-bold text-purple-900">订单统计分析</h2>
+            </div>
+            <p className="text-purple-700 text-sm">多维度订单统计图表（按小时/日/月/年）</p>
+          </Link>
+        )}
+
         {hasPermission('ANALYTICS') && (
           <Link
             href="/backendmanager/analytics"
@@ -212,6 +225,19 @@ export default function BackendManagerPage() {
               <h2 className="text-xl font-bold text-red-900">安全警报</h2>
             </div>
             <p className="text-red-700 text-sm">查看和处理安全警报</p>
+          </Link>
+        )}
+
+        {hasPermission('SYSTEM_LOGS') && (
+          <Link
+            href="/backendmanager/logs"
+            className="block p-6 bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg shadow hover:shadow-lg transition-shadow border border-gray-300 hover:border-gray-600"
+          >
+            <div className="flex items-center gap-3 mb-2">
+              <span className="text-2xl">📝</span>
+              <h2 className="text-xl font-bold text-gray-900">系统日志</h2>
+            </div>
+            <p className="text-gray-700 text-sm">查看和导出系统运行日志（支持实时查看、历史查看、精确到秒级筛选）</p>
           </Link>
         )}
 

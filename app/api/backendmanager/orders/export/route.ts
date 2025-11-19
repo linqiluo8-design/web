@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { requireRead } from "@/lib/permissions"
 import { buildWhereClause, type FilterGroup } from "@/lib/filter-builder"
+import { checkOrderExportLimit, recordOrderExport } from "@/lib/export-limiter"
+import { getServerSession } from "next-auth"
+import { authOptions } from "@/app/api/auth/[...nextauth]/options"
 
 // 将订单数据转换为CSV格式
 function convertToCSV(orders: any[]): string {
@@ -58,10 +60,26 @@ function convertToCSV(orders: any[]): string {
 // 导出订单数据
 export async function GET(req: Request) {
   try {
-    // 验证订单管理的读权限
-    await requireRead('ORDERS')
-
     const { searchParams } = new URL(req.url)
+
+    // 获取访客ID（用于匿名用户限制）
+    const visitorId = searchParams.get("visitorId") || undefined
+
+    // 检查导出限制
+    const limitResult = await checkOrderExportLimit(visitorId)
+
+    if (!limitResult.allowed) {
+      return NextResponse.json(
+        {
+          error: limitResult.reason || "不允许导出",
+          paidOrderCount: limitResult.paidOrderCount,
+          usedExports: limitResult.usedExports,
+          remainingExports: limitResult.remainingExports,
+          totalAllowed: limitResult.totalAllowed
+        },
+        { status: 403 }
+      )
+    }
 
     // 导出参数
     const format = searchParams.get("format") || "csv" // csv 或 json
@@ -163,6 +181,12 @@ export async function GET(req: Request) {
         }
       },
       orderBy: { createdAt: "desc" }
+    })
+
+    // 记录导出操作（异步，不阻塞响应）
+    const session = await getServerSession(authOptions)
+    recordOrderExport(visitorId, session?.user?.id).catch(err => {
+      console.error('记录导出操作失败:', err)
     })
 
     // 根据格式返回数据

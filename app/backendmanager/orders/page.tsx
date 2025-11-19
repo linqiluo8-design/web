@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import AdvancedFilter, { type FilterGroup } from "@/components/AdvancedFilter"
+import { getVisitorId } from "@/lib/visitor-id"
 
 interface OrderStats {
   total: number
@@ -78,6 +79,14 @@ export default function OrderManagementPage() {
   const [exportFormat, setExportFormat] = useState("csv")
   const [exportStartDate, setExportStartDate] = useState("")
   const [exportEndDate, setExportEndDate] = useState("")
+
+  // 导出限制信息（匿名用户）
+  const [exportInfo, setExportInfo] = useState<{
+    paidOrderCount: number
+    usedExports: number
+    remainingExports: number
+    totalAllowed: number
+  } | null>(null)
   const [exportStatus, setExportStatus] = useState("all")
   const [exportType, setExportType] = useState<"custom" | "month">("month")
   const [customDays, setCustomDays] = useState(30)
@@ -146,6 +155,7 @@ export default function OrderManagementPage() {
   const initializePage = () => {
     fetchStats()
     fetchOrders()
+    loadExportInfo() // 加载导出限制信息
 
     // 自动设置默认的日期范围（当月）
     const now = new Date()
@@ -164,6 +174,26 @@ export default function OrderManagementPage() {
       fetchOrders()
     }
   }, [pagination.page, pagination.limit, statusFilter, userPermission])
+
+  // 加载导出限制信息（针对匿名用户）
+  const loadExportInfo = async () => {
+    try {
+      const visitorId = getVisitorId()
+      const response = await fetch(`/api/orders/export-info?visitorId=${visitorId}`)
+
+      if (response.ok) {
+        const data = await response.json()
+        setExportInfo({
+          paidOrderCount: data.paidOrderCount || 0,
+          usedExports: data.usedExports || 0,
+          remainingExports: data.remainingExports || 0,
+          totalAllowed: data.totalAllowed || 0
+        })
+      }
+    } catch (err) {
+      console.error("获取导出信息失败:", err)
+    }
+  }
 
   const fetchStats = async () => {
     try {
@@ -283,6 +313,10 @@ export default function OrderManagementPage() {
         format: exportFormat,
       })
 
+      // 添加访客ID（用于导出限制）
+      const visitorId = getVisitorId()
+      params.append("visitorId", visitorId)
+
       // 使用高级筛选
       if (useAdvancedFilter && advancedFilter.conditions.length > 0) {
         params.append("filters", JSON.stringify(advancedFilter))
@@ -317,7 +351,25 @@ export default function OrderManagementPage() {
       const response = await fetch(`/api/backendmanager/orders/export?${params}`)
 
       if (!response.ok) {
-        throw new Error("导出失败")
+        // 处理导出限制错误
+        const errorData = await response.json().catch(() => ({ error: "导出失败" }))
+
+        if (response.status === 403 && errorData.remainingExports !== undefined) {
+          alert(
+            `导出次数已用完\n\n` +
+            `已支付订单数：${errorData.paidOrderCount}\n` +
+            `今日已导出：${errorData.usedExports} 次\n` +
+            `剩余次数：${errorData.remainingExports} 次\n` +
+            `总允许次数：${errorData.totalAllowed} 次\n\n` +
+            `提示：${errorData.error}`
+          )
+          // 更新导出信息
+          loadExportInfo()
+          setLoading(false)
+          return
+        }
+
+        throw new Error(errorData.error || "导出失败")
       }
 
       const blob = await response.blob()
@@ -337,11 +389,14 @@ export default function OrderManagementPage() {
         status: exportStatus
       })
 
-      alert("✓ 导出成功")
-    } catch (err) {
-      alert(err instanceof Error ? err.message : "导出失败")
-    } finally {
+      // 导出成功后重新加载导出信息（更新剩余次数）
+      loadExportInfo()
+
+      // 文件下载成功，立即取消 loading 状态（不使用阻塞的 alert）
       setLoading(false)
+    } catch (err) {
+      setLoading(false)
+      alert(err instanceof Error ? err.message : "导出失败")
     }
   }
 
@@ -707,6 +762,48 @@ export default function OrderManagementPage() {
             </button>
           </div>
         </div>
+
+        {/* 导出限制提示（针对匿名用户和非管理员） */}
+        {exportInfo && exportInfo.totalAllowed > 0 && userPermission !== "WRITE" && session?.user?.role !== "ADMIN" && (
+          <div className={`mb-4 p-4 rounded-lg border ${
+            exportInfo.remainingExports > 0
+              ? 'bg-blue-50 border-blue-200'
+              : 'bg-red-50 border-red-200'
+          }`}>
+            <div className="flex items-start gap-3">
+              <div className="flex-shrink-0">
+                {exportInfo.remainingExports > 0 ? (
+                  <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                ) : (
+                  <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                )}
+              </div>
+              <div className="flex-1">
+                <h3 className={`font-medium ${exportInfo.remainingExports > 0 ? 'text-blue-900' : 'text-red-900'}`}>
+                  导出次数限制
+                </h3>
+                <div className="mt-2 text-sm space-y-1">
+                  <p className={exportInfo.remainingExports > 0 ? 'text-blue-700' : 'text-red-700'}>
+                    • 已支付订单数：<span className="font-semibold">{exportInfo.paidOrderCount}</span> 个
+                  </p>
+                  <p className={exportInfo.remainingExports > 0 ? 'text-blue-700' : 'text-red-700'}>
+                    • 今日已导出：<span className="font-semibold">{exportInfo.usedExports}</span> 次
+                  </p>
+                  <p className={exportInfo.remainingExports > 0 ? 'text-blue-700' : 'text-red-700'}>
+                    • 剩余次数：<span className="font-semibold">{exportInfo.remainingExports}</span> 次 / 总计 {exportInfo.totalAllowed} 次
+                  </p>
+                </div>
+                <p className="mt-2 text-xs text-gray-600">
+                  💡 提示：每个已支付订单允许全天导出 {exportInfo.paidOrderCount + 1} 次（已支付订单数 + 1）
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* 高级筛选界面 */}
         {useAdvancedFilter ? (

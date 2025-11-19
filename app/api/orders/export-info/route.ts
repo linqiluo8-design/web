@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server"
 import { checkOrderExportLimit } from "@/lib/export-limiter"
+import { getServerSession } from "next-auth"
+import { authOptions } from "@/app/api/auth/[...nextauth]/options"
 
 /**
  * 查询订单导出信息（剩余次数等）
@@ -8,6 +10,22 @@ import { checkOrderExportLimit } from "@/lib/export-limiter"
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url)
+
+    // 获取用户 session
+    const session = await getServerSession(authOptions)
+
+    // 已登录用户无限制，直接返回
+    if (session?.user) {
+      return NextResponse.json({
+        allowed: true,
+        paidOrderCount: 0,
+        usedExports: 0,
+        remainingExports: 0,
+        totalAllowed: 0  // 0 表示无限制
+      })
+    }
+
+    // 匿名用户才需要检查限制
     const visitorId = searchParams.get("visitorId") || undefined
 
     // 获取订单号列表

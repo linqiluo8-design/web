@@ -62,6 +62,9 @@ export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url)
 
+    // 获取用户 session
+    const session = await getServerSession(authOptions)
+
     // 获取访客ID（用于匿名用户限制）
     const visitorId = searchParams.get("visitorId") || undefined
 
@@ -69,20 +72,23 @@ export async function GET(req: Request) {
     const orderNumbersParam = searchParams.get("orderNumbers")
     const orderNumbers = orderNumbersParam ? orderNumbersParam.split(',').filter(Boolean) : undefined
 
-    // 检查导出限制
-    const limitResult = await checkOrderExportLimit(visitorId, orderNumbers)
+    // 只对匿名用户检查导出限制
+    // 已登录用户（无论是否有权限）都不受限制
+    if (!session?.user) {
+      const limitResult = await checkOrderExportLimit(visitorId, orderNumbers)
 
-    if (!limitResult.allowed) {
-      return NextResponse.json(
-        {
-          error: limitResult.reason || "不允许导出",
-          paidOrderCount: limitResult.paidOrderCount,
-          usedExports: limitResult.usedExports,
-          remainingExports: limitResult.remainingExports,
-          totalAllowed: limitResult.totalAllowed
-        },
-        { status: 403 }
-      )
+      if (!limitResult.allowed) {
+        return NextResponse.json(
+          {
+            error: limitResult.reason || "不允许导出",
+            paidOrderCount: limitResult.paidOrderCount,
+            usedExports: limitResult.usedExports,
+            remainingExports: limitResult.remainingExports,
+            totalAllowed: limitResult.totalAllowed
+          },
+          { status: 403 }
+        )
+      }
     }
 
     // 导出参数
@@ -188,10 +194,12 @@ export async function GET(req: Request) {
     })
 
     // 记录导出操作（异步，不阻塞响应）
-    const session = await getServerSession(authOptions)
-    recordOrderExport(visitorId, session?.user?.id).catch(err => {
-      console.error('记录导出操作失败:', err)
-    })
+    // 只为匿名用户记录导出次数
+    if (!session?.user) {
+      recordOrderExport(visitorId, undefined).catch(err => {
+        console.error('记录导出操作失败:', err)
+      })
+    }
 
     // 根据格式返回数据
     if (format === "json") {

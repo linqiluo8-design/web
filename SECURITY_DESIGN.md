@@ -1,6 +1,510 @@
 # 订单系统安全设计文档
 
-## 核心安全原则
+## 📋 目录
+
+- [五大核心安全开发原则](#五大核心安全开发原则)
+- [订单系统价格安全设计](#订单系统价格安全设计)
+- [多层安全防护](#多层安全防护)
+- [安全测试](#安全测试)
+- [最佳实践](#最佳实践)
+
+---
+
+## 🛡️ 五大核心安全开发原则
+
+这些原则适用于本项目的所有开发工作，是确保系统安全的基础。**任何新功能开发都必须遵循这些原则。**
+
+### 1️⃣ Never Trust Client Input（永远不信任客户端数据）
+
+**原则定义**：
+- 所有来自客户端的数据都可能被篡改
+- 关键业务数据（如价格、权限、状态）必须由服务器决定
+- 客户端只提供必要的标识符（如ID），服务器查询权威数据
+
+**为什么重要**：
+- 客户端代码完全暴露，任何人都可以修改
+- 浏览器开发者工具可以轻松修改前端逻辑
+- HTTP请求可以被拦截和篡改（Burp Suite、Fiddler等）
+
+**项目中的应用**：
+
+```typescript
+// ❌ 错误示例：信任客户端价格
+POST /api/orders
+{
+  "items": [
+    {"productId": "123", "quantity": 1, "price": 0.01}  // 攻击者可以篡改！
+  ]
+}
+
+// ✅ 正确示例：只接受ID，服务器查询价格
+POST /api/orders
+{
+  "items": [
+    {"productId": "123", "quantity": 1}  // 只发送必要信息
+  ]
+}
+
+// 服务器端
+const product = await prisma.product.findUnique({ where: { id: "123" } })
+const price = product.price  // 使用数据库中的权威价格
+```
+
+**检查清单**：
+- [ ] 价格、金额等敏感数据是否由服务器查询？
+- [ ] 权限、角色等信息是否从数据库/session获取？
+- [ ] 订单状态等业务状态是否由服务器控制？
+- [ ] 是否只接受客户端的ID/标识符？
+
+---
+
+### 2️⃣ Server-Side Validation（服务器端验证所有关键数据）
+
+**原则定义**：
+- 前端验证只是用户体验优化，不能作为安全保障
+- 所有输入数据必须在服务器端进行完整验证
+- 使用类型安全的验证库（如Zod）
+
+**为什么重要**：
+- 前端验证可以被绕过（禁用JavaScript、修改代码）
+- 直接调用API可以跳过前端验证
+- 服务器端是最后一道防线
+
+**项目中的应用**：
+
+```typescript
+// ✅ 使用 Zod 进行服务器端验证
+import { z } from "zod"
+
+const orderSchema = z.object({
+  items: z.array(z.object({
+    productId: z.string().min(1),
+    quantity: z.number().int().positive().max(10000),  // 防止异常数量
+  })).min(1).max(100),  // 防止超大订单
+  membershipCode: z.string().optional(),
+})
+
+export async function POST(req: Request) {
+  // 验证请求数据
+  const body = await req.json()
+  const validationResult = orderSchema.safeParse(body)
+
+  if (!validationResult.success) {
+    return NextResponse.json(
+      { error: "数据格式错误", details: validationResult.error },
+      { status: 400 }
+    )
+  }
+
+  const data = validationResult.data
+
+  // 进一步的业务验证
+  for (const item of data.items) {
+    const product = await prisma.product.findUnique({
+      where: { id: item.productId }
+    })
+
+    // 验证商品存在性
+    if (!product) {
+      return NextResponse.json(
+        { error: `商品不存在: ${item.productId}` },
+        { status: 404 }
+      )
+    }
+
+    // 验证商品状态
+    if (product.status !== 'active') {
+      return NextResponse.json(
+        { error: `商品已下架: ${product.title}` },
+        { status: 400 }
+      )
+    }
+  }
+
+  // ... 继续处理
+}
+```
+
+**检查清单**：
+- [ ] 是否使用 Zod 验证所有API输入？
+- [ ] 数据类型、范围、格式是否都验证了？
+- [ ] 是否验证了业务规则（如商品存在性、库存）？
+- [ ] 错误信息是否友好且不泄露敏感信息？
+
+---
+
+### 3️⃣ Principle of Least Privilege（最小权限原则）
+
+**原则定义**：
+- 用户/服务只应拥有完成其任务所需的最小权限
+- 默认拒绝，显式授权
+- 细粒度的权限控制
+
+**为什么重要**：
+- 限制攻击者获得权限后的破坏范围
+- 防止内部误操作
+- 符合合规要求（如GDPR、SOC2）
+
+**项目中的应用**：
+
+```typescript
+// 权限模块定义（lib/permissions.ts）
+enum PermissionModule {
+  CATEGORIES = 'CATEGORIES',
+  MEMBERSHIPS = 'MEMBERSHIPS',
+  ORDERS = 'ORDERS',
+  PRODUCTS = 'PRODUCTS',
+  BANNERS = 'BANNERS',
+  SYSTEM_SETTINGS = 'SYSTEM_SETTINGS',
+  SECURITY_ALERTS = 'SECURITY_ALERTS',
+  CUSTOMER_CHAT = 'CUSTOMER_CHAT',
+  USER_MANAGEMENT = 'USER_MANAGEMENT',
+  ORDER_LOOKUP = 'ORDER_LOOKUP',
+  ANALYTICS = 'ANALYTICS',
+}
+
+enum PermissionLevel {
+  NONE = 'NONE',
+  READ = 'READ',    // 只读
+  WRITE = 'WRITE',  // 读写
+}
+
+// ✅ API 中使用权限验证
+export async function GET(req: Request) {
+  // 要求订单管理的读权限
+  await requireRead('ORDERS')
+
+  // ... 业务逻辑
+}
+
+export async function POST(req: Request) {
+  // 要求订单管理的写权限
+  await requireWrite('ORDERS')
+
+  // ... 业务逻辑
+}
+
+export async function DELETE(req: Request) {
+  // 只有管理员可以删除
+  await requireAdmin()
+
+  // ... 业务逻辑
+}
+```
+
+**权限矩阵示例**：
+
+| 角色 | 商品管理 | 订单管理 | 用户管理 | 系统设置 |
+|------|---------|---------|---------|---------|
+| 管理员 | WRITE | WRITE | WRITE | WRITE |
+| 运营人员 | WRITE | READ | NONE | NONE |
+| 客服人员 | READ | READ | NONE | NONE |
+| 财务人员 | NONE | READ | NONE | NONE |
+| 普通用户 | NONE | NONE | NONE | NONE |
+
+**检查清单**：
+- [ ] 是否每个API都有权限检查？
+- [ ] 权限是否细分到模块级别？
+- [ ] 是否区分读权限和写权限？
+- [ ] 管理员权限是否单独验证？
+- [ ] 匿名用户是否只能访问公开资源？
+
+---
+
+### 4️⃣ Defense in Depth（多层防御）
+
+**原则定义**：
+- 不依赖单一的安全措施
+- 多层防护，即使一层失效也有其他防护
+- 纵深防御策略
+
+**为什么重要**：
+- 没有完美的安全措施
+- 多层防护增加攻击成本
+- 一层失效不会导致系统完全失陷
+
+**项目中的应用**：
+
+订单创建的多层防护示例：
+
+```typescript
+// 第1层：NextAuth 身份认证
+export async function POST(req: Request) {
+  const session = await getServerSession(authOptions)
+
+  // 第2层：Zod Schema 验证
+  const orderSchema = z.object({
+    items: z.array(z.object({
+      productId: z.string(),
+      quantity: z.number().int().positive()
+    }))
+  })
+
+  const body = await req.json()
+  const data = orderSchema.parse(body)  // 会抛出异常如果验证失败
+
+  // 第3层：商品存在性验证
+  for (const item of data.items) {
+    const product = await prisma.product.findUnique({
+      where: { id: item.productId }
+    })
+
+    if (!product) {
+      throw new Error("商品不存在")
+    }
+  }
+
+  // 第4层：价格从服务器数据库查询（不信任客户端）
+  const serverPrice = product.price
+
+  // 第5层：异常检测和安全警报
+  if (quantity > 10000) {
+    await prisma.securityAlert.create({
+      data: {
+        type: "EXCESSIVE_QUANTITY",
+        severity: "HIGH",
+        details: `异常订单数量: ${quantity}`,
+      }
+    })
+  }
+
+  if (totalAmount === 0 && !isFreeProduct) {
+    await prisma.securityAlert.create({
+      data: {
+        type: "ZERO_AMOUNT_ORDER",
+        severity: "CRITICAL",
+        details: "检测到零元订单",
+      }
+    })
+  }
+
+  // 第6层：会员码验证
+  if (membershipCode) {
+    const membership = await prisma.membership.findUnique({
+      where: { membershipCode: hash(membershipCode) }
+    })
+
+    if (!membership || membership.status !== 'active') {
+      throw new Error("会员码无效")
+    }
+
+    // 验证有效期
+    if (membership.endDate && new Date() > membership.endDate) {
+      throw new Error("会员码已过期")
+    }
+
+    // 验证每日使用次数
+    const usage = await getMembershipUsage(membership.id)
+    if (usage.count >= membership.dailyLimit) {
+      throw new Error("今日会员折扣次数已用完")
+    }
+  }
+
+  // 第7层：订单过期机制
+  const expiresAt = new Date(Date.now() + 15 * 60 * 1000)  // 15分钟后过期
+
+  // 第8层：数据库事务（确保原子性）
+  await prisma.$transaction(async (tx) => {
+    // 创建订单
+    const order = await tx.order.create({ data: orderData })
+
+    // 创建订单项
+    await tx.orderItem.createMany({ data: orderItems })
+
+    // 更新会员使用记录
+    if (membership) {
+      await tx.membershipUsage.upsert({
+        where: { membershipId_date },
+        update: { count: { increment: usedCount } },
+        create: { membershipId, date, count: usedCount }
+      })
+    }
+  })
+}
+```
+
+**多层防护总结**：
+
+```
+┌─────────────────────────────────────────┐
+│  第1层：身份认证 (NextAuth)              │
+├─────────────────────────────────────────┤
+│  第2层：输入验证 (Zod Schema)            │
+├─────────────────────────────────────────┤
+│  第3层：业务验证 (商品存在性)             │
+├─────────────────────────────────────────┤
+│  第4层：服务器查询 (价格来源)             │
+├─────────────────────────────────────────┤
+│  第5层：异常检测 (安全警报)               │
+├─────────────────────────────────────────┤
+│  第6层：会员验证 (复杂业务规则)           │
+├─────────────────────────────────────────┤
+│  第7层：时效控制 (订单过期)               │
+├─────────────────────────────────────────┤
+│  第8层：数据完整性 (数据库事务)           │
+└─────────────────────────────────────────┘
+```
+
+**检查清单**：
+- [ ] 是否有身份认证层？
+- [ ] 是否有输入验证层？
+- [ ] 是否有业务逻辑验证层？
+- [ ] 是否有异常检测和监控？
+- [ ] 是否使用数据库事务保证一致性？
+
+---
+
+### 5️⃣ Security by Design（安全设计优先）
+
+**原则定义**：
+- 在设计阶段就考虑安全性，而不是后期补救
+- 安全是功能需求，不是可选项
+- 使用安全的默认配置
+
+**为什么重要**：
+- 后期修复安全问题成本高昂
+- 架构层面的安全问题难以修复
+- 安全应该是系统的固有属性
+
+**项目中的应用**：
+
+#### 1. 管理后台路径设计
+
+```typescript
+// ❌ 不安全设计：使用常见路径
+/admin/users        // 容易被扫描工具发现
+/api/admin/orders   // 容易被暴力攻击
+
+// ✅ 安全设计：使用不常见路径
+/backendmanager/users        // 降低被发现概率
+/api/backendmanager/orders   // 提高攻击成本
+```
+
+#### 2. 会员码哈希存储
+
+```typescript
+// ❌ 不安全设计：明文存储会员码
+model Membership {
+  membershipCode String @unique  // 明文，泄露后可直接使用
+}
+
+// ✅ 安全设计：哈希存储
+model Membership {
+  membershipCode String @unique  // 存储哈希值
+}
+
+// 生成会员码时
+const code = generateRandomCode()  // 原始码给用户
+const hashedCode = hash(code)      // 哈希值存数据库
+
+// 验证会员码时
+const hashedInput = hash(userInput)
+const membership = await prisma.membership.findUnique({
+  where: { membershipCode: hashedInput }
+})
+```
+
+#### 3. 安全的默认配置
+
+```typescript
+// ✅ 用户默认状态：待审核
+model User {
+  accountStatus AccountStatus @default(PENDING)  // 默认待审核，不是APPROVED
+  role          UserRole      @default(USER)     // 默认普通用户，不是ADMIN
+}
+
+// ✅ 订单默认过期时间
+model Order {
+  expiresAt DateTime?  // 默认15分钟后过期，防止恶意占用
+}
+
+// ✅ 权限默认值：无权限
+getUserPermission(module) {
+  const permission = await prisma.permission.findFirst({
+    where: { userId, module }
+  })
+
+  return permission?.level || 'NONE'  // 默认无权限，显式授权
+}
+```
+
+#### 4. 导出功能安全设计
+
+```typescript
+// ✅ 导出前必须先清理的安全机制
+export async function POST(req: Request) {
+  await requireWrite('ORDERS')
+
+  const { cleanupConfig } = await req.json()
+
+  // 检查是否已导出相同配置的数据
+  if (!hasExportedSameConfig(cleanupConfig)) {
+    return NextResponse.json(
+      { error: "请先导出当前配置的订单数据！" },
+      { status: 403 }
+    )
+  }
+
+  // 执行清理...
+}
+```
+
+**检查清单**：
+- [ ] 新功能设计时是否优先考虑安全性？
+- [ ] 是否使用安全的默认配置（默认拒绝）？
+- [ ] 敏感数据是否加密/哈希存储？
+- [ ] 是否避免使用常见的攻击目标路径？
+- [ ] 危险操作是否有二次确认机制？
+
+---
+
+## 🎯 安全开发检查清单（每个功能开发时使用）
+
+在开发任何新功能时，请使用此检查清单确保安全性：
+
+### 数据输入
+
+- [ ] 所有API输入都使用Zod验证了吗？
+- [ ] 关键业务数据（价格、权限等）由服务器决定吗？
+- [ ] 是否验证了数据类型、范围、格式？
+- [ ] 是否处理了异常输入（空值、超大值、特殊字符）？
+
+### 身份认证和授权
+
+- [ ] API是否需要登录？是否使用了 `requireAuth`？
+- [ ] 是否检查了用户权限？使用了 `requireRead/requireWrite`？
+- [ ] 匿名用户是否只能访问公开资源？
+- [ ] 是否防止了水平越权（用户A访问用户B的数据）？
+
+### 业务逻辑安全
+
+- [ ] 价格等敏感数据从数据库查询吗？
+- [ ] 是否有异常检测和安全警报？
+- [ ] 订单/交易是否使用了数据库事务？
+- [ ] 是否有防重放机制（如订单号唯一性）？
+
+### 数据存储
+
+- [ ] 密码/会员码等敏感数据是否哈希存储？
+- [ ] 是否避免了敏感信息泄露（如完整的会员码）？
+- [ ] 删除操作是否需要管理员权限？
+- [ ] 导出功能是否有权限控制？
+
+### 错误处理
+
+- [ ] 错误信息是否避免泄露敏感信息？
+- [ ] 是否正确返回HTTP状态码（401/403/404/500）？
+- [ ] 是否记录了安全相关的错误日志？
+
+### 代码质量
+
+- [ ] 代码中是否有TODO注释未处理？
+- [ ] 是否添加了必要的注释说明安全逻辑？
+- [ ] 是否遵循了项目的代码规范？
+
+---
+
+## 📚 订单系统价格安全设计
 
 ### ⚠️ 永远不信任客户端
 

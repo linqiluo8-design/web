@@ -19,10 +19,10 @@ export interface ExportLimitResult {
  *
  * 规则：
  * - 管理员和团队成员：无限制
- * - 匿名用户：每个已支付订单允许全天导出 n+1 次
+ * - 匿名用户：每个已支付订单最多可导出2次
  *   例如：1个已支付订单 → 最多导出2次
- *         2个已支付订单 → 最多导出3次
- * - 非已支付订单不允许匿名用户导出
+ *         2个已支付订单 → 最多导出4次
+ * - 非已支付订单（已取消、待支付等）不允许匿名用户导出
  *
  * @param visitorId 访客ID（用于识别匿名用户）
  * @param orderNumbers 用户的订单号列表（从 localStorage 读取）
@@ -67,7 +67,7 @@ export async function checkOrderExportLimit(
     if (!orderNumbers || orderNumbers.length === 0) {
       return {
         allowed: false,
-        reason: '您还没有订单，无法导出订单数据',
+        reason: '只有已支付订单支持导出，非已支付订单不支持导出哦',
         paidOrderCount: 0,
         usedExports: 0,
         remainingExports: 0,
@@ -89,7 +89,7 @@ export async function checkOrderExportLimit(
     if (paidOrderCount === 0) {
       return {
         allowed: false,
-        reason: '您还没有已支付的订单，无法导出订单数据',
+        reason: '只有已支付订单支持导出，非已支付订单不支持导出哦',
         paidOrderCount: 0,
         usedExports: 0,
         remainingExports: 0,
@@ -97,8 +97,8 @@ export async function checkOrderExportLimit(
       }
     }
 
-    // 2. 计算今天允许的总导出次数 = 已支付订单数 + 1
-    const totalAllowed = paidOrderCount + 1
+    // 2. 计算允许的总导出次数 = 已支付订单数 × 2（每个订单2次）
+    const totalAllowed = paidOrderCount * 2
 
     // 3. 查询今天已经导出的次数
     const today = new Date()
@@ -124,7 +124,7 @@ export async function checkOrderExportLimit(
     if (usedExports >= totalAllowed) {
       return {
         allowed: false,
-        reason: `您今天的导出次数已用完（${usedExports}/${totalAllowed}次）。每个已支付订单允许全天导出 ${paidOrderCount + 1} 次`,
+        reason: '抱歉，只支持每个已支付订单导出2次，请妥善保管好订单信息，谢谢',
         paidOrderCount,
         usedExports,
         remainingExports: 0,

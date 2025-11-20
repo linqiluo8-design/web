@@ -381,15 +381,8 @@ export default function OrderManagementPage() {
         // 处理导出限制错误
         const errorData = await response.json().catch(() => ({ error: "导出失败" }))
 
-        if (response.status === 403 && errorData.remainingExports !== undefined) {
-          alert(
-            `导出次数已用完\n\n` +
-            `已支付订单数：${errorData.paidOrderCount}\n` +
-            `今日已导出：${errorData.usedExports} 次\n` +
-            `剩余次数：${errorData.remainingExports} 次\n` +
-            `总允许次数：${errorData.totalAllowed} 次\n\n` +
-            `提示：${errorData.error}`
-          )
+        if (response.status === 403) {
+          alert(errorData.error || "导出失败")
           // 更新导出信息
           loadExportInfo()
           setLoading(false)
@@ -825,7 +818,7 @@ export default function OrderManagementPage() {
                   </p>
                 </div>
                 <p className="mt-2 text-xs text-gray-600">
-                  💡 提示：每个已支付订单允许全天导出 {exportInfo.paidOrderCount + 1} 次（已支付订单数 + 1）
+                  💡 提示：每个已支付订单最多可导出2次，请妥善保管好订单信息
                 </p>
               </div>
             </div>

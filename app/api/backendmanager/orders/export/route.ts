@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { buildWhereClause, type FilterGroup } from "@/lib/filter-builder"
-import { checkOrderExportLimit, recordOrderExport } from "@/lib/export-limiter"
+import { checkOrderExportLimit, recordOrderExport, rollbackExportRecord } from "@/lib/export-limiter"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/app/api/auth/[...nextauth]/options"
 
@@ -74,7 +74,9 @@ export async function GET(req: Request) {
 
     // 只对匿名用户检查导出限制
     // 已登录用户（无论是否有权限）都不受限制
+    let isAnonymous = false
     if (!session?.user) {
+      isAnonymous = true
       const limitResult = await checkOrderExportLimit(visitorId, orderNumbers)
 
       if (!limitResult.allowed) {
@@ -87,6 +89,18 @@ export async function GET(req: Request) {
             totalAllowed: limitResult.totalAllowed
           },
           { status: 403 }
+        )
+      }
+
+      // 【关键修复】立即记录导出次数（在实际导出之前）
+      // 这样可以防止用户在导出过程中重复点击，或者记录失败导致无限导出
+      try {
+        await recordOrderExport(visitorId, undefined)
+      } catch (err) {
+        console.error('记录导出操作失败，拒绝导出:', err)
+        return NextResponse.json(
+          { error: '记录导出操作失败，请稍后重试' },
+          { status: 500 }
         )
       }
     }
@@ -219,8 +233,14 @@ export async function GET(req: Request) {
     })
 
     // 匿名用户：检查是否有数据可导出
-    if (!session?.user) {
+    if (isAnonymous) {
       if (orders.length === 0) {
+        // 没有数据可导出，需要回滚导出次数记录
+        try {
+          await rollbackExportRecord(visitorId)
+        } catch (err) {
+          console.error('回滚导出记录失败:', err)
+        }
         return NextResponse.json(
           { error: '没有符合条件的已支付订单可以导出' },
           { status: 403 }
@@ -228,16 +248,8 @@ export async function GET(req: Request) {
       }
     }
 
-    // 记录导出操作
-    // 只为匿名用户记录导出次数（必须等待完成，避免竞态条件）
-    if (!session?.user) {
-      try {
-        await recordOrderExport(visitorId, undefined)
-      } catch (err) {
-        console.error('记录导出操作失败:', err)
-        // 记录失败也继续导出，但应该记录日志
-      }
-    }
+    // 注意：匿名用户的导出次数已经在前面记录过了（第91-99行）
+    // 这里不需要再次记录
 
     // 根据格式返回数据
     if (format === "json") {

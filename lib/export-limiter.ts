@@ -159,47 +159,75 @@ export async function recordOrderExport(
   visitorId?: string,
   userId?: string
 ): Promise<void> {
-  try {
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
 
-    // 已登录用户不记录（不限制）
-    if (userId) {
-      return
+  // 已登录用户不记录（不限制）
+  if (userId) {
+    return
+  }
+
+  // 匿名用户需要 visitorId
+  if (!visitorId) {
+    throw new Error('匿名用户必须提供visitorId')
+  }
+
+  // 查找今天的导出记录
+  const existingRecord = await prisma.orderExportRecord.findFirst({
+    where: {
+      visitorId,
+      exportDate: today
     }
+  })
 
-    // 匿名用户需要 visitorId
-    if (!visitorId) {
-      return
-    }
-
-    // 查找今天的导出记录
-    const existingRecord = await prisma.orderExportRecord.findFirst({
-      where: {
-        visitorId,
-        exportDate: today
+  if (existingRecord) {
+    // 更新计数
+    await prisma.orderExportRecord.update({
+      where: { id: existingRecord.id },
+      data: {
+        count: { increment: 1 }
       }
     })
+  } else {
+    // 创建新记录
+    await prisma.orderExportRecord.create({
+      data: {
+        visitorId,
+        exportDate: today,
+        count: 1
+      }
+    })
+  }
+}
 
-    if (existingRecord) {
-      // 更新计数
-      await prisma.orderExportRecord.update({
-        where: { id: existingRecord.id },
-        data: {
-          count: { increment: 1 }
-        }
-      })
-    } else {
-      // 创建新记录
-      await prisma.orderExportRecord.create({
-        data: {
-          visitorId,
-          exportDate: today,
-          count: 1
-        }
-      })
+/**
+ * 回滚导出记录（当导出失败时调用）
+ *
+ * @param visitorId 访客ID
+ */
+export async function rollbackExportRecord(visitorId?: string): Promise<void> {
+  if (!visitorId) {
+    return
+  }
+
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+
+  // 查找今天的导出记录
+  const existingRecord = await prisma.orderExportRecord.findFirst({
+    where: {
+      visitorId,
+      exportDate: today
     }
-  } catch (error) {
-    console.error('记录导出操作失败:', error)
+  })
+
+  if (existingRecord && existingRecord.count > 0) {
+    // 减少计数
+    await prisma.orderExportRecord.update({
+      where: { id: existingRecord.id },
+      data: {
+        count: { decrement: 1 }
+      }
+    })
   }
 }

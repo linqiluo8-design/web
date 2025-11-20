@@ -18,13 +18,12 @@ export interface ExportLimitResult {
  * 注意：调用此函数前，调用方应该已经判断用户是匿名用户
  *
  * 规则：
- * - 匿名用户：每个已支付订单最多可导出2次
- *   例如：1个已支付订单 → 最多导出2次
- *         2个已支付订单 → 最多导出4次
- * - 非已支付订单（已取消、待支付等）不允许匿名用户导出
+ * - 每个已支付订单独立拥有2次导出机会
+ * - 订单A可以导出2次，订单B可以导出2次（不是用户总共4次，而是各自独立2次）
+ * - 按订单号分别检查和记录，不是按用户统计总次数
  *
  * @param visitorId 访客ID（用于识别匿名用户）
- * @param orderNumbers 用户的订单号列表（从 localStorage 读取）
+ * @param orderNumbers 用户要导出的订单号列表
  * @returns 导出限制结果
  */
 export async function checkOrderExportLimit(
@@ -32,7 +31,6 @@ export async function checkOrderExportLimit(
   orderNumbers?: string[]
 ): Promise<ExportLimitResult> {
   try {
-
     // 匿名用户需要提供 visitorId
     if (!visitorId) {
       return {
@@ -53,15 +51,21 @@ export async function checkOrderExportLimit(
       }
     }
 
-    // 1. 查询用户的订单中有多少是已支付的
-    const paidOrderCount = await prisma.order.count({
+    // 1. 查询用户的订单中哪些是已支付的
+    const paidOrders = await prisma.order.findMany({
       where: {
         orderNumber: {
           in: orderNumbers
         },
-        status: 'paid' // 只计算已支付订单
+        status: 'paid' // 只查询已支付订单
+      },
+      select: {
+        orderNumber: true
       }
     })
+
+    const paidOrderNumbers = paidOrders.map(o => o.orderNumber)
+    const paidOrderCount = paidOrderNumbers.length
 
     // 如果没有已支付订单，不允许导出
     if (paidOrderCount === 0) {
@@ -75,19 +79,20 @@ export async function checkOrderExportLimit(
       }
     }
 
-    // 2. 计算允许的总导出次数 = 已支付订单数 × 2（每个订单2次）
-    const totalAllowed = paidOrderCount * 2
-
-    // 3. 查询今天已经导出的次数
+    // 2. 设置今天的日期范围
     const today = new Date()
     today.setHours(0, 0, 0, 0)
 
     const tomorrow = new Date(today)
     tomorrow.setDate(tomorrow.getDate() + 1)
 
-    const exportRecord = await prisma.orderExportRecord.findFirst({
+    // 3. 查询每个已支付订单今天的导出次数
+    const exportRecords = await prisma.orderExportRecord.findMany({
       where: {
         visitorId,
+        orderNumber: {
+          in: paidOrderNumbers
+        },
         exportDate: {
           gte: today,
           lt: tomorrow
@@ -95,31 +100,38 @@ export async function checkOrderExportLimit(
       }
     })
 
-    const usedExports = exportRecord?.count || 0
-    const remainingExports = Math.max(0, totalAllowed - usedExports)
+    // 4. 检查每个订单是否超过2次限制
+    for (const orderNumber of paidOrderNumbers) {
+      const record = exportRecords.find(r => r.orderNumber === orderNumber)
+      const count = record?.count || 0
 
-    // 4. 判断是否超过限制
-    if (usedExports >= totalAllowed) {
-      return {
-        allowed: false,
-        reason: '抱歉，只支持每个已支付订单导出2次，请妥善保管好订单信息，谢谢',
-        paidOrderCount,
-        usedExports,
-        remainingExports: 0,
-        totalAllowed
+      if (count >= 2) {
+        return {
+          allowed: false,
+          reason: `订单 ${orderNumber} 今天已导出${count}次，每个订单最多导出2次`,
+          paidOrderCount,
+          usedExports: count,
+          remainingExports: 0,
+          totalAllowed: 2
+        }
       }
     }
 
-    // 5. 允许导出
+    // 5. 计算统计信息（用于显示）
+    const totalUsed = exportRecords.reduce((sum, r) => sum + r.count, 0)
+    const totalAllowed = paidOrderCount * 2
+    const remainingExports = totalAllowed - totalUsed
+
+    // 6. 允许导出
     return {
       allowed: true,
       paidOrderCount,
-      usedExports,
+      usedExports: totalUsed,
       remainingExports,
       totalAllowed
     }
   } catch (error) {
-    console.error('检查导出限制失败:', error)
+    console.error('检查订单导出限制失败:', error)
     return {
       allowed: false,
       reason: '检查导出限制时发生错误'
@@ -128,14 +140,16 @@ export async function checkOrderExportLimit(
 }
 
 /**
- * 记录订单导出操作
+ * 记录订单导出操作（为每个订单分别记录）
  *
  * @param visitorId 访客ID
  * @param userId 用户ID（可选）
+ * @param orderNumbers 要导出的订单号列表
  */
 export async function recordOrderExport(
   visitorId?: string,
-  userId?: string
+  userId?: string,
+  orderNumbers?: string[]
 ): Promise<void> {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
@@ -145,68 +159,105 @@ export async function recordOrderExport(
     return
   }
 
-  // 匿名用户需要 visitorId
-  if (!visitorId) {
-    throw new Error('匿名用户必须提供visitorId')
+  // 匿名用户需要 visitorId 和 orderNumbers
+  if (!visitorId || !orderNumbers || orderNumbers.length === 0) {
+    throw new Error('匿名用户必须提供visitorId和orderNumbers')
   }
 
-  // 查找今天的导出记录
-  const existingRecord = await prisma.orderExportRecord.findFirst({
+  // 只查询已支付的订单号
+  const paidOrders = await prisma.order.findMany({
     where: {
-      visitorId,
-      exportDate: today
-    }
+      orderNumber: { in: orderNumbers },
+      status: 'paid'
+    },
+    select: { orderNumber: true }
   })
 
-  if (existingRecord) {
-    // 更新计数
-    await prisma.orderExportRecord.update({
-      where: { id: existingRecord.id },
-      data: {
-        count: { increment: 1 }
+  const paidOrderNumbers = paidOrders.map(o => o.orderNumber)
+
+  // 为每个已支付订单分别记录导出次数
+  for (const orderNumber of paidOrderNumbers) {
+    const existingRecord = await prisma.orderExportRecord.findUnique({
+      where: {
+        visitorId_orderNumber_exportDate: {
+          visitorId,
+          orderNumber,
+          exportDate: today
+        }
       }
     })
-  } else {
-    // 创建新记录
-    await prisma.orderExportRecord.create({
-      data: {
-        visitorId,
-        exportDate: today,
-        count: 1
-      }
-    })
+
+    if (existingRecord) {
+      // 更新计数
+      await prisma.orderExportRecord.update({
+        where: { id: existingRecord.id },
+        data: {
+          count: { increment: 1 }
+        }
+      })
+    } else {
+      // 创建新记录
+      await prisma.orderExportRecord.create({
+        data: {
+          visitorId,
+          orderNumber,
+          exportDate: today,
+          count: 1
+        }
+      })
+    }
   }
 }
 
 /**
- * 回滚导出记录（当导出失败时调用）
+ * 回滚导出记录（当导出失败时调用，按订单号回滚）
  *
  * @param visitorId 访客ID
+ * @param orderNumbers 要回滚的订单号列表
  */
-export async function rollbackExportRecord(visitorId?: string): Promise<void> {
-  if (!visitorId) {
+export async function rollbackExportRecord(
+  visitorId?: string,
+  orderNumbers?: string[]
+): Promise<void> {
+  if (!visitorId || !orderNumbers || orderNumbers.length === 0) {
     return
   }
 
   const today = new Date()
   today.setHours(0, 0, 0, 0)
 
-  // 查找今天的导出记录
-  const existingRecord = await prisma.orderExportRecord.findFirst({
+  // 只查询已支付的订单号
+  const paidOrders = await prisma.order.findMany({
     where: {
-      visitorId,
-      exportDate: today
-    }
+      orderNumber: { in: orderNumbers },
+      status: 'paid'
+    },
+    select: { orderNumber: true }
   })
 
-  if (existingRecord && existingRecord.count > 0) {
-    // 减少计数
-    await prisma.orderExportRecord.update({
-      where: { id: existingRecord.id },
-      data: {
-        count: { decrement: 1 }
+  const paidOrderNumbers = paidOrders.map(o => o.orderNumber)
+
+  // 为每个订单分别回滚
+  for (const orderNumber of paidOrderNumbers) {
+    const existingRecord = await prisma.orderExportRecord.findUnique({
+      where: {
+        visitorId_orderNumber_exportDate: {
+          visitorId,
+          orderNumber,
+          exportDate: today
+        }
       }
     })
+
+    if (existingRecord && existingRecord.count > 0) {
+      // 减少计数
+      await prisma.orderExportRecord.update({
+        where: { id: existingRecord.id },
+        data: {
+          count: { decrement: 1 }
+        }
+      })
+    }
   }
 }
 
@@ -218,11 +269,11 @@ export async function rollbackExportRecord(visitorId?: string): Promise<void> {
  * 注意：调用此函数前，调用方应该已经判断用户是匿名用户
  *
  * 规则：
- * - 匿名用户：每个已支付会员订单最多可导出2次
- * - 非已支付订单不允许匿名用户导出
+ * - 每个已支付会员订单独立拥有2次导出机会
+ * - 按会员码分别检查和记录，不是按用户统计总次数
  *
  * @param visitorId 访客ID（用于识别匿名用户）
- * @param membershipCodes 用户的会员码列表（从 localStorage 读取）
+ * @param membershipCodes 用户要导出的会员码列表
  * @returns 导出限制结果
  */
 export async function checkMembershipExportLimit(
@@ -250,15 +301,21 @@ export async function checkMembershipExportLimit(
       }
     }
 
-    // 1. 查询用户的会员订单中有多少是已支付的
-    const paidOrderCount = await prisma.membership.count({
+    // 1. 查询用户的会员订单中哪些是已支付的
+    const paidMemberships = await prisma.membership.findMany({
       where: {
         membershipCode: {
           in: membershipCodes
         },
-        paymentStatus: 'completed' // 只计算已支付订单
+        paymentStatus: 'completed' // 只查询已支付订单
+      },
+      select: {
+        membershipCode: true
       }
     })
+
+    const paidMembershipCodes = paidMemberships.map(m => m.membershipCode)
+    const paidOrderCount = paidMembershipCodes.length
 
     // 如果没有已支付订单，不允许导出
     if (paidOrderCount === 0) {
@@ -272,19 +329,20 @@ export async function checkMembershipExportLimit(
       }
     }
 
-    // 2. 计算允许的总导出次数 = 已支付订单数 × 2（每个订单2次）
-    const totalAllowed = paidOrderCount * 2
-
-    // 3. 查询今天已经导出的次数
+    // 2. 设置今天的日期范围
     const today = new Date()
     today.setHours(0, 0, 0, 0)
 
     const tomorrow = new Date(today)
     tomorrow.setDate(tomorrow.getDate() + 1)
 
-    const exportRecord = await prisma.membershipExportRecord.findFirst({
+    // 3. 查询每个已支付会员订单今天的导出次数
+    const exportRecords = await prisma.membershipExportRecord.findMany({
       where: {
         visitorId,
+        membershipCode: {
+          in: paidMembershipCodes
+        },
         exportDate: {
           gte: today,
           lt: tomorrow
@@ -292,26 +350,33 @@ export async function checkMembershipExportLimit(
       }
     })
 
-    const usedExports = exportRecord?.count || 0
-    const remainingExports = Math.max(0, totalAllowed - usedExports)
+    // 4. 检查每个会员订单是否超过2次限制
+    for (const membershipCode of paidMembershipCodes) {
+      const record = exportRecords.find(r => r.membershipCode === membershipCode)
+      const count = record?.count || 0
 
-    // 4. 判断是否超过限制
-    if (usedExports >= totalAllowed) {
-      return {
-        allowed: false,
-        reason: '抱歉，只支持每个已支付会员订单导出2次，请妥善保管好订单信息，谢谢',
-        paidOrderCount,
-        usedExports,
-        remainingExports: 0,
-        totalAllowed
+      if (count >= 2) {
+        return {
+          allowed: false,
+          reason: `会员订单 ${membershipCode} 今天已导出${count}次，每个订单最多导出2次`,
+          paidOrderCount,
+          usedExports: count,
+          remainingExports: 0,
+          totalAllowed: 2
+        }
       }
     }
 
-    // 5. 允许导出
+    // 5. 计算统计信息（用于显示）
+    const totalUsed = exportRecords.reduce((sum, r) => sum + r.count, 0)
+    const totalAllowed = paidOrderCount * 2
+    const remainingExports = totalAllowed - totalUsed
+
+    // 6. 允许导出
     return {
       allowed: true,
       paidOrderCount,
-      usedExports,
+      usedExports: totalUsed,
       remainingExports,
       totalAllowed
     }
@@ -325,14 +390,16 @@ export async function checkMembershipExportLimit(
 }
 
 /**
- * 记录会员订单导出操作
+ * 记录会员订单导出操作（为每个会员订单分别记录）
  *
  * @param visitorId 访客ID
  * @param userId 用户ID（可选）
+ * @param membershipCodes 要导出的会员码列表
  */
 export async function recordMembershipExport(
   visitorId?: string,
-  userId?: string
+  userId?: string,
+  membershipCodes?: string[]
 ): Promise<void> {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
@@ -342,67 +409,104 @@ export async function recordMembershipExport(
     return
   }
 
-  // 匿名用户需要 visitorId
-  if (!visitorId) {
-    throw new Error('匿名用户必须提供visitorId')
+  // 匿名用户需要 visitorId 和 membershipCodes
+  if (!visitorId || !membershipCodes || membershipCodes.length === 0) {
+    throw new Error('匿名用户必须提供visitorId和membershipCodes')
   }
 
-  // 查找今天的导出记录
-  const existingRecord = await prisma.membershipExportRecord.findFirst({
+  // 只查询已支付的会员订单
+  const paidMemberships = await prisma.membership.findMany({
     where: {
-      visitorId,
-      exportDate: today
-    }
+      membershipCode: { in: membershipCodes },
+      paymentStatus: 'completed'
+    },
+    select: { membershipCode: true }
   })
 
-  if (existingRecord) {
-    // 更新计数
-    await prisma.membershipExportRecord.update({
-      where: { id: existingRecord.id },
-      data: {
-        count: { increment: 1 }
+  const paidMembershipCodes = paidMemberships.map(m => m.membershipCode)
+
+  // 为每个已支付会员订单分别记录导出次数
+  for (const membershipCode of paidMembershipCodes) {
+    const existingRecord = await prisma.membershipExportRecord.findUnique({
+      where: {
+        visitorId_membershipCode_exportDate: {
+          visitorId,
+          membershipCode,
+          exportDate: today
+        }
       }
     })
-  } else {
-    // 创建新记录
-    await prisma.membershipExportRecord.create({
-      data: {
-        visitorId,
-        exportDate: today,
-        count: 1
-      }
-    })
+
+    if (existingRecord) {
+      // 更新计数
+      await prisma.membershipExportRecord.update({
+        where: { id: existingRecord.id },
+        data: {
+          count: { increment: 1 }
+        }
+      })
+    } else {
+      // 创建新记录
+      await prisma.membershipExportRecord.create({
+        data: {
+          visitorId,
+          membershipCode,
+          exportDate: today,
+          count: 1
+        }
+      })
+    }
   }
 }
 
 /**
- * 回滚会员订单导出记录（当导出失败时调用）
+ * 回滚会员订单导出记录（当导出失败时调用，按会员码回滚）
  *
  * @param visitorId 访客ID
+ * @param membershipCodes 要回滚的会员码列表
  */
-export async function rollbackMembershipExportRecord(visitorId?: string): Promise<void> {
-  if (!visitorId) {
+export async function rollbackMembershipExportRecord(
+  visitorId?: string,
+  membershipCodes?: string[]
+): Promise<void> {
+  if (!visitorId || !membershipCodes || membershipCodes.length === 0) {
     return
   }
 
   const today = new Date()
   today.setHours(0, 0, 0, 0)
 
-  // 查找今天的导出记录
-  const existingRecord = await prisma.membershipExportRecord.findFirst({
+  // 只查询已支付的会员订单
+  const paidMemberships = await prisma.membership.findMany({
     where: {
-      visitorId,
-      exportDate: today
-    }
+      membershipCode: { in: membershipCodes },
+      paymentStatus: 'completed'
+    },
+    select: { membershipCode: true }
   })
 
-  if (existingRecord && existingRecord.count > 0) {
-    // 减少计数
-    await prisma.membershipExportRecord.update({
-      where: { id: existingRecord.id },
-      data: {
-        count: { decrement: 1 }
+  const paidMembershipCodes = paidMemberships.map(m => m.membershipCode)
+
+  // 为每个会员订单分别回滚
+  for (const membershipCode of paidMembershipCodes) {
+    const existingRecord = await prisma.membershipExportRecord.findUnique({
+      where: {
+        visitorId_membershipCode_exportDate: {
+          visitorId,
+          membershipCode,
+          exportDate: today
+        }
       }
     })
+
+    if (existingRecord && existingRecord.count > 0) {
+      // 减少计数
+      await prisma.membershipExportRecord.update({
+        where: { id: existingRecord.id },
+        data: {
+          count: { decrement: 1 }
+        }
+      })
+    }
   }
 }

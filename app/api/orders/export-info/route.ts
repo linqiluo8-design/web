@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { checkOrderExportLimit } from "@/lib/export-limiter"
 import { getServerSession } from "next-auth"
-import { authOptions } from "@/app/api/auth/[...nextauth]/options"
+import { authOptions } from "@/lib/auth"
 
 /**
  * 查询订单导出信息（剩余次数等）

@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma"
 import { buildWhereClause, type FilterGroup } from "@/lib/filter-builder"
 import { checkOrderExportLimit, recordOrderExport, rollbackExportRecord } from "@/lib/export-limiter"
 import { getServerSession } from "next-auth"
-import { authOptions } from "@/app/api/auth/[...nextauth]/options"
+import { authOptions } from "@/lib/auth"
 
 // 将订单数据转换为CSV格式
 function convertToCSV(orders: any[]): string {

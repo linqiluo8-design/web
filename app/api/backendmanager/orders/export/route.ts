@@ -159,6 +159,31 @@ export async function GET(req: Request) {
       where = conditions
     }
 
+    // 匿名用户：强制限制只能导出自己的已支付订单
+    if (!session?.user) {
+      if (!orderNumbers || orderNumbers.length === 0) {
+        return NextResponse.json(
+          { error: '只有已支付订单支持导出，非已支付订单不支持导出哦' },
+          { status: 403 }
+        )
+      }
+
+      // 使用 AND 操作符强制应用限制条件，确保无论用户筛选什么，都只能导出自己的已支付订单
+      const anonymousRestrictions = {
+        orderNumber: { in: orderNumbers },  // 只能导出自己的订单
+        status: 'paid'  // 只能导出已支付订单
+      }
+
+      // 如果用户有筛选条件，使用 AND 合并；否则直接使用限制条件
+      if (Object.keys(where).length > 0) {
+        where = {
+          AND: [where, anonymousRestrictions]
+        }
+      } else {
+        where = anonymousRestrictions
+      }
+    }
+
     // 查询订单数据
     const orders = await prisma.order.findMany({
       where,
@@ -193,12 +218,25 @@ export async function GET(req: Request) {
       orderBy: { createdAt: "desc" }
     })
 
-    // 记录导出操作（异步，不阻塞响应）
-    // 只为匿名用户记录导出次数
+    // 匿名用户：检查是否有数据可导出
     if (!session?.user) {
-      recordOrderExport(visitorId, undefined).catch(err => {
+      if (orders.length === 0) {
+        return NextResponse.json(
+          { error: '没有符合条件的已支付订单可以导出' },
+          { status: 403 }
+        )
+      }
+    }
+
+    // 记录导出操作
+    // 只为匿名用户记录导出次数（必须等待完成，避免竞态条件）
+    if (!session?.user) {
+      try {
+        await recordOrderExport(visitorId, undefined)
+      } catch (err) {
         console.error('记录导出操作失败:', err)
-      })
+        // 记录失败也继续导出，但应该记录日志
+      }
     }
 
     // 根据格式返回数据

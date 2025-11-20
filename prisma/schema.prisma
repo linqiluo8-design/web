@@ -401,35 +401,41 @@ model SystemLog {
 }
 
 // 订单导出记录模型（用于限制匿名用户导出次数）
+// 每个订单独立拥有导出次数配额
 model OrderExportRecord {
   id          String   @id @default(cuid())
   userId      String?  // 用户ID（已登录用户）
   visitorId   String?  // 访客ID（匿名用户标识）
+  orderNumber String   // 订单号（每个订单分别统计导出次数）
   exportDate  DateTime // 导出日期（只记录日期部分，用于按天统计）
-  count       Int      @default(1) // 当天导出次数
+  count       Int      @default(1) // 该订单当天导出次数
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  @@unique([userId, exportDate])
-  @@unique([visitorId, exportDate])
+  @@unique([userId, orderNumber, exportDate])
+  @@unique([visitorId, orderNumber, exportDate])
   @@index([userId])
   @@index([visitorId])
+  @@index([orderNumber])
   @@index([exportDate])
 }
 
 // 会员订单导出记录（用于限制匿名用户导出次数）
+// 每个会员订单独立拥有导出次数配额
 model MembershipExportRecord {
-  id          String   @id @default(cuid())
-  userId      String?  // 用户ID（已登录用户）
-  visitorId   String?  // 访客ID（匿名用户标识）
-  exportDate  DateTime // 导出日期（只记录日期部分，用于按天统计）
-  count       Int      @default(1) // 当天导出次数
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id             String   @id @default(cuid())
+  userId         String?  // 用户ID（已登录用户）
+  visitorId      String?  // 访客ID（匿名用户标识）
+  membershipCode String   // 会员码（每个会员订单分别统计导出次数）
+  exportDate     DateTime // 导出日期（只记录日期部分，用于按天统计）
+  count          Int      @default(1) // 该会员订单当天导出次数
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
-  @@unique([userId, exportDate])
-  @@unique([visitorId, exportDate])
+  @@unique([userId, membershipCode, exportDate])
+  @@unique([visitorId, membershipCode, exportDate])
   @@index([userId])
   @@index([visitorId])
+  @@index([membershipCode])
   @@index([exportDate])
 }

@@ -93,8 +93,9 @@ export async function GET(req: Request) {
 
       // 【关键修复】立即记录导出次数（在实际导出之前）
       // 这样可以防止用户在导出过程中重复点击，或者记录失败导致无限导出
+      // 为每个会员订单分别记录导出次数
       try {
-        await recordMembershipExport(visitorId, undefined)
+        await recordMembershipExport(visitorId, undefined, membershipCodes)
       } catch (err) {
         console.error('记录导出操作失败，拒绝导出:', err)
         return NextResponse.json(
@@ -150,9 +151,9 @@ export async function GET(req: Request) {
     // 匿名用户：检查是否有数据可导出
     if (isAnonymous) {
       if (orders.length === 0) {
-        // 没有数据可导出，需要回滚导出次数记录
+        // 没有数据可导出，需要回滚导出次数记录（按会员码回滚）
         try {
-          await rollbackMembershipExportRecord(visitorId)
+          await rollbackMembershipExportRecord(visitorId, membershipCodes)
         } catch (err) {
           console.error('回滚导出记录失败:', err)
         }

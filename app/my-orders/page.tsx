@@ -43,6 +43,23 @@ export default function MyOrdersPage() {
   const [jumpToPage, setJumpToPage] = useState("")
   const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set()) // 选中的订单ID
   const [openExportMenu, setOpenExportMenu] = useState<string | null>(null) // 当前打开的导出菜单订单ID
+  const [visitorId, setVisitorId] = useState<string>('') // 访客ID
+  const [isExporting, setIsExporting] = useState(false) // 导出中状态
+
+  // 初始化或获取访客ID
+  useEffect(() => {
+    const getOrCreateVisitorId = () => {
+      const stored = localStorage.getItem('visitor_id')
+      if (stored) {
+        return stored
+      }
+      // 生成新的访客ID
+      const newId = `visitor_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+      localStorage.setItem('visitor_id', newId)
+      return newId
+    }
+    setVisitorId(getOrCreateVisitorId())
+  }, [])
 
   useEffect(() => {
     loadOrders()
@@ -247,105 +264,109 @@ export default function MyOrdersPage() {
     }
   }
 
-  // 导出为JSON
-  const exportToJSON = (orders: Order[], filename: string) => {
-    const dataStr = JSON.stringify(orders, null, 2)
-    const dataBlob = new Blob([dataStr], { type: "application/json" })
-    const url = URL.createObjectURL(dataBlob)
-    const link = document.createElement("a")
-    link.href = url
-    link.download = `${filename}.json`
-    link.click()
-    URL.revokeObjectURL(url)
-  }
+  // 调用后端API导出订单
+  const exportOrdersViaAPI = async (
+    orderNumbersToExport: string[],
+    format: 'json' | 'csv'
+  ) => {
+    if (isExporting) {
+      return // 防止重复点击
+    }
 
-  // 导出为CSV
-  const exportToCSV = (orders: Order[], filename: string) => {
-    // CSV 表头
-    const headers = [
-      "订单号",
-      "订单状态",
-      "订单金额",
-      "商品名称",
-      "商品数量",
-      "商品单价",
-      "创建时间",
-      "过期时间"
-    ]
+    try {
+      setIsExporting(true)
 
-    // 构建CSV内容
-    const rows = orders.flatMap(order =>
-      order.orderItems.map((item, index) => [
-        index === 0 ? order.orderNumber : "", // 只在第一行显示订单号
-        index === 0 ? getStatusText(order.status) : "",
-        index === 0 ? order.totalAmount.toFixed(2) : "",
-        item.product.title,
-        item.quantity,
-        item.price.toFixed(2),
-        index === 0 ? new Date(order.createdAt).toLocaleString("zh-CN") : "",
-        index === 0 ? (order.expiresAt ? new Date(order.expiresAt).toLocaleString("zh-CN") : "无") : ""
-      ])
-    )
+      // 构建API URL
+      const params = new URLSearchParams({
+        format,
+        visitorId,
+        orderNumbers: orderNumbersToExport.join(',')
+      })
 
-    // 组合CSV内容
-    const csvContent = [
-      headers.join(","),
-      ...rows.map(row => row.map(cell => `"${cell}"`).join(","))
-    ].join("\n")
+      const response = await fetch(`/api/backendmanager/orders/export?${params}`)
 
-    // 添加BOM以支持中文
-    const BOM = "\uFEFF"
-    const dataBlob = new Blob([BOM + csvContent], { type: "text/csv;charset=utf-8;" })
-    const url = URL.createObjectURL(dataBlob)
-    const link = document.createElement("a")
-    link.href = url
-    link.download = `${filename}.csv`
-    link.click()
-    URL.revokeObjectURL(url)
-  }
+      if (!response.ok) {
+        // 处理错误响应
+        const errorData = await response.json().catch(() => ({ error: '导出失败' }))
 
-  // 导出单个订单
-  const exportSingleOrder = (order: Order, format: "json" | "csv") => {
-    const filename = `订单_${order.orderNumber}_${new Date().toISOString().split("T")[0]}`
-    if (format === "json") {
-      exportToJSON([order], filename)
-    } else {
-      exportToCSV([order], filename)
+        if (response.status === 403) {
+          // 超过导出限制
+          alert(errorData.error || '导出次数已用完')
+        } else {
+          alert(errorData.error || '导出失败，请稍后重试')
+        }
+        return
+      }
+
+      // 成功，下载文件
+      const blob = await response.blob()
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+
+      // 从响应头获取文件名，或使用默认文件名
+      const contentDisposition = response.headers.get('Content-Disposition')
+      let filename = `orders_${Date.now()}.${format}`
+      if (contentDisposition) {
+        const match = contentDisposition.match(/filename=(.+)/)
+        if (match) {
+          filename = match[1]
+        }
+      }
+
+      link.download = filename
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(url)
+
+      alert('导出成功！')
+    } catch (error) {
+      console.error('导出失败:', error)
+      alert('导出失败，请稍后重试')
+    } finally {
+      setIsExporting(false)
     }
   }
 
+  // 导出单个订单
+  const exportSingleOrder = async (order: Order, format: "json" | "csv") => {
+    // 调用后端API导出
+    await exportOrdersViaAPI([order.orderNumber], format)
+  }
+
   // 导出选中的订单
-  const exportSelectedOrders = (format: "json" | "csv") => {
+  const exportSelectedOrders = async (format: "json" | "csv") => {
     const filteredOrders = getFilteredOrders()
     const ordersToExport = filteredOrders.filter(order => selectedOrders.has(order.id))
     if (ordersToExport.length === 0) {
       alert("请先选择要导出的订单")
       return
     }
-    const filename = `订单导出_${ordersToExport.length}条_${new Date().toISOString().split("T")[0]}`
-    if (format === "json") {
-      exportToJSON(ordersToExport, filename)
-    } else {
-      exportToCSV(ordersToExport, filename)
-    }
+
+    // 获取订单号列表
+    const orderNumbers = ordersToExport.map(order => order.orderNumber)
+
+    // 调用后端API导出
+    await exportOrdersViaAPI(orderNumbers, format)
+
     // 导出后清除选择
     setSelectedOrders(new Set())
   }
 
   // 导出全部订单（导出当前搜索结果的所有订单）
-  const exportAllOrders = (format: "json" | "csv") => {
+  const exportAllOrders = async (format: "json" | "csv") => {
     const filteredOrders = getFilteredOrders()
     if (filteredOrders.length === 0) {
       alert("没有可导出的订单")
       return
     }
-    const searchInfo = searchQuery.trim() ? `搜索结果_` : ''
-    const filename = `${searchInfo}全部订单_${filteredOrders.length}条_${new Date().toISOString().split("T")[0]}`
-    if (format === "json") {
-      exportToJSON(filteredOrders, filename)
-    } else {
-      exportToCSV(filteredOrders, filename)
-    }
+
+    // 获取订单号列表
+    const orderNumbers = filteredOrders.map(order => order.orderNumber)
+
+    // 调用后端API导出
+    await exportOrdersViaAPI(orderNumbers, format)
   }
 
   if (loading) {
@@ -466,21 +487,23 @@ export default function MyOrdersPage() {
                   <div className="flex gap-2">
                     <button
                       onClick={() => exportSelectedOrders("csv")}
-                      className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm flex items-center gap-2"
+                      disabled={isExporting}
+                      className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                       </svg>
-                      导出选中 (CSV)
+                      {isExporting ? '导出中...' : '导出选中 (CSV)'}
                     </button>
                     <button
                       onClick={() => exportSelectedOrders("json")}
-                      className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm flex items-center gap-2"
+                      disabled={isExporting}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                       </svg>
-                      导出选中 (JSON)
+                      {isExporting ? '导出中...' : '导出选中 (JSON)'}
                     </button>
                   </div>
                 )}
@@ -489,21 +512,23 @@ export default function MyOrdersPage() {
                 <div className="flex gap-2">
                   <button
                     onClick={() => exportAllOrders("csv")}
-                    className="px-4 py-2 border border-green-600 text-green-600 rounded-md hover:bg-green-50 text-sm flex items-center gap-2"
+                    disabled={isExporting}
+                    className="px-4 py-2 border border-green-600 text-green-600 rounded-md hover:bg-green-50 text-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                     </svg>
-                    导出全部 (CSV)
+                    {isExporting ? '导出中...' : '导出全部 (CSV)'}
                   </button>
                   <button
                     onClick={() => exportAllOrders("json")}
-                    className="px-4 py-2 border border-blue-600 text-blue-600 rounded-md hover:bg-blue-50 text-sm flex items-center gap-2"
+                    disabled={isExporting}
+                    className="px-4 py-2 border border-blue-600 text-blue-600 rounded-md hover:bg-blue-50 text-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                     </svg>
-                    导出全部 (JSON)
+                    {isExporting ? '导出中...' : '导出全部 (JSON)'}
                   </button>
                 </div>
               </div>
@@ -619,22 +644,23 @@ export default function MyOrdersPage() {
                     <div className="relative export-menu-container">
                       <button
                         onClick={() => setOpenExportMenu(openExportMenu === order.id ? null : order.id)}
-                        className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 flex items-center gap-2"
+                        disabled={isExporting}
+                        className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                         </svg>
-                        导出
+                        {isExporting ? '导出中...' : '导出'}
                         <svg className={`w-4 h-4 transition-transform ${openExportMenu === order.id ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                         </svg>
                       </button>
                       {/* 下拉菜单 */}
-                      {openExportMenu === order.id && (
+                      {openExportMenu === order.id && !isExporting && (
                         <div className="absolute right-0 top-full mt-2 bg-white shadow-lg rounded-md border z-50 min-w-[140px]">
                           <button
-                            onClick={() => {
-                              exportSingleOrder(order, "csv")
+                            onClick={async () => {
+                              await exportSingleOrder(order, "csv")
                               setOpenExportMenu(null)
                             }}
                             className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2 rounded-t-md"
@@ -645,8 +671,8 @@ export default function MyOrdersPage() {
                             导出CSV
                           </button>
                           <button
-                            onClick={() => {
-                              exportSingleOrder(order, "json")
+                            onClick={async () => {
+                              await exportSingleOrder(order, "json")
                               setOpenExportMenu(null)
                             }}
                             className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2 border-t rounded-b-md"
@@ -776,6 +802,7 @@ export default function MyOrdersPage() {
           <li>• 订单记录保存在浏览器本地，清除浏览器数据会导致记录丢失</li>
           <li>• 请妥善保管订单号，可随时在"订单查询"页面查询</li>
           <li>• 换电脑或换浏览器需要使用订单号手动查询</li>
+          <li>• <strong>导出限制：</strong>只有已支付订单支持导出，每个已支付订单最多可导出2次</li>
         </ul>
       </div>
     </div>

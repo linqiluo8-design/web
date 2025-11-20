@@ -416,3 +416,20 @@ model OrderExportRecord {
   @@index([visitorId])
   @@index([exportDate])
 }
+
+// 会员订单导出记录（用于限制匿名用户导出次数）
+model MembershipExportRecord {
+  id          String   @id @default(cuid())
+  userId      String?  // 用户ID（已登录用户）
+  visitorId   String?  // 访客ID（匿名用户标识）
+  exportDate  DateTime // 导出日期（只记录日期部分，用于按天统计）
+  count       Int      @default(1) // 当天导出次数
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([userId, exportDate])
+  @@unique([visitorId, exportDate])
+  @@index([userId])
+  @@index([visitorId])
+  @@index([exportDate])
+}

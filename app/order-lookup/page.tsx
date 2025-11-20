@@ -45,7 +45,7 @@ export default function OrderLookupPage() {
   const [permissions, setPermissions] = useState<Record<string, string>>({})
   const [hasAccess, setHasAccess] = useState(false)
 
-  // 获取用户权限
+  // 获取用户权限（可选，仅用于已登录用户的额外功能）
   useEffect(() => {
     if (session?.user) {
       fetch('/api/auth/permissions')
@@ -58,36 +58,24 @@ export default function OrderLookupPage() {
           setHasAccess(isAdmin || hasOrderLookupPermission)
         })
         .catch(err => console.error('获取权限失败:', err))
+    } else {
+      // 匿名用户也有访问权限（可以查看自己订单号对应的订单）
+      setHasAccess(true)
     }
   }, [session])
 
-  // 权限检查
+  // 支持从URL参数获取订单号（匿名用户和登录用户都支持）
   useEffect(() => {
-    if (status === 'unauthenticated') {
-      router.push('/auth/signin')
-      return
+    const params = new URLSearchParams(window.location.search)
+    const urlOrderNumber = params.get('orderNumber')
+    if (urlOrderNumber) {
+      setOrderNumber(urlOrderNumber)
+      // 自动查询
+      setTimeout(() => {
+        handleSearchWithNumber(urlOrderNumber)
+      }, 100)
     }
-
-    if (status === 'authenticated' && !hasAccess && Object.keys(permissions).length > 0) {
-      router.push('/')
-      return
-    }
-  }, [status, hasAccess, permissions, router])
-
-  // 支持从URL参数获取订单号
-  useEffect(() => {
-    if (hasAccess) {
-      const params = new URLSearchParams(window.location.search)
-      const urlOrderNumber = params.get('orderNumber')
-      if (urlOrderNumber) {
-        setOrderNumber(urlOrderNumber)
-        // 自动查询
-        setTimeout(() => {
-          handleSearchWithNumber(urlOrderNumber)
-        }, 100)
-      }
-    }
-  }, [hasAccess])
+  }, [])
 
   const handleSearchWithNumber = async (number: string) => {
     if (!number.trim()) {

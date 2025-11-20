@@ -1,6 +1,4 @@
 import { prisma } from "@/lib/prisma"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/app/api/auth/[...nextauth]/options"
 
 /**
  * 导出限制结果
@@ -15,10 +13,11 @@ export interface ExportLimitResult {
 }
 
 /**
- * 检查订单导出限制（针对匿名用户）
+ * 检查订单导出限制（仅针对匿名用户）
+ *
+ * 注意：调用此函数前，调用方应该已经判断用户是匿名用户
  *
  * 规则：
- * - 管理员和团队成员：无限制
  * - 匿名用户：每个已支付订单最多可导出2次
  *   例如：1个已支付订单 → 最多导出2次
  *         2个已支付订单 → 最多导出4次
@@ -33,27 +32,6 @@ export async function checkOrderExportLimit(
   orderNumbers?: string[]
 ): Promise<ExportLimitResult> {
   try {
-    // 检查是否为已登录用户
-    const session = await getServerSession(authOptions)
-
-    // 管理员和拥有权限的团队成员不受限制
-    if (session?.user) {
-      // 如果是管理员，不限制
-      if (session.user.role === 'ADMIN') {
-        return { allowed: true }
-      }
-
-      // 检查是否有订单管理权限
-      const permissions = await fetch(`${process.env.NEXTAUTH_URL}/api/auth/permissions`, {
-        headers: {
-          cookie: `next-auth.session-token=${session.user.id}`
-        }
-      }).then(res => res.json()).catch(() => ({ permissions: {} }))
-
-      if (permissions.permissions?.ORDERS === 'READ' || permissions.permissions?.ORDERS === 'WRITE') {
-        return { allowed: true }
-      }
-    }
 
     // 匿名用户需要提供 visitorId
     if (!visitorId) {

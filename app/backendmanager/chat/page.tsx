@@ -230,12 +230,12 @@ export default function ChatAdminPage() {
 
       <div className="grid grid-cols-12 gap-6" style={{ height: 'calc(100vh - 300px)', minHeight: '600px', maxHeight: '800px' }}>
         {/* 左侧：会话列表 */}
-        <div className="col-span-4 bg-white rounded-lg shadow overflow-hidden flex flex-col">
-          <div className="px-4 py-3 bg-gray-50 border-b">
+        <div className="col-span-4 bg-white rounded-lg shadow overflow-hidden flex flex-col h-full">
+          <div className="px-4 py-3 bg-gray-50 border-b flex-shrink-0">
             <h2 className="font-semibold text-gray-700">聊天列表</h2>
           </div>
 
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 overflow-y-auto" style={{ minHeight: 0 }}>
             {sessions.length === 0 ? (
               <div className="p-8 text-center text-gray-500">
                 暂无活跃聊天
@@ -284,11 +284,11 @@ export default function ChatAdminPage() {
         </div>
 
         {/* 右侧：聊天窗口 */}
-        <div className="col-span-8 bg-white rounded-lg shadow flex flex-col">
+        <div className="col-span-8 bg-white rounded-lg shadow flex flex-col h-full">
           {selectedSession ? (
             <>
               {/* 头部 */}
-              <div className="px-6 py-4 border-b bg-gray-50">
+              <div className="px-6 py-4 border-b bg-gray-50 flex-shrink-0">
                 <h2 className="font-semibold text-gray-900">
                   {selectedSession.visitorName || "访客"}
                 </h2>
@@ -298,7 +298,7 @@ export default function ChatAdminPage() {
               </div>
 
               {/* 消息区域 */}
-              <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-6 bg-gray-50 relative">
+              <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-6 bg-gray-50 relative" style={{ minHeight: 0 }}>
                 {messages.map((msg) => (
                   <div
                     key={msg.id}
@@ -364,7 +364,7 @@ export default function ChatAdminPage() {
               </div>
 
               {/* 输入区域 */}
-              <div className="p-4 border-t bg-white">
+              <div className="p-4 border-t bg-white flex-shrink-0">
                 <div className="flex gap-2">
                   <textarea
                     value={newMessage}

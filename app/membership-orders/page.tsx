@@ -430,168 +430,232 @@ export default function MembershipOrdersPage() {
             </div>
           </div>
 
-          <div className="space-y-4">
+          <div className="space-y-6">
             {orders.map((order) => {
               const statusInfo = statusMap[order.status] || statusMap.active
               return (
-                <div key={order.id} className="bg-white rounded-lg shadow flex">
-                  {/* 复选框 */}
-                  <div className="flex items-center justify-center p-4 bg-gray-50 border-r">
-                    <input
-                      type="checkbox"
-                      checked={selectedOrders.has(order.id)}
-                      onChange={() => toggleSelectOrder(order.id)}
-                      className="w-5 h-5 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
-                    />
-                  </div>
+                <div key={order.id} className="bg-white rounded-2xl shadow-xl border-2 border-gray-100 hover:shadow-2xl hover:scale-[1.01] transition-all duration-300 overflow-hidden relative">
+                  {/* 状态装饰条 */}
+                  <div className={`absolute top-0 left-0 right-0 h-1 ${
+                    order.status === 'active' ? 'bg-gradient-to-r from-emerald-400 to-green-500' :
+                    order.status === 'expired' ? 'bg-gradient-to-r from-gray-400 to-gray-500' :
+                    'bg-gradient-to-r from-blue-400 to-indigo-500'
+                  }`}></div>
 
-                  {/* 订单内容 */}
-                  <div className="flex-1 p-6">
-                  {/* 订单头部 */}
-                  <div className="border-b pb-4 mb-4">
-                    <div className="flex justify-between items-start mb-3">
-                      <div>
-                        <div className="flex items-center gap-3 mb-2">
-                          <h3 className="font-semibold text-lg">
-                            {order.plan.name}
-                          </h3>
-                          <span className={`px-3 py-1 rounded-full text-sm ${statusInfo.color}`}>
-                            {statusInfo.label}
-                          </span>
-                        </div>
-                        <p className="text-sm text-gray-600">
-                          购买时间: {formatDate(order.createdAt)}
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-2xl font-bold text-blue-600">
-                          ¥{order.purchasePrice.toFixed(2)}
-                        </div>
-                      </div>
+                  <div className="flex">
+                    {/* 复选框区域 */}
+                    <div className="flex items-center justify-center px-6 bg-gradient-to-b from-gray-50 to-gray-100 border-r-2 border-gray-100">
+                      <input
+                        type="checkbox"
+                        checked={selectedOrders.has(order.id)}
+                        onChange={() => toggleSelectOrder(order.id)}
+                        className="w-6 h-6 text-blue-600 rounded-lg focus:ring-2 focus:ring-blue-500 cursor-pointer transition-transform hover:scale-110"
+                      />
                     </div>
-                  </div>
 
-                  {/* 订单信息 */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                    {order.orderNumber && (
-                      <div>
-                        <p className="text-sm text-gray-600 mb-1">会员订单号</p>
-                        <div className="flex items-center gap-2">
-                          <p className="font-mono text-sm font-semibold">
-                            {order.orderNumber}
-                          </p>
-                          <button
-                            onClick={() => copyToClipboard(order.orderNumber!, "订单号")}
-                            className="text-blue-600 hover:text-blue-700"
-                            title="复制订单号"
-                          >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                            </svg>
-                          </button>
+                    {/* 订单内容 */}
+                    <div className="flex-1">
+                      {/* 订单头部 - 使用渐变背景 */}
+                      <div className="bg-gradient-to-r from-purple-50 via-pink-50 to-rose-50 px-6 py-5 border-b-2 border-gray-100">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <div className="flex items-center gap-3 mb-3">
+                              <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+                              </svg>
+                              <h3 className="font-bold text-2xl text-gray-800">
+                                {order.plan.name}
+                              </h3>
+                              <span className={`px-4 py-1.5 rounded-full text-xs font-bold shadow-md ${statusInfo.color}`}>
+                                {statusInfo.label}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2 text-sm text-gray-600">
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                              <span>购买时间: {formatDate(order.createdAt)}</span>
+                            </div>
+                          </div>
+                          <div className="text-right bg-white px-5 py-3 rounded-xl shadow-md border-2 border-gray-100">
+                            <div className="text-xs text-gray-500 mb-1">支付金额</div>
+                            <div className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+                              ¥{order.purchasePrice.toFixed(2)}
+                            </div>
+                          </div>
                         </div>
                       </div>
-                    )}
 
-                    <div>
-                      <p className="text-sm text-gray-600 mb-1">会员码</p>
-                      <div className="flex items-center gap-2">
-                        <p className="font-mono text-sm font-semibold text-blue-600">
-                          {order.membershipCode}
-                        </p>
-                        <button
-                          onClick={() => copyToClipboard(order.membershipCode, "会员码")}
-                          className="text-blue-600 hover:text-blue-700"
-                          title="复制会员码"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                          </svg>
-                        </button>
-                      </div>
-                    </div>
+                      {/* 订单信息 */}
+                      <div className="bg-gradient-to-b from-white to-gray-50 px-6 py-5">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {order.orderNumber && (
+                            <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow duration-200">
+                              <div className="flex items-center gap-2 mb-2">
+                                <svg className="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                                <p className="text-xs text-gray-500 font-medium">会员订单号</p>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <p className="font-mono text-sm font-semibold text-gray-800 flex-1">
+                                  {order.orderNumber}
+                                </p>
+                                <button
+                                  onClick={() => copyToClipboard(order.orderNumber!, "订单号")}
+                                  className="p-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-all duration-200"
+                                  title="复制订单号"
+                                >
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                  </svg>
+                                </button>
+                              </div>
+                            </div>
+                          )}
 
-                    {order.paymentMethod && (
-                      <div>
-                        <p className="text-sm text-gray-600 mb-1">支付方式</p>
-                        <p className="text-sm font-semibold">
-                          {paymentMethodMap[order.paymentMethod] || order.paymentMethod}
-                        </p>
-                      </div>
-                    )}
+                          <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow duration-200">
+                            <div className="flex items-center gap-2 mb-2">
+                              <svg className="w-4 h-4 text-pink-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                              </svg>
+                              <p className="text-xs text-gray-500 font-medium">会员码</p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <p className="font-mono text-sm font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent flex-1">
+                                {order.membershipCode}
+                              </p>
+                              <button
+                                onClick={() => copyToClipboard(order.membershipCode, "会员码")}
+                                className="p-2 text-pink-600 hover:text-pink-700 hover:bg-pink-50 rounded-lg transition-all duration-200"
+                                title="复制会员码"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                </svg>
+                              </button>
+                            </div>
+                          </div>
 
-                    <div>
-                      <p className="text-sm text-gray-600 mb-1">会员套餐</p>
-                      <p className="text-sm font-semibold">
-                        {getDurationDisplay(order.duration)} • {(order.discount * 10).toFixed(1)}折 • 每日{order.dailyLimit}次
-                      </p>
-                    </div>
+                          {order.paymentMethod && (
+                            <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow duration-200">
+                              <div className="flex items-center gap-2 mb-2">
+                                <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                                </svg>
+                                <p className="text-xs text-gray-500 font-medium">支付方式</p>
+                              </div>
+                              <p className="text-sm font-semibold text-gray-800">
+                                {paymentMethodMap[order.paymentMethod] || order.paymentMethod}
+                              </p>
+                            </div>
+                          )}
 
-                    <div>
-                      <p className="text-sm text-gray-600 mb-1">开始时间</p>
-                      <p className="text-sm">{formatDate(order.startDate)}</p>
-                    </div>
+                          <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow duration-200">
+                            <div className="flex items-center gap-2 mb-2">
+                              <svg className="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                              <p className="text-xs text-gray-500 font-medium">会员套餐</p>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              <span className="px-3 py-1 bg-indigo-50 text-indigo-700 rounded-full text-xs font-medium">
+                                {getDurationDisplay(order.duration)}
+                              </span>
+                              <span className="px-3 py-1 bg-purple-50 text-purple-700 rounded-full text-xs font-medium">
+                                {(order.discount * 10).toFixed(1)}折
+                              </span>
+                              <span className="px-3 py-1 bg-pink-50 text-pink-700 rounded-full text-xs font-medium">
+                                每日{order.dailyLimit}次
+                              </span>
+                            </div>
+                          </div>
 
-                    <div>
-                      <p className="text-sm text-gray-600 mb-1">到期时间</p>
-                      <p className="text-sm">
-                        {order.endDate ? formatDate(order.endDate) : "永久有效"}
-                      </p>
-                    </div>
-                  </div>
+                          <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow duration-200">
+                            <div className="flex items-center gap-2 mb-2">
+                              <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                              </svg>
+                              <p className="text-xs text-gray-500 font-medium">开始时间</p>
+                            </div>
+                            <p className="text-sm font-semibold text-gray-800">{formatDate(order.startDate)}</p>
+                          </div>
 
-                  {/* 底部操作栏 */}
-                  <div className="border-t pt-4 mt-4 flex items-center justify-between flex-wrap gap-4">
-                    {/* 提示信息 */}
-                    {order.status === "active" && (
-                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800 flex-1">
-                        💡 使用会员码在购物车中享受折扣优惠
-                      </div>
-                    )}
-
-                    {/* 导出按钮 */}
-                    <div className="relative export-menu-container">
-                      <button
-                        onClick={() => setOpenExportMenu(openExportMenu === order.id ? null : order.id)}
-                        disabled={isExporting}
-                        className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg>
-                        {isExporting ? '导出中...' : '导出'}
-                      </button>
-                      {/* 下拉菜单 */}
-                      {openExportMenu === order.id && !isExporting && (
-                        <div className="absolute right-0 bottom-full mb-2 bg-white shadow-lg rounded-md border z-50 min-w-[120px]">
-                          <button
-                            onClick={async () => {
-                              await exportSingleOrder(order, "csv")
-                              setOpenExportMenu(null)
-                            }}
-                            className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2"
-                          >
-                            <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                            </svg>
-                            导出CSV
-                          </button>
-                          <button
-                            onClick={async () => {
-                              await exportSingleOrder(order, "json")
-                              setOpenExportMenu(null)
-                            }}
-                            className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2 border-t"
-                          >
-                            <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
-                            </svg>
-                            导出JSON
-                          </button>
+                          <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow duration-200">
+                            <div className="flex items-center gap-2 mb-2">
+                              <svg className="w-4 h-4 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                              </svg>
+                              <p className="text-xs text-gray-500 font-medium">到期时间</p>
+                            </div>
+                            <p className="text-sm font-semibold text-gray-800">
+                              {order.endDate ? formatDate(order.endDate) : (
+                                <span className="bg-gradient-to-r from-yellow-600 to-orange-600 bg-clip-text text-transparent font-bold">
+                                  永久有效
+                                </span>
+                              )}
+                            </p>
+                          </div>
                         </div>
-                      )}
-                    </div>
-                  </div>
+                      </div>
+
+                      {/* 底部操作栏 */}
+                      <div className="bg-gradient-to-r from-gray-50 via-purple-50 to-pink-50 px-6 py-4 border-t-2 border-gray-100">
+                        <div className="flex items-center justify-between flex-wrap gap-4">
+                          {/* 提示信息 */}
+                          {order.status === "active" && (
+                            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl p-4 text-sm text-blue-800 flex-1 shadow-sm">
+                              <div className="flex items-center gap-2">
+                                <span className="text-lg">💡</span>
+                                <span className="font-medium">使用会员码在购物车中享受折扣优惠</span>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* 导出按钮 */}
+                          <div className="relative export-menu-container">
+                            <button
+                              onClick={() => setOpenExportMenu(openExportMenu === order.id ? null : order.id)}
+                              disabled={isExporting}
+                              className="px-5 py-2.5 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl hover:from-green-600 hover:to-emerald-700 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg transition-all duration-200 font-medium"
+                            >
+                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                              </svg>
+                              {isExporting ? '导出中...' : '导出订单'}
+                            </button>
+                            {/* 下拉菜单 */}
+                            {openExportMenu === order.id && !isExporting && (
+                              <div className="absolute right-0 bottom-full mb-2 bg-white shadow-2xl rounded-xl border-2 border-gray-100 z-50 min-w-[160px] overflow-hidden">
+                                <button
+                                  onClick={async () => {
+                                    await exportSingleOrder(order, "csv")
+                                    setOpenExportMenu(null)
+                                  }}
+                                  className="w-full px-5 py-3 text-left text-sm hover:bg-gradient-to-r hover:from-green-50 hover:to-emerald-50 flex items-center gap-3 transition-all duration-200"
+                                >
+                                  <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                  </svg>
+                                  <span className="font-medium text-gray-700">导出CSV</span>
+                                </button>
+                                <button
+                                  onClick={async () => {
+                                    await exportSingleOrder(order, "json")
+                                    setOpenExportMenu(null)
+                                  }}
+                                  className="w-full px-5 py-3 text-left text-sm hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 flex items-center gap-3 border-t border-gray-100 transition-all duration-200"
+                                >
+                                  <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                                  </svg>
+                                  <span className="font-medium text-gray-700">导出JSON</span>
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
                   </div>
                 </div>
               )

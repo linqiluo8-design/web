@@ -75,8 +75,8 @@ export const authOptions: NextAuthOptions = {
   ],
   session: {
     strategy: "jwt",
-    maxAge: 30 * 24 * 60 * 60, // 30 days
-    updateAge: 24 * 60 * 60, // 24 hours
+    maxAge: 7 * 24 * 60 * 60, // 7 天（从30天优化为7天，更安全）
+    updateAge: 24 * 60 * 60, // 24 小时
   },
   pages: {
     signIn: "/auth/signin",

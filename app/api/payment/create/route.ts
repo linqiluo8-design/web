@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { z } from "zod"
+import { withRateLimit, RateLimitPresets } from "@/lib/rate-limit"
 
 const paymentSchema = z.object({
   orderId: z.string(),
@@ -23,21 +24,35 @@ async function getSystemConfig(key: string, defaultValue: string = ""): Promise<
 }
 
 export async function POST(request: Request) {
-  try {
-    const body = await request.json()
-    const data = paymentSchema.parse(body)
+  // 应用速率限制：每分钟最多 10 次支付请求
+  return withRateLimit(request, RateLimitPresets.ORDER, async () => {
+    try {
+      const body = await request.json()
+      const data = paymentSchema.parse(body)
 
-    const order = await prisma.order.findUnique({
-      where: { id: data.orderId }
-    })
+      const order = await prisma.order.findUnique({
+        where: { id: data.orderId }
+      })
 
-    if (!order) {
-      return NextResponse.json({ error: "订单不存在" }, { status: 404 })
-    }
+      if (!order) {
+        return NextResponse.json({ error: "订单不存在" }, { status: 404 })
+      }
 
-    if (order.status !== "pending") {
-      return NextResponse.json({ error: "订单状态不正确" }, { status: 400 })
-    }
+      if (order.status !== "pending") {
+        return NextResponse.json({ error: "订单状态不正确" }, { status: 400 })
+      }
+
+      // 安全检查：验证金额是否与订单匹配（允许0.01的浮点误差）
+      const amountDiff = Math.abs(order.totalAmount - data.amount)
+      if (amountDiff > 0.01) {
+        console.error('[SECURITY] 支付金额不匹配:', {
+          orderId: order.id,
+          orderAmount: order.totalAmount,
+          requestAmount: data.amount,
+          diff: amountDiff
+        })
+        return NextResponse.json({ error: "支付金额与订单不匹配" }, { status: 400 })
+      }
 
     // 获取支付模式配置
     const paymentMode = await getSystemConfig("payment_mode", "mock")
@@ -131,4 +146,5 @@ export async function POST(request: Request) {
     console.error("创建支付失败:", error)
     return NextResponse.json({ error: "创建支付失败" }, { status: 500 })
   }
+  })
 }

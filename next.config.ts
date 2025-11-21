@@ -44,7 +44,7 @@ const nextConfig: NextConfig = {
         ],
       },
       {
-        // API路由的额外安全头
+        // API路由的额外安全头和CORS配置
         source: '/api/:path*',
         headers: [
           {
@@ -54,6 +54,25 @@ const nextConfig: NextConfig = {
           {
             key: 'X-Frame-Options',
             value: 'DENY',
+          },
+          // CORS 配置（生产环境建议限制为特定域名）
+          {
+            key: 'Access-Control-Allow-Origin',
+            value: process.env.NODE_ENV === 'production'
+              ? (process.env.NEXTAUTH_URL || 'https://yourdomain.com')
+              : '*',
+          },
+          {
+            key: 'Access-Control-Allow-Methods',
+            value: 'GET, POST, PUT, DELETE, OPTIONS',
+          },
+          {
+            key: 'Access-Control-Allow-Headers',
+            value: 'Content-Type, Authorization, X-Requested-With',
+          },
+          {
+            key: 'Access-Control-Max-Age',
+            value: '86400', // 24小时
           },
         ],
       },

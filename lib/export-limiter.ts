@@ -100,20 +100,39 @@ export async function checkOrderExportLimit(
       }
     })
 
-    // 4. 检查每个订单是否超过2次限制
+    // 4. 检查每个订单是否超过2次限制，收集所有已达到限制的订单
+    const limitedOrders: string[] = []
     for (const orderNumber of paidOrderNumbers) {
       const record = exportRecords.find(r => r.orderNumber === orderNumber)
       const count = record?.count || 0
 
       if (count >= 2) {
-        return {
-          allowed: false,
-          reason: `您的订单今天已达到导出限制，每个订单最多导出2次`,
-          paidOrderCount,
-          usedExports: count,
-          remainingExports: 0,
-          totalAllowed: 2
-        }
+        limitedOrders.push(orderNumber)
+      }
+    }
+
+    // 如果有订单达到限制，给出详细提示
+    if (limitedOrders.length > 0) {
+      const limitedCount = limitedOrders.length
+      const totalCount = paidOrderNumbers.length
+
+      let reason = ''
+      if (limitedCount === totalCount) {
+        // 所有订单都达到限制
+        reason = '您的所有订单今天已达到导出限制，每个订单最多导出2次'
+      } else {
+        // 部分订单达到限制
+        const remainingCount = totalCount - limitedCount
+        reason = `您有 ${limitedCount} 个订单今天已达到导出限制（每个订单最多导出2次）。您还有 ${remainingCount} 个订单可以导出，建议您单独导出 或者 选中合并导出 未达到限制的订单`
+      }
+
+      return {
+        allowed: false,
+        reason,
+        paidOrderCount,
+        usedExports: 2,
+        remainingExports: 0,
+        totalAllowed: 2
       }
     }
 
@@ -350,20 +369,39 @@ export async function checkMembershipExportLimit(
       }
     })
 
-    // 4. 检查每个会员订单是否超过2次限制
+    // 4. 检查每个会员订单是否超过2次限制，收集所有已达到限制的订单
+    const limitedMemberships: string[] = []
     for (const membershipCode of paidMembershipCodes) {
       const record = exportRecords.find(r => r.membershipCode === membershipCode)
       const count = record?.count || 0
 
       if (count >= 2) {
-        return {
-          allowed: false,
-          reason: `您的会员订单今天已达到导出限制，每个订单最多导出2次`,
-          paidOrderCount,
-          usedExports: count,
-          remainingExports: 0,
-          totalAllowed: 2
-        }
+        limitedMemberships.push(membershipCode)
+      }
+    }
+
+    // 如果有会员订单达到限制，给出详细提示
+    if (limitedMemberships.length > 0) {
+      const limitedCount = limitedMemberships.length
+      const totalCount = paidMembershipCodes.length
+
+      let reason = ''
+      if (limitedCount === totalCount) {
+        // 所有会员订单都达到限制
+        reason = '您的所有会员订单今天已达到导出限制，每个订单最多导出2次'
+      } else {
+        // 部分会员订单达到限制
+        const remainingCount = totalCount - limitedCount
+        reason = `您有 ${limitedCount} 个会员订单今天已达到导出限制（每个订单最多导出2次）。您还有 ${remainingCount} 个会员订单可以导出，建议您单独导出 或者 选中合并导出 未达到限制的订单`
+      }
+
+      return {
+        allowed: false,
+        reason,
+        paidOrderCount,
+        usedExports: 2,
+        remainingExports: 0,
+        totalAllowed: 2
       }
     }
 

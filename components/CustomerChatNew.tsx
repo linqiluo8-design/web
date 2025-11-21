@@ -44,10 +44,15 @@ export default function CustomerChat() {
     }
   }, [isOpen, visitorId, sessionId])
 
-  // 自动滚动到最新消息
+  // 自动滚动到最新消息 - 仅在发送消息后
+  const [shouldAutoScroll, setShouldAutoScroll] = useState(false)
+
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
-  }, [messages])
+    if (shouldAutoScroll && messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: "smooth" })
+      setShouldAutoScroll(false)
+    }
+  }, [shouldAutoScroll, messages])
 
   // 定期轮询消息（包括已读状态更新）- 仅在窗口打开时
   useEffect(() => {
@@ -128,6 +133,9 @@ export default function CustomerChat() {
       const data = await response.json()
       setMessages(prev => [...prev, data.message])
       setNewMessage("")
+
+      // 发送消息后自动滚动到底部
+      setShouldAutoScroll(true)
     } catch (error) {
       console.error("发送消息失败:", error)
       alert("发送消息失败，请重试")

@@ -228,7 +228,7 @@ export default function ChatAdminPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-12 gap-6 h-[700px]">
+      <div className="grid grid-cols-12 gap-6" style={{ height: 'calc(100vh - 300px)', minHeight: '600px', maxHeight: '800px' }}>
         {/* 左侧：会话列表 */}
         <div className="col-span-4 bg-white rounded-lg shadow overflow-hidden flex flex-col">
           <div className="px-4 py-3 bg-gray-50 border-b">

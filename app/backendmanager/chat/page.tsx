@@ -35,7 +35,10 @@ export default function ChatAdminPage() {
   const [loading, setLoading] = useState(true)
   const [hasPermission, setHasPermission] = useState(false)
   const [permissionChecked, setPermissionChecked] = useState(false)
+  const [shouldAutoScroll, setShouldAutoScroll] = useState(false) // 控制是否自动滚动
+  const [showNewMessageHint, setShowNewMessageHint] = useState(false) // 显示新消息提示
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const messagesContainerRef = useRef<HTMLDivElement>(null)
 
   // 检查权限
   useEffect(() => {
@@ -73,18 +76,43 @@ export default function ChatAdminPage() {
   // 自动刷新会话列表
   useEffect(() => {
     const interval = setInterval(() => {
-      fetchSessions()
-      if (selectedSession) {
-        fetchMessages(selectedSession.id)
+      // 检查客服是否正在输入，避免焦点丢失
+      const activeElement = document.activeElement
+      const isInputActive = activeElement instanceof HTMLInputElement ||
+                           activeElement instanceof HTMLTextAreaElement
+
+      if (!isInputActive) {
+        fetchSessions()
+        if (selectedSession) {
+          fetchMessages(selectedSession.id)
+        }
       }
     }, 5000) // 每5秒刷新
 
     return () => clearInterval(interval)
   }, [selectedSession])
 
-  // 自动滚动到最新消息
+  // 只在需要时自动滚动（如发送消息后）
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+    if (shouldAutoScroll && messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: "smooth" })
+      setShouldAutoScroll(false)
+    }
+  }, [shouldAutoScroll, messages])
+
+  // 检查是否应该显示新消息提示
+  useEffect(() => {
+    if (!messagesContainerRef.current) return
+
+    const container = messagesContainerRef.current
+    const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 100
+
+    // 如果用户不在底部，且有新消息，显示提示
+    if (!isNearBottom && messages.length > 0) {
+      setShowNewMessageHint(true)
+    } else {
+      setShowNewMessageHint(false)
+    }
   }, [messages])
 
   const fetchSessions = async () => {
@@ -116,6 +144,13 @@ export default function ChatAdminPage() {
   const selectSession = (session: ChatSession) => {
     setSelectedSession(session)
     fetchMessages(session.id)
+    // 初次选择会话时自动滚动到底部
+    setShouldAutoScroll(true)
+  }
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+    setShowNewMessageHint(false)
   }
 
   const sendMessage = async () => {
@@ -138,6 +173,9 @@ export default function ChatAdminPage() {
       const data = await response.json()
       setMessages(prev => [...prev, data.message])
       setNewMessage("")
+
+      // 发送消息后自动滚动到底部
+      setShouldAutoScroll(true)
 
       // 刷新会话列表
       fetchSessions()
@@ -260,7 +298,7 @@ export default function ChatAdminPage() {
               </div>
 
               {/* 消息区域 */}
-              <div className="flex-1 overflow-y-auto p-6 bg-gray-50">
+              <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-6 bg-gray-50 relative">
                 {messages.map((msg) => (
                   <div
                     key={msg.id}
@@ -308,6 +346,21 @@ export default function ChatAdminPage() {
                   </div>
                 ))}
                 <div ref={messagesEndRef} />
+
+                {/* 新消息提示按钮 */}
+                {showNewMessageHint && (
+                  <div className="sticky bottom-4 left-0 right-0 flex justify-center pointer-events-none">
+                    <button
+                      onClick={scrollToBottom}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 transition-all pointer-events-auto flex items-center gap-2"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                      </svg>
+                      查看新消息
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* 输入区域 */}
@@ -349,10 +402,12 @@ export default function ChatAdminPage() {
       <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
         <h3 className="font-semibold mb-2 text-blue-900">💡 使用提示</h3>
         <ul className="text-sm text-blue-800 space-y-1">
-          <li>• 会话列表自动刷新，新消息会实时显示</li>
+          <li>• 会话列表每5秒自动刷新，新消息会实时显示</li>
           <li>• 未读消息会在会话旁显示红色数字提示</li>
           <li>• 按 Enter 键快速发送消息，Shift+Enter 换行</li>
-          <li>• 消息会按时间顺序自动滚动到最新位置</li>
+          <li>• 您可以自由滚动查看历史消息，不会被自动滚动打断</li>
+          <li>• 有新消息时会显示"查看新消息"按钮，点击可快速跳转</li>
+          <li>• 发送消息后会自动滚动到最新位置</li>
         </ul>
       </div>
     </div>

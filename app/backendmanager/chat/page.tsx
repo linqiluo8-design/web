@@ -94,8 +94,8 @@ export default function ChatAdminPage() {
 
   // 只在需要时自动滚动（如发送消息后）
   useEffect(() => {
-    if (shouldAutoScroll && messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: "smooth" })
+    if (shouldAutoScroll && messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight
       setShouldAutoScroll(false)
     }
   }, [shouldAutoScroll, messages])
@@ -148,7 +148,12 @@ export default function ChatAdminPage() {
   }
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTo({
+        top: messagesContainerRef.current.scrollHeight,
+        behavior: "smooth"
+      })
+    }
     setShowNewMessageHint(false)
   }
 

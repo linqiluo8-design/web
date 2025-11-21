@@ -85,11 +85,18 @@ export default function ChatPage() {
     if (!sessionId) return
 
     const interval = setInterval(() => {
-      fetchMessages(sessionId)
+      // 检查用户是否正在输入，如果正在输入则跳过本次刷新
+      const activeElement = document.activeElement
+      const isInputActive = activeElement instanceof HTMLInputElement ||
+                           activeElement instanceof HTMLTextAreaElement
+
+      if (!isInputActive) {
+        fetchMessages(sessionId)
+      }
     }, 3000) // 每3秒刷新
 
     return () => clearInterval(interval)
-  }, [sessionId])
+  }, [sessionId, visitorId])
 
   // 自动滚动到最新消息
   useEffect(() => {

@@ -122,7 +122,8 @@ export async function checkOrderExportLimit(
         reason = '您的所有订单今天已达到导出限制，每个订单最多导出2次'
       } else {
         // 部分订单达到限制
-        reason = `您有 ${limitedCount} 个订单今天已达到导出限制（每个订单最多导出2次）。建议您单独导出未达到限制的订单，不要使用"全部导出"功能哦`
+        const remainingCount = totalCount - limitedCount
+        reason = `您有 ${limitedCount} 个订单今天已达到导出限制（每个订单最多导出2次）。您还有 ${remainingCount} 个订单可以导出，请使用"逐个导出"或"导出选中"功能，不要使用"全部导出"功能`
       }
 
       return {
@@ -390,7 +391,8 @@ export async function checkMembershipExportLimit(
         reason = '您的所有会员订单今天已达到导出限制，每个订单最多导出2次'
       } else {
         // 部分会员订单达到限制
-        reason = `您有 ${limitedCount} 个会员订单今天已达到导出限制（每个订单最多导出2次）。建议您单独导出未达到限制的订单，不要使用"全部导出"功能哦`
+        const remainingCount = totalCount - limitedCount
+        reason = `您有 ${limitedCount} 个会员订单今天已达到导出限制（每个订单最多导出2次）。您还有 ${remainingCount} 个会员订单可以导出，请使用"逐个导出"或"导出选中"功能，不要使用"全部导出"功能`
       }
 
       return {

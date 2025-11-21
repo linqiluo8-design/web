@@ -41,6 +41,33 @@ const nextConfig: NextConfig = {
             key: 'Permissions-Policy',
             value: 'camera=(), microphone=(), geolocation=()',
           },
+          // CSP（内容安全策略）- 防止 XSS、数据注入等攻击
+          {
+            key: 'Content-Security-Policy',
+            value: process.env.NODE_ENV === 'production'
+              ? [
+                  "default-src 'self'",
+                  "script-src 'self' 'unsafe-eval' 'unsafe-inline'", // Next.js 需要 unsafe-eval
+                  "style-src 'self' 'unsafe-inline'", // Tailwind CSS 需要 unsafe-inline
+                  "img-src 'self' data: https: blob:",
+                  "font-src 'self' data:",
+                  "connect-src 'self'",
+                  "frame-ancestors 'self'",
+                  "base-uri 'self'",
+                  "form-action 'self'",
+                ].join('; ')
+              : [
+                  "default-src 'self'",
+                  "script-src 'self' 'unsafe-eval' 'unsafe-inline'",
+                  "style-src 'self' 'unsafe-inline'",
+                  "img-src 'self' data: https: blob:",
+                  "font-src 'self' data:",
+                  "connect-src 'self' ws: wss:", // 开发环境允许 WebSocket（HMR）
+                  "frame-ancestors 'self'",
+                  "base-uri 'self'",
+                  "form-action 'self'",
+                ].join('; '),
+          },
         ],
       },
       {

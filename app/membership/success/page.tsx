@@ -240,10 +240,13 @@ export default function MembershipSuccessPage() {
         {/* 联系客服 */}
         <div className="mt-8 pt-6 border-t border-gray-200">
           <p className="text-sm text-gray-600">
-            如有任何问题，请联系客服：
-            <a href="mailto:support@example.com" className="text-blue-600 hover:underline ml-1">
-              support@example.com
-            </a>
+            如有任何问题，请
+            <button
+              onClick={() => window.dispatchEvent(new Event('openChat'))}
+              className="text-blue-600 hover:underline font-medium ml-1"
+            >
+              联系客服
+            </button>
           </p>
         </div>
       </div>

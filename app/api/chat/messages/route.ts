@@ -3,18 +3,32 @@ import { prisma } from "@/lib/prisma"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { canWrite, canRead } from "@/lib/permissions"
+import { withRateLimit, RateLimitPresets } from "@/lib/rate-limit"
+import { sanitizeText } from "@/lib/sanitize"
 
 // POST /api/chat/messages - 发送聊天消息
 export async function POST(req: Request) {
-  try {
-    const { sessionId, message, senderType, visitorId } = await req.json()
+  // 应用速率限制：每分钟最多 20 条消息
+  return withRateLimit(req, RateLimitPresets.CHAT, async () => {
+    try {
+      const { sessionId, message, senderType, visitorId } = await req.json()
 
-    if (!sessionId || !message || !senderType) {
-      return NextResponse.json(
-        { error: "缺少必要参数" },
-        { status: 400 }
-      )
-    }
+      if (!sessionId || !message || !senderType) {
+        return NextResponse.json(
+          { error: "缺少必要参数" },
+          { status: 400 }
+        )
+      }
+
+      // 清理消息内容，防止 XSS 攻击
+      const sanitizedMessage = sanitizeText(message)
+
+      if (!sanitizedMessage || sanitizedMessage.length === 0) {
+        return NextResponse.json(
+          { error: "消息内容不能为空" },
+          { status: 400 }
+        )
+      }
 
     // 验证会话是否存在
     const session = await prisma.chatSession.findUnique({
@@ -78,14 +92,14 @@ export async function POST(req: Request) {
       senderName = session.visitorName || "访客"
     }
 
-    // 创建消息
+    // 创建消息（使用清理后的内容）
     const chatMessage = await prisma.chatMessage.create({
       data: {
         sessionId,
         senderType,
         senderId,
         senderName,
-        message
+        message: sanitizedMessage
       }
     })
 
@@ -103,6 +117,7 @@ export async function POST(req: Request) {
       { status: 500 }
     )
   }
+  })
 }
 
 // GET /api/chat/messages - 获取会话消息

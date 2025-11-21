@@ -353,6 +353,7 @@ export default function MembershipPaymentPage({ params }: { params: Promise<{ id
           <li>• 每日可享受优惠次数：{planInfo.dailyLimit}次</li>
           <li>• 有效期至：{membership.endDate ? new Date(membership.endDate).toLocaleDateString('zh-CN') : '永久有效'}</li>
           <li>• 会员码将在支付成功页面显示，请妥善保管</li>
+          <li>• 如遇问题，请<button onClick={() => window.dispatchEvent(new Event('openChat'))} className="text-blue-600 hover:underline font-medium">联系客服</button>并提供订单信息</li>
         </ul>
       </div>
     </div>

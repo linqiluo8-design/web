@@ -626,7 +626,7 @@ export default function PaymentPage({ params }: { params: Promise<{ orderId: str
         <ul className="text-sm text-yellow-700 space-y-1">
           <li>• 请妥善保管订单号：<span className="font-mono font-bold">{order.orderNumber}</span></li>
           <li>• 支付完成后，可在"订单查询"页面查看订单状态</li>
-          <li>• 如遇问题，请联系客服并提供订单号</li>
+          <li>• 如遇问题，请<button onClick={() => window.dispatchEvent(new Event('openChat'))} className="text-blue-600 hover:underline font-medium">联系客服</button>并提供订单号</li>
         </ul>
       </div>
 

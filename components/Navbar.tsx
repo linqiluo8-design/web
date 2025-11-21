@@ -101,6 +101,12 @@ export function Navbar() {
               >
                 我的订单
               </Link>
+              <button
+                onClick={() => window.dispatchEvent(new Event('openChat'))}
+                className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50"
+              >
+                在线客服
+              </button>
               {hasAnyPermission() && (
                 <Link
                   href="/backendmanager"

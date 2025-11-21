@@ -228,7 +228,7 @@ export default function ChatAdminPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-12 gap-6" style={{ height: 'calc(100vh - 300px)', minHeight: '600px', maxHeight: '800px' }}>
+      <div className="grid grid-cols-12 gap-6 overflow-hidden" style={{ height: 'calc(100vh - 300px)', minHeight: '600px', maxHeight: '800px' }}>
         {/* 左侧：会话列表 */}
         <div className="col-span-4 bg-white rounded-lg shadow overflow-hidden flex flex-col h-full">
           <div className="px-4 py-3 bg-gray-50 border-b flex-shrink-0">
@@ -250,19 +250,19 @@ export default function ChatAdminPage() {
                   }`}
                 >
                   <div className="flex items-start justify-between">
-                    <div className="flex-1">
+                    <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <h3 className="font-medium text-gray-900">
+                        <h3 className="font-medium text-gray-900 truncate">
                           {ses.visitorName || "访客"}
                         </h3>
                         {ses.unreadCount > 0 && (
-                          <span className="px-2 py-0.5 bg-red-500 text-white text-xs rounded-full">
+                          <span className="px-2 py-0.5 bg-red-500 text-white text-xs rounded-full flex-shrink-0">
                             {ses.unreadCount}
                           </span>
                         )}
                       </div>
-                      <p className="text-sm text-gray-600 mt-1">
-                        {ses.visitorEmail || ses.visitorId.substring(0, 20)}
+                      <p className="text-sm text-gray-600 mt-1 truncate">
+                        {ses.visitorEmail || ses.visitorId}
                       </p>
                       {ses.messages[0] && (
                         <p className="text-sm text-gray-500 mt-2 truncate">
@@ -292,7 +292,7 @@ export default function ChatAdminPage() {
                 <h2 className="font-semibold text-gray-900">
                   {selectedSession.visitorName || "访客"}
                 </h2>
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-gray-600 break-all">
                   {selectedSession.visitorEmail || selectedSession.visitorId}
                 </p>
               </div>
@@ -310,13 +310,14 @@ export default function ChatAdminPage() {
                           ? "bg-blue-600 text-white"
                           : "bg-white text-gray-700"
                       }`}
+                      style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}
                     >
                       {msg.senderType === "visitor" && (
                         <p className="text-xs font-semibold mb-1 text-blue-600">
                           {msg.senderName || "访客"}
                         </p>
                       )}
-                      <p className="text-sm whitespace-pre-wrap break-words pr-4">{msg.message}</p>
+                      <p className="text-sm whitespace-pre-wrap break-words pr-4" style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>{msg.message}</p>
 
                       {/* 显示管理员发送消息的已读状态 - 右上角小圆圈 */}
                       {msg.senderType === "admin" && (

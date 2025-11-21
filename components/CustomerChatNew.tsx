@@ -54,11 +54,28 @@ export default function CustomerChat() {
     if (!sessionId || !isOpen) return
 
     const interval = setInterval(() => {
-      fetchNewMessages()
+      // 检查用户是否正在输入，避免焦点丢失
+      const activeElement = document.activeElement
+      const isInputActive = activeElement instanceof HTMLInputElement ||
+                           activeElement instanceof HTMLTextAreaElement
+
+      if (!isInputActive) {
+        fetchNewMessages()
+      }
     }, 3000) // 每3秒轮询一次
 
     return () => clearInterval(interval)
-  }, [sessionId, isOpen])
+  }, [sessionId, isOpen, visitorId])
+
+  // 监听全局事件以打开聊天窗口
+  useEffect(() => {
+    const handleOpenChat = () => {
+      setIsOpen(true)
+    }
+
+    window.addEventListener('openChat', handleOpenChat)
+    return () => window.removeEventListener('openChat', handleOpenChat)
+  }, [])
 
   const fetchOrCreateSession = async () => {
     try {

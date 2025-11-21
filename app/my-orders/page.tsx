@@ -535,176 +535,216 @@ export default function MyOrdersPage() {
             </div>
           </div>
 
-          <div className="space-y-4">
+          <div className="space-y-6">
             {displayedOrders.map((order) => (
               <div
               key={order.id}
-              className="bg-white rounded-lg shadow border flex"
+              className="bg-white rounded-2xl shadow-xl border-2 border-gray-100 hover:shadow-2xl hover:scale-[1.01] transition-all duration-300 overflow-hidden relative"
             >
-              {/* 复选框 */}
-              <div className="flex items-center justify-center p-4 bg-gray-50 border-r">
-                <input
-                  type="checkbox"
-                  checked={selectedOrders.has(order.id)}
-                  onChange={() => toggleSelectOrder(order.id)}
-                  className="w-5 h-5 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
-                />
-              </div>
+              {/* 状态装饰条 */}
+              <div className={`absolute top-0 left-0 right-0 h-1 ${
+                order.status === 'paid' ? 'bg-gradient-to-r from-green-400 to-emerald-500' :
+                order.status === 'pending' ? 'bg-gradient-to-r from-yellow-400 to-orange-500' :
+                order.status === 'refunded' ? 'bg-gradient-to-r from-red-400 to-pink-500' :
+                'bg-gradient-to-r from-gray-400 to-gray-500'
+              }`}></div>
 
-              {/* 订单内容 */}
-              <div className="flex-1">
-              {/* 订单头部 */}
-              <div className="bg-gray-50 px-6 py-3 border-b">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-4 text-sm">
-                    <span className="text-gray-600">订单号:</span>
-                    <span className="font-mono font-medium">{order.orderNumber}</span>
-                    <span className="text-gray-400">|</span>
-                    <span className="text-gray-600">
-                      {new Date(order.createdAt).toLocaleString('zh-CN')}
-                    </span>
-                  </div>
-                  <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(order.status)}`}>
-                    {getStatusText(order.status)}
-                  </span>
+              <div className="flex">
+                {/* 复选框区域 */}
+                <div className="flex items-center justify-center px-6 bg-gradient-to-b from-gray-50 to-gray-100 border-r-2 border-gray-100">
+                  <input
+                    type="checkbox"
+                    checked={selectedOrders.has(order.id)}
+                    onChange={() => toggleSelectOrder(order.id)}
+                    className="w-6 h-6 text-blue-600 rounded-lg focus:ring-2 focus:ring-blue-500 cursor-pointer transition-transform hover:scale-110"
+                  />
                 </div>
-                {/* 待支付订单显示倒计时 */}
-                {order.status === "pending" && order.expiresAt && (
-                  <div className="flex flex-col gap-1">
-                    <div className="flex items-center justify-start">
-                      <OrderCountdown
-                        expiresAt={order.expiresAt}
-                        onExpire={handleOrderExpire}
-                        showIcon={true}
-                        className="text-xs"
-                      />
-                    </div>
-                    <p className="text-xs text-gray-600">
-                      订单将在倒计时结束后自动取消，请尽快完成支付
-                    </p>
-                  </div>
-                )}
-              </div>
 
-              {/* 订单商品列表 */}
-              <div className="p-6">
-                {order.orderItems.map((item) => (
-                  <div key={item.id} className="flex items-center gap-4 mb-4 last:mb-0">
-                    <Link
-                      href={`/products/${item.product.id}`}
-                      className="relative w-20 h-20 bg-gray-100 rounded flex-shrink-0"
-                    >
-                      {item.product.coverImage ? (
-                        <Image
-                          src={item.product.coverImage}
-                          alt={item.product.title}
-                          fill
-                          className="object-cover rounded"
-                        />
-                      ) : (
-                        <div className="flex items-center justify-center h-full text-gray-400 text-xs">
-                          暂无图片
+                {/* 订单内容 */}
+                <div className="flex-1">
+                  {/* 订单头部 - 使用渐变背景 */}
+                  <div className="bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 px-6 py-4 border-b-2 border-gray-100">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-4 text-sm">
+                        <div className="flex items-center gap-2">
+                          <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          </svg>
+                          <span className="text-gray-600 font-medium">订单号:</span>
                         </div>
-                      )}
-                    </Link>
-
-                    <div className="flex-1">
-                      <Link
-                        href={`/products/${item.product.id}`}
-                        className="font-medium hover:text-blue-600"
-                      >
-                        {item.product.title}
-                      </Link>
-                      <p className="text-sm text-gray-600 mt-1">
-                        ¥{item.price.toFixed(2)} × {item.quantity}
-                      </p>
+                        <span className="font-mono font-semibold text-gray-800 bg-white px-3 py-1 rounded-lg shadow-sm">{order.orderNumber}</span>
+                        <span className="text-gray-300">•</span>
+                        <div className="flex items-center gap-2 text-gray-600">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          <span>{new Date(order.createdAt).toLocaleString('zh-CN')}</span>
+                        </div>
+                      </div>
+                      <span className={`px-4 py-1.5 rounded-full text-xs font-bold shadow-md ${getStatusColor(order.status)}`}>
+                        {getStatusText(order.status)}
+                      </span>
                     </div>
+                    {/* 待支付订单显示倒计时 */}
+                    {order.status === "pending" && order.expiresAt && (
+                      <div className="mt-3 bg-gradient-to-r from-orange-50 to-yellow-50 border-2 border-orange-200 rounded-xl p-3">
+                        <div className="flex items-center justify-start mb-1">
+                          <OrderCountdown
+                            expiresAt={order.expiresAt}
+                            onExpire={handleOrderExpire}
+                            showIcon={true}
+                            className="text-sm font-semibold text-orange-700"
+                          />
+                        </div>
+                        <p className="text-xs text-orange-600 flex items-center gap-1">
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                          </svg>
+                          订单将在倒计时结束后自动取消，请尽快完成支付
+                        </p>
+                      </div>
+                    )}
+                  </div>
 
-                    <div className="text-right">
-                      <p className="font-medium">¥{(item.price * item.quantity).toFixed(2)}</p>
+                  {/* 订单商品列表 */}
+                  <div className="p-6 bg-gradient-to-b from-white to-gray-50">
+                    {order.orderItems.map((item) => (
+                      <div key={item.id} className="flex items-center gap-4 mb-4 last:mb-0 p-4 bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow duration-200 border border-gray-100">
+                        <Link
+                          href={`/products/${item.product.id}`}
+                          className="relative w-24 h-24 bg-gradient-to-br from-gray-100 to-gray-200 rounded-xl flex-shrink-0 overflow-hidden shadow-md hover:shadow-lg transition-all duration-200 hover:scale-105"
+                        >
+                          {item.product.coverImage ? (
+                            <Image
+                              src={item.product.coverImage}
+                              alt={item.product.title}
+                              fill
+                              className="object-cover"
+                            />
+                          ) : (
+                            <div className="flex flex-col items-center justify-center h-full text-gray-400">
+                              <svg className="w-8 h-8 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                              </svg>
+                              <span className="text-xs">暂无图片</span>
+                            </div>
+                          )}
+                        </Link>
+
+                        <div className="flex-1">
+                          <Link
+                            href={`/products/${item.product.id}`}
+                            className="font-semibold text-gray-800 hover:text-blue-600 transition-colors duration-200 block mb-2"
+                          >
+                            {item.product.title}
+                          </Link>
+                          <div className="flex items-center gap-2 text-sm">
+                            <span className="px-3 py-1 bg-blue-50 text-blue-700 rounded-full font-medium">
+                              ¥{item.price.toFixed(2)}
+                            </span>
+                            <span className="text-gray-400">×</span>
+                            <span className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full font-medium">
+                              {item.quantity}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="text-right">
+                          <div className="text-sm text-gray-500 mb-1">小计</div>
+                          <p className="text-lg font-bold text-gray-900">¥{(item.price * item.quantity).toFixed(2)}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* 订单底部 - 使用渐变背景 */}
+                  <div className="bg-gradient-to-r from-gray-50 via-blue-50 to-purple-50 px-6 py-5 border-t-2 border-gray-100 flex items-center justify-between flex-wrap gap-4">
+                    <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                      <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                      </svg>
+                      <span>共 <span className="text-blue-600 font-bold">{order.orderItems.reduce((sum, item) => sum + item.quantity, 0)}</span> 件商品</span>
                     </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* 订单底部 */}
-              <div className="bg-gray-50 px-6 py-4 border-t flex items-center justify-between flex-wrap gap-4">
-                <div className="text-sm text-gray-600">
-                  共 {order.orderItems.reduce((sum, item) => sum + item.quantity, 0)} 件商品
-                </div>
-                <div className="flex items-center gap-6 flex-wrap">
-                  <div className="text-right">
-                    <span className="text-sm text-gray-600 mr-2">订单总额:</span>
-                    <span className="text-xl font-bold text-red-600">
-                      ¥{order.totalAmount.toFixed(2)}
-                    </span>
-                  </div>
-                  <div className="flex gap-2 flex-wrap">
-                    {/* 导出按钮 */}
-                    <div className="relative export-menu-container">
-                      <button
-                        onClick={() => setOpenExportMenu(openExportMenu === order.id ? null : order.id)}
-                        disabled={isExporting}
-                        className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
+                    <div className="flex items-center gap-6 flex-wrap">
+                      <div className="text-right bg-white px-4 py-2 rounded-xl shadow-sm border-2 border-gray-100">
+                        <span className="text-sm text-gray-600 mr-2">订单总额</span>
+                        <span className="text-2xl font-bold bg-gradient-to-r from-red-600 to-pink-600 bg-clip-text text-transparent">
+                          ¥{order.totalAmount.toFixed(2)}
+                        </span>
+                      </div>
+                      <div className="flex gap-3 flex-wrap">
+                        {/* 导出按钮 - 更酷炫的设计 */}
+                        <div className="relative export-menu-container">
+                          <button
+                            onClick={() => setOpenExportMenu(openExportMenu === order.id ? null : order.id)}
+                            disabled={isExporting}
+                            className="px-5 py-2.5 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl hover:from-green-600 hover:to-emerald-700 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg transition-all duration-200 font-medium"
+                          >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                         </svg>
-                        {isExporting ? '导出中...' : '导出'}
-                        <svg className={`w-4 h-4 transition-transform ${openExportMenu === order.id ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                        </svg>
-                      </button>
-                      {/* 下拉菜单 */}
-                      {openExportMenu === order.id && !isExporting && (
-                        <div className="absolute right-0 top-full mt-2 bg-white shadow-lg rounded-md border z-50 min-w-[140px]">
-                          <button
-                            onClick={async () => {
-                              await exportSingleOrder(order, "csv")
-                              setOpenExportMenu(null)
-                            }}
-                            className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2 rounded-t-md"
-                          >
-                            <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            {isExporting ? '导出中...' : '导出'}
+                            <svg className={`w-4 h-4 transition-transform duration-200 ${openExportMenu === order.id ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                             </svg>
-                            导出CSV
                           </button>
-                          <button
-                            onClick={async () => {
-                              await exportSingleOrder(order, "json")
-                              setOpenExportMenu(null)
-                            }}
-                            className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2 border-t rounded-b-md"
-                          >
-                            <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
-                            </svg>
-                            导出JSON
-                          </button>
+                          {/* 下拉菜单 - 更酷炫的设计 */}
+                          {openExportMenu === order.id && !isExporting && (
+                            <div className="absolute right-0 top-full mt-2 bg-white shadow-2xl rounded-xl border-2 border-gray-100 z-50 min-w-[160px] overflow-hidden">
+                              <button
+                                onClick={async () => {
+                                  await exportSingleOrder(order, "csv")
+                                  setOpenExportMenu(null)
+                                }}
+                                className="w-full px-4 py-3 text-left text-sm hover:bg-gradient-to-r hover:from-green-50 hover:to-emerald-50 flex items-center gap-3 transition-colors duration-200 font-medium"
+                              >
+                                <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                                <span className="text-gray-700">导出CSV</span>
+                              </button>
+                              <button
+                                onClick={async () => {
+                                  await exportSingleOrder(order, "json")
+                                  setOpenExportMenu(null)
+                                }}
+                                className="w-full px-4 py-3 text-left text-sm hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 flex items-center gap-3 border-t border-gray-100 transition-colors duration-200 font-medium"
+                              >
+                                <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                                </svg>
+                                <span className="text-gray-700">导出JSON</span>
+                              </button>
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </div>
 
-                    {order.status === "pending" && (
-                      <Link
-                        href={`/payment/${order.id}`}
-                        className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 font-medium"
-                      >
-                        去支付
-                      </Link>
-                    )}
-                    <Link
-                      href={`/order-lookup?orderNumber=${order.orderNumber}`}
-                      className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
-                    >
-                      订单详情
-                    </Link>
+                        {order.status === "pending" && (
+                          <Link
+                            href={`/payment/${order.id}`}
+                            className="px-6 py-2.5 bg-gradient-to-r from-red-500 to-pink-600 text-white rounded-xl hover:from-red-600 hover:to-pink-700 font-semibold shadow-md hover:shadow-lg transition-all duration-200 flex items-center gap-2"
+                          >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                            </svg>
+                            去支付
+                          </Link>
+                        )}
+                        <Link
+                          href={`/order-lookup?orderNumber=${order.orderNumber}`}
+                          className="px-6 py-2.5 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-xl hover:from-blue-600 hover:to-indigo-700 font-medium shadow-md hover:shadow-lg transition-all duration-200 flex items-center gap-2"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                          </svg>
+                          订单详情
+                        </Link>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
-              </div>
-            </div>
             ))}
           </div>
 

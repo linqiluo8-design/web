@@ -144,8 +144,7 @@ export default function ChatAdminPage() {
   const selectSession = (session: ChatSession) => {
     setSelectedSession(session)
     fetchMessages(session.id)
-    // 初次选择会话时自动滚动到底部
-    setShouldAutoScroll(true)
+    // 不自动滚动，让用户自己选择是否查看最新消息
   }
 
   const scrollToBottom = () => {

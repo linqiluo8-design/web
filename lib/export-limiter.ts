@@ -108,7 +108,7 @@ export async function checkOrderExportLimit(
       if (count >= 2) {
         return {
           allowed: false,
-          reason: `订单 ${orderNumber} 今天已导出${count}次，每个订单最多导出2次`,
+          reason: `您的订单今天已达到导出限制，每个订单最多导出2次`,
           paidOrderCount,
           usedExports: count,
           remainingExports: 0,
@@ -358,7 +358,7 @@ export async function checkMembershipExportLimit(
       if (count >= 2) {
         return {
           allowed: false,
-          reason: `会员订单 ${membershipCode} 今天已导出${count}次，每个订单最多导出2次`,
+          reason: `您的会员订单今天已达到导出限制，每个订单最多导出2次`,
           paidOrderCount,
           usedExports: count,
           remainingExports: 0,

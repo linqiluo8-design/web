@@ -98,7 +98,7 @@ export default function ChatPage() {
 
   const fetchMessages = async (sid: string) => {
     try {
-      const response = await fetch(`/api/chat/messages?sessionId=${sid}`)
+      const response = await fetch(`/api/chat/messages?sessionId=${sid}&visitorId=${visitorId}`)
       if (!response.ok) throw new Error("获取消息失败")
 
       const data = await response.json()

@@ -365,7 +365,11 @@ model ChatMessage {
   senderType  String   // visitor, admin
   senderId    String?  // 发送者ID（管理员ID或访客ID）
   senderName  String?  // 发送者姓名
-  message     String   // 消息内容
+  message     String   // 消息内容（文本消息或图片说明）
+  messageType String   @default("text") // 消息类型：text, image
+  imageUrl    String?  // 图片URL（当messageType为image时）
+  imageWidth  Int?     // 图片宽度（像素）
+  imageHeight Int?     // 图片高度（像素）
   isRead      Boolean  @default(false) // 是否已读
   createdAt   DateTime @default(now())
 

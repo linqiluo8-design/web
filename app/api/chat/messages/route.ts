@@ -11,23 +11,49 @@ export async function POST(req: Request) {
   // 应用速率限制：每分钟最多 20 条消息
   return withRateLimit(req, RateLimitPresets.CHAT, async () => {
     try {
-      const { sessionId, message, senderType, visitorId } = await req.json()
+      const { sessionId, message, senderType, visitorId, messageType, imageUrl, imageWidth, imageHeight } = await req.json()
 
-      if (!sessionId || !message || !senderType) {
+      if (!sessionId || !senderType) {
         return NextResponse.json(
           { error: "缺少必要参数" },
           { status: 400 }
         )
       }
 
-      // 清理消息内容，防止 XSS 攻击
-      const sanitizedMessage = sanitizeText(message)
-
-      if (!sanitizedMessage || sanitizedMessage.length === 0) {
+      // 验证消息类型
+      const type = messageType || "text"
+      if (!["text", "image"].includes(type)) {
         return NextResponse.json(
-          { error: "消息内容不能为空" },
+          { error: "无效的消息类型" },
           { status: 400 }
         )
+      }
+
+      // 对于文本消息，清理内容防止XSS攻击
+      let sanitizedMessage = ""
+      if (type === "text") {
+        if (!message) {
+          return NextResponse.json(
+            { error: "消息内容不能为空" },
+            { status: 400 }
+          )
+        }
+        sanitizedMessage = sanitizeText(message)
+        if (!sanitizedMessage || sanitizedMessage.length === 0) {
+          return NextResponse.json(
+            { error: "消息内容不能为空" },
+            { status: 400 }
+          )
+        }
+      } else if (type === "image") {
+        // 对于图片消息，验证imageUrl必填
+        if (!imageUrl) {
+          return NextResponse.json(
+            { error: "图片URL不能为空" },
+            { status: 400 }
+          )
+        }
+        sanitizedMessage = message ? sanitizeText(message) : "" // 图片说明可选
       }
 
     // 验证会话是否存在
@@ -99,7 +125,11 @@ export async function POST(req: Request) {
         senderType,
         senderId,
         senderName,
-        message: sanitizedMessage
+        message: sanitizedMessage,
+        messageType: type,
+        imageUrl: type === "image" ? imageUrl : null,
+        imageWidth: type === "image" && imageWidth ? imageWidth : null,
+        imageHeight: type === "image" && imageHeight ? imageHeight : null
       }
     })
 

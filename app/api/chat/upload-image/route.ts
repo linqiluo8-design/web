@@ -155,10 +155,3 @@ export async function POST(req: Request) {
     }
   })
 }
-
-// 禁用Next.js的默认body parser，以支持文件上传
-export const config = {
-  api: {
-    bodyParser: false
-  }
-}

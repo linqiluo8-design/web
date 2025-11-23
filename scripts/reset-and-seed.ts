@@ -43,32 +43,42 @@ async function main() {
   try {
     log('\n🚀 开始重置数据库...\n', 'bright')
 
-    // 1. 删除旧数据库文件
-    log('📁 步骤 1/7: 删除旧数据库文件', 'cyan')
-    const dbPath = path.join(process.cwd(), 'prisma', 'dev.db')
-    const dbJournalPath = path.join(process.cwd(), 'prisma', 'dev.db-journal')
+    // 1. 删除旧数据库文件（仅 SQLite 需要，PostgreSQL 跳过）
+    log('📁 步骤 1/7: 检查数据库类型', 'cyan')
+    const dbUrl = process.env.DATABASE_URL || ''
+    const isSQLite = dbUrl.startsWith('file:')
 
-    if (fs.existsSync(dbPath)) {
-      fs.unlinkSync(dbPath)
-      log('  ✓ 删除 dev.db', 'green')
-    }
+    if (isSQLite) {
+      const dbPath = path.join(process.cwd(), 'prisma', 'dev.db')
+      const dbJournalPath = path.join(process.cwd(), 'prisma', 'dev.db-journal')
 
-    if (fs.existsSync(dbJournalPath)) {
-      fs.unlinkSync(dbJournalPath)
-      log('  ✓ 删除 dev.db-journal', 'green')
+      if (fs.existsSync(dbPath)) {
+        fs.unlinkSync(dbPath)
+        log('  ✓ 删除 dev.db', 'green')
+      }
+
+      if (fs.existsSync(dbJournalPath)) {
+        fs.unlinkSync(dbJournalPath)
+        log('  ✓ 删除 dev.db-journal', 'green')
+      }
+    } else {
+      log('  ✓ 使用 PostgreSQL，跳过文件删除', 'green')
     }
 
     // 2. 创建数据库结构（使用 db push 直接根据 schema 创建，避免迁移历史问题）
     log('\n📦 步骤 2/7: 创建数据库结构', 'cyan')
     execSync('npx prisma db push --force-reset --skip-generate', {
-      stdio: 'pipe',  // 隐藏输出以保持界面整洁
-      env: { ...process.env, DATABASE_URL: 'file:./dev.db' }
+      stdio: 'inherit',  // 显示输出便于调试
+      env: process.env   // 使用当前环境变量，不覆盖 DATABASE_URL
     })
     log('  ✓ 数据库结构创建完成', 'green')
 
     // 3. 生成 Prisma Client
     log('\n🔧 步骤 3/7: 生成 Prisma Client', 'cyan')
-    execSync('npx prisma generate', { stdio: 'pipe' })
+    execSync('npx prisma generate', {
+      stdio: 'pipe',
+      env: process.env
+    })
     log('  ✓ Prisma Client 生成完成', 'green')
 
     // 4. 创建管理员账户

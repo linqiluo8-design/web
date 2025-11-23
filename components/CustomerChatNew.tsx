@@ -8,6 +8,10 @@ interface ChatMessage {
   senderType: "visitor" | "admin"
   senderName: string | null
   message: string
+  messageType: "text" | "image"
+  imageUrl?: string | null
+  imageWidth?: number | null
+  imageHeight?: number | null
   createdAt: string
   isRead: boolean
 }
@@ -26,6 +30,12 @@ export default function CustomerChat() {
   const [sending, setSending] = useState(false)
   const [visitorId, setVisitorId] = useState<string>("")
   const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  // 图片上传相关状态
+  const [selectedImage, setSelectedImage] = useState<File | null>(null)
+  const [imagePreview, setImagePreview] = useState<string | null>(null)
+  const [uploading, setUploading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   // 生成或获取访客ID
   useEffect(() => {
@@ -112,7 +122,109 @@ export default function CustomerChat() {
     }
   }
 
+  // 处理图片选择
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // 验证文件类型
+    const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp"]
+    if (!allowedTypes.includes(file.type)) {
+      alert("只支持上传图片格式：JPG, PNG, GIF, WebP")
+      return
+    }
+
+    // 验证文件大小（5MB）
+    const maxSize = 5 * 1024 * 1024
+    if (file.size > maxSize) {
+      alert("图片大小不能超过 5MB")
+      return
+    }
+
+    setSelectedImage(file)
+
+    // 创建预览
+    const reader = new FileReader()
+    reader.onloadend = () => {
+      setImagePreview(reader.result as string)
+    }
+    reader.readAsDataURL(file)
+  }
+
+  // 取消选择图片
+  const cancelImage = () => {
+    setSelectedImage(null)
+    setImagePreview(null)
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ""
+    }
+  }
+
+  // 上传图片并发送消息
+  const sendImageMessage = async () => {
+    if (!selectedImage || !sessionId || sending || uploading) return
+
+    setUploading(true)
+    setSending(true)
+
+    try {
+      // 1. 上传图片
+      const formData = new FormData()
+      formData.append("image", selectedImage)
+
+      const uploadResponse = await fetch("/api/chat/upload-image", {
+        method: "POST",
+        body: formData
+      })
+
+      if (!uploadResponse.ok) {
+        const errorData = await uploadResponse.json()
+        throw new Error(errorData.error || "图片上传失败")
+      }
+
+      const uploadData = await uploadResponse.json()
+
+      // 2. 发送图片消息
+      const messageResponse = await fetch("/api/chat/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sessionId,
+          message: newMessage.trim() || "", // 图片说明（可选）
+          messageType: "image",
+          imageUrl: uploadData.imageUrl,
+          imageWidth: uploadData.width,
+          imageHeight: uploadData.height,
+          senderType: "visitor",
+          visitorId
+        })
+      })
+
+      if (!messageResponse.ok) throw new Error("发送消息失败")
+
+      const messageData = await messageResponse.json()
+      setMessages(prev => [...prev, messageData.message])
+      setNewMessage("")
+      cancelImage()
+
+      // 发送消息后自动滚动到底部
+      setShouldAutoScroll(true)
+    } catch (error) {
+      console.error("发送图片失败:", error)
+      alert(error instanceof Error ? error.message : "发送图片失败，请重试")
+    } finally {
+      setUploading(false)
+      setSending(false)
+    }
+  }
+
+  // 发送文本消息
   const sendMessage = async () => {
+    // 如果选择了图片，发送图片消息
+    if (selectedImage) {
+      return sendImageMessage()
+    }
+
     if (!newMessage.trim() || !sessionId || sending) return
 
     setSending(true)
@@ -123,6 +235,7 @@ export default function CustomerChat() {
         body: JSON.stringify({
           sessionId,
           message: newMessage.trim(),
+          messageType: "text",
           senderType: "visitor",
           visitorId
         })
@@ -154,27 +267,50 @@ export default function CustomerChat() {
   return (
     <>
       {/* 聊天按钮 */}
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="fixed bottom-6 right-6 w-14 h-14 bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 transition-all duration-300 flex items-center justify-center z-50 hover:scale-110"
-        aria-label="客服聊天"
-      >
-        {isOpen ? (
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        ) : (
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-          </svg>
+      <div className="fixed bottom-6 right-6 z-50">
+        {/* 脉冲动画背景 */}
+        {!isOpen && (
+          <div className="absolute inset-0 bg-blue-500 rounded-full animate-ping opacity-20"></div>
         )}
-        {/* 未读消息提示 */}
-        {!isOpen && messages.some(m => m.senderType === "admin" && !m.isRead) && (
-          <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
-            !
-          </span>
-        )}
-      </button>
+
+        <button
+          onClick={() => setIsOpen(!isOpen)}
+          className="relative bg-gradient-to-r from-blue-600 to-blue-500 text-white rounded-full shadow-2xl hover:shadow-blue-500/50 transition-all duration-300 flex items-center gap-2 px-4 py-3 hover:scale-105 group"
+          aria-label="客服聊天"
+        >
+          {isOpen ? (
+            <>
+              {/* 关闭状态 */}
+              <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </div>
+              <span className="font-medium text-sm pr-1">关闭</span>
+            </>
+          ) : (
+            <>
+              {/* 客服头像 - 使用可爱的动漫风格表情 */}
+              <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-2xl animate-bounce-slow">
+                👩‍💼
+              </div>
+              <div className="flex flex-col items-start">
+                <span className="font-bold text-sm leading-none">在线客服</span>
+                <span className="text-xs opacity-90 leading-none mt-0.5">随时为您服务</span>
+              </div>
+              {/* 闪烁的小星星装饰 */}
+              <div className="absolute -top-1 -left-1 text-yellow-300 animate-pulse">✨</div>
+            </>
+          )}
+
+          {/* 未读消息提示 */}
+          {!isOpen && messages.some(m => m.senderType === "admin" && !m.isRead) && (
+            <span className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center animate-bounce shadow-lg">
+              {messages.filter(m => m.senderType === "admin" && !m.isRead).length}
+            </span>
+          )}
+        </button>
+      </div>
 
       {/* 聊天窗口 */}
       {isOpen && (
@@ -227,7 +363,27 @@ export default function CustomerChat() {
                       {msg.senderName || "客服"}
                     </p>
                   )}
-                  <p className="text-sm whitespace-pre-wrap break-words pr-4">{msg.message}</p>
+
+                  {/* 文本消息 */}
+                  {msg.messageType === "text" && (
+                    <p className="text-sm whitespace-pre-wrap break-words pr-4">{msg.message}</p>
+                  )}
+
+                  {/* 图片消息 */}
+                  {msg.messageType === "image" && msg.imageUrl && (
+                    <div className="space-y-2">
+                      <img
+                        src={msg.imageUrl}
+                        alt={msg.message || "图片"}
+                        className="rounded-lg max-w-full h-auto cursor-pointer hover:opacity-90 transition-opacity"
+                        onClick={() => window.open(msg.imageUrl!, "_blank")}
+                        style={{ maxHeight: "300px" }}
+                      />
+                      {msg.message && (
+                        <p className="text-sm whitespace-pre-wrap break-words">{msg.message}</p>
+                      )}
+                    </div>
+                  )}
 
                   {/* 显示访客发送消息的已读状态 - 右上角小圆圈 */}
                   {msg.senderType === "visitor" && (
@@ -260,27 +416,78 @@ export default function CustomerChat() {
 
           {/* 输入区域 */}
           <div className="p-4 bg-white border-t flex-shrink-0">
+            {/* 图片预览 */}
+            {imagePreview && (
+              <div className="mb-3 relative inline-block">
+                <img
+                  src={imagePreview}
+                  alt="预览"
+                  className="rounded-lg max-h-32 border-2 border-blue-500"
+                />
+                <button
+                  onClick={cancelImage}
+                  className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors shadow-lg"
+                  title="取消图片"
+                >
+                  ✕
+                </button>
+                {uploading && (
+                  <div className="absolute inset-0 bg-black bg-opacity-50 rounded-lg flex items-center justify-center">
+                    <div className="text-white text-sm">上传中...</div>
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="flex gap-2">
+              {/* 图片上传按钮 */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
+                onChange={handleImageSelect}
+                className="hidden"
+              />
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={sending || uploading || !!selectedImage}
+                className="px-3 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 disabled:bg-gray-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
+                title="上传图片"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+              </button>
+
+              {/* 文本输入 */}
               <textarea
                 value={newMessage}
                 onChange={(e) => setNewMessage(e.target.value)}
                 onKeyDown={handleKeyPress}
-                placeholder="输入消息... (按 Enter 发送)"
+                placeholder={selectedImage ? "添加图片说明（可选）..." : "输入消息... (按 Enter 发送)"}
                 className="flex-1 px-3 py-2 border rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
                 rows={2}
-                disabled={sending}
+                disabled={sending || uploading}
               />
+
+              {/* 发送按钮 */}
               <button
                 onClick={sendMessage}
-                disabled={sending || !newMessage.trim()}
+                disabled={sending || uploading || (!newMessage.trim() && !selectedImage)}
                 className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
               >
-                {sending ? "..." : "发送"}
+                {uploading ? "上传中" : sending ? "发送中" : "发送"}
               </button>
             </div>
-            <p className="text-xs text-gray-500 mt-2">
-              💡 提示：我们会尽快回复您的消息
-            </p>
+
+            <div className="flex items-center justify-between mt-2">
+              <p className="text-xs text-gray-500">
+                💡 {selectedImage ? "支持添加图片说明" : "可上传图片（最大5MB）"}
+              </p>
+              <p className="text-xs text-gray-400">
+                支持: JPG, PNG, GIF, WebP
+              </p>
+            </div>
           </div>
         </div>
       )}

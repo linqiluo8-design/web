@@ -1,0 +1,6 @@
+# 忽略所有上传的图片文件
+*
+
+# 但不忽略 .gitignore 和 .gitkeep
+!.gitignore
+!.gitkeep

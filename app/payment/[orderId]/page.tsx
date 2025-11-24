@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useCallback, useRef } from "react"
+import { use, useEffect, useState, useCallback, useRef } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import Image from "next/image"
@@ -32,8 +32,11 @@ interface Order {
 
 export default function PaymentPage({ params }: { params: Promise<{ orderId: string }> }) {
   const router = useRouter()
+
+  // ✅ 使用 React 19 的 use() hook 正确解析 Promise，避免无限循环
+  const { orderId } = use(params)
+
   const [order, setOrder] = useState<Order | null>(null)
-  const [orderId, setOrderId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [selectedMethod, setSelectedMethod] = useState<string>("")
@@ -57,12 +60,6 @@ export default function PaymentPage({ params }: { params: Promise<{ orderId: str
   // 防止重复请求的标志
   const fetchingOrder = useRef(false)
   const loadingPaymentConfig = useRef(false)
-
-  useEffect(() => {
-    params.then((resolvedParams) => {
-      setOrderId(resolvedParams.orderId)
-    })
-  }, [params])
 
   const loadPaymentConfig = useCallback(async () => {
     if (loadingPaymentConfig.current) return

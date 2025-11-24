@@ -10,6 +10,10 @@ interface ChatMessage {
   senderType: "visitor" | "admin"
   senderName: string | null
   message: string
+  messageType: "text" | "image"
+  imageUrl?: string | null
+  imageWidth?: number | null
+  imageHeight?: number | null
   createdAt: string
   isRead: boolean
 }
@@ -39,6 +43,12 @@ export default function ChatAdminPage() {
   const [showNewMessageHint, setShowNewMessageHint] = useState(false) // 显示新消息提示
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
+
+  // 图片上传相关状态
+  const [selectedImage, setSelectedImage] = useState<File | null>(null)
+  const [imagePreview, setImagePreview] = useState<string | null>(null)
+  const [uploading, setUploading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   // 检查权限
   useEffect(() => {
@@ -157,7 +167,150 @@ export default function ChatAdminPage() {
     setShowNewMessageHint(false)
   }
 
+  // 处理图片选择
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // 验证文件类型
+    const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp"]
+    if (!allowedTypes.includes(file.type)) {
+      alert("只支持上传图片格式：JPG, PNG, GIF, WebP")
+      return
+    }
+
+    // 验证文件大小（5MB）
+    const maxSize = 5 * 1024 * 1024
+    if (file.size > maxSize) {
+      alert("图片大小不能超过 5MB")
+      return
+    }
+
+    setSelectedImage(file)
+
+    // 创建预览
+    const reader = new FileReader()
+    reader.onloadend = () => {
+      setImagePreview(reader.result as string)
+    }
+    reader.readAsDataURL(file)
+  }
+
+  // 取消选择图片
+  const cancelImage = () => {
+    setSelectedImage(null)
+    setImagePreview(null)
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ""
+    }
+  }
+
+  // 处理粘贴事件
+  const handlePaste = async (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const items = e.clipboardData?.items
+    if (!items) return
+
+    // 查找图片项
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i]
+      if (item.type.indexOf("image") !== -1) {
+        e.preventDefault() // 阻止默认粘贴行为
+
+        const file = item.getAsFile()
+        if (!file) continue
+
+        // 验证文件大小（5MB）
+        const maxSize = 5 * 1024 * 1024
+        if (file.size > maxSize) {
+          alert("图片大小不能超过 5MB")
+          return
+        }
+
+        // 如果已经选择了图片，先取消
+        if (selectedImage) {
+          cancelImage()
+        }
+
+        setSelectedImage(file)
+
+        // 创建预览
+        const reader = new FileReader()
+        reader.onloadend = () => {
+          setImagePreview(reader.result as string)
+        }
+        reader.readAsDataURL(file)
+
+        break // 只处理第一张图片
+      }
+    }
+  }
+
+  // 上传图片并发送消息
+  const sendImageMessage = async () => {
+    if (!selectedImage || !selectedSession || sending || uploading) return
+
+    setUploading(true)
+    setSending(true)
+
+    try {
+      // 1. 上传图片
+      const formData = new FormData()
+      formData.append("image", selectedImage)
+
+      const uploadResponse = await fetch("/api/chat/upload-image", {
+        method: "POST",
+        body: formData
+      })
+
+      if (!uploadResponse.ok) {
+        const errorData = await uploadResponse.json()
+        throw new Error(errorData.error || "图片上传失败")
+      }
+
+      const uploadData = await uploadResponse.json()
+
+      // 2. 发送图片消息
+      const messageResponse = await fetch("/api/chat/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sessionId: selectedSession.id,
+          message: newMessage.trim() || "", // 图片说明（可选）
+          messageType: "image",
+          imageUrl: uploadData.imageUrl,
+          imageWidth: uploadData.width,
+          imageHeight: uploadData.height,
+          senderType: "admin"
+        })
+      })
+
+      if (!messageResponse.ok) throw new Error("发送消息失败")
+
+      const messageData = await messageResponse.json()
+      setMessages(prev => [...prev, messageData.message])
+      setNewMessage("")
+      cancelImage()
+
+      // 发送消息后自动滚动到底部
+      setShouldAutoScroll(true)
+
+      // 刷新会话列表
+      fetchSessions()
+    } catch (error) {
+      console.error("发送图片失败:", error)
+      alert(error instanceof Error ? error.message : "发送图片失败，请重试")
+    } finally {
+      setUploading(false)
+      setSending(false)
+    }
+  }
+
   const sendMessage = async () => {
+    // 如果选择了图片，发送图片消息
+    if (selectedImage) {
+      return sendImageMessage()
+    }
+
     if (!newMessage.trim() || !selectedSession || sending) return
 
     setSending(true)
@@ -321,7 +474,27 @@ export default function ChatAdminPage() {
                           {msg.senderName || "访客"}
                         </p>
                       )}
-                      <p className="text-sm whitespace-pre-wrap break-words pr-4" style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>{msg.message}</p>
+
+                      {/* 文本消息 */}
+                      {msg.messageType === "text" && (
+                        <p className="text-sm whitespace-pre-wrap break-words pr-4" style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>{msg.message}</p>
+                      )}
+
+                      {/* 图片消息 */}
+                      {msg.messageType === "image" && msg.imageUrl && (
+                        <div className="space-y-2">
+                          <img
+                            src={msg.imageUrl}
+                            alt={msg.message || "图片"}
+                            className="rounded-lg max-w-full h-auto cursor-pointer hover:opacity-90 transition-opacity"
+                            onClick={() => window.open(msg.imageUrl!, "_blank")}
+                            style={{ maxHeight: "300px" }}
+                          />
+                          {msg.message && (
+                            <p className="text-sm whitespace-pre-wrap break-words">{msg.message}</p>
+                          )}
+                        </div>
+                      )}
 
                       {/* 显示管理员发送消息的已读状态 - 右上角小圆圈 */}
                       {msg.senderType === "admin" && (
@@ -370,23 +543,75 @@ export default function ChatAdminPage() {
 
               {/* 输入区域 */}
               <div className="p-4 border-t bg-white flex-shrink-0">
+                {/* 图片预览 */}
+                {imagePreview && (
+                  <div className="mb-3 relative inline-block">
+                    <img
+                      src={imagePreview}
+                      alt="预览"
+                      className="rounded-lg max-h-32 border-2 border-blue-500"
+                    />
+                    <button
+                      onClick={cancelImage}
+                      className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors shadow-lg text-sm font-bold"
+                      title="取消图片"
+                    >
+                      ✕
+                    </button>
+                    {uploading && (
+                      <div className="absolute inset-0 bg-black bg-opacity-50 rounded-lg flex items-center justify-center">
+                        <div className="text-white text-sm">上传中...</div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 <div className="flex gap-2">
+                  {/* 图片上传按钮 */}
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
+                    onChange={handleImageSelect}
+                    className="hidden"
+                  />
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={sending || uploading || !!selectedImage}
+                    className="px-3 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 disabled:bg-gray-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
+                    title="上传图片"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                  </button>
+
                   <textarea
                     value={newMessage}
                     onChange={(e) => setNewMessage(e.target.value)}
                     onKeyDown={handleKeyPress}
-                    placeholder="输入消息... (按 Enter 发送)"
+                    onPaste={handlePaste}
+                    placeholder={selectedImage ? "添加图片说明（可选）... (按 Enter 发送)" : "输入消息... (按 Enter 发送，可粘贴图片)"}
                     className="flex-1 px-4 py-3 border rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
                     rows={3}
-                    disabled={sending}
+                    disabled={sending || uploading}
                   />
                   <button
                     onClick={sendMessage}
-                    disabled={sending || !newMessage.trim()}
+                    disabled={sending || uploading || (!newMessage.trim() && !selectedImage)}
                     className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors font-medium"
                   >
-                    {sending ? "发送中..." : "发送"}
+                    {uploading ? "上传中" : sending ? "发送中" : "发送"}
                   </button>
+                </div>
+
+                <div className="flex items-center justify-between mt-2">
+                  <p className="text-xs text-gray-500">
+                    💡 {selectedImage ? "支持添加图片说明" : "可上传或粘贴图片（最大5MB）"}
+                  </p>
+                  <p className="text-xs text-gray-400">
+                    支持: JPG, PNG, GIF, WebP
+                  </p>
                 </div>
               </div>
             </>
@@ -410,6 +635,7 @@ export default function ChatAdminPage() {
           <li>• 会话列表每5秒自动刷新，新消息会实时显示</li>
           <li>• 未读消息会在会话旁显示红色数字提示</li>
           <li>• 按 Enter 键快速发送消息，Shift+Enter 换行</li>
+          <li>• 支持上传或直接粘贴图片（最大5MB），支持JPG、PNG、GIF、WebP格式</li>
           <li>• 您可以自由滚动查看历史消息，不会被自动滚动打断</li>
           <li>• 有新消息时会显示"查看新消息"按钮，点击可快速跳转</li>
           <li>• 发送消息后会自动滚动到最新位置</li>

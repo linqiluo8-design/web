@@ -264,6 +264,46 @@ export default function CustomerChat() {
     }
   }
 
+  // 处理粘贴事件
+  const handlePaste = async (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const items = e.clipboardData?.items
+    if (!items) return
+
+    // 查找图片项
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i]
+      if (item.type.indexOf("image") !== -1) {
+        e.preventDefault() // 阻止默认粘贴行为
+
+        const file = item.getAsFile()
+        if (!file) continue
+
+        // 验证文件大小（5MB）
+        const maxSize = 5 * 1024 * 1024
+        if (file.size > maxSize) {
+          alert("图片大小不能超过 5MB")
+          return
+        }
+
+        // 如果已经选择了图片，先取消
+        if (selectedImage) {
+          cancelImage()
+        }
+
+        setSelectedImage(file)
+
+        // 创建预览
+        const reader = new FileReader()
+        reader.onloadend = () => {
+          setImagePreview(reader.result as string)
+        }
+        reader.readAsDataURL(file)
+
+        break // 只处理第一张图片
+      }
+    }
+  }
+
   return (
     <>
       {/* 聊天按钮 */}
@@ -464,7 +504,8 @@ export default function CustomerChat() {
                 value={newMessage}
                 onChange={(e) => setNewMessage(e.target.value)}
                 onKeyDown={handleKeyPress}
-                placeholder={selectedImage ? "添加图片说明（可选）..." : "输入消息... (按 Enter 发送)"}
+                onPaste={handlePaste}
+                placeholder={selectedImage ? "添加图片说明（可选）..." : "输入消息... (按 Enter 发送，可粘贴图片)"}
                 className="flex-1 px-3 py-2 border rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
                 rows={2}
                 disabled={sending || uploading}
@@ -482,7 +523,7 @@ export default function CustomerChat() {
 
             <div className="flex items-center justify-between mt-2">
               <p className="text-xs text-gray-500">
-                💡 {selectedImage ? "支持添加图片说明" : "可上传图片（最大5MB）"}
+                💡 {selectedImage ? "支持添加图片说明" : "可上传或粘贴图片（最大5MB）"}
               </p>
               <p className="text-xs text-gray-400">
                 支持: JPG, PNG, GIF, WebP

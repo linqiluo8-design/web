@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import Link from "next/link"
 import Image from "next/image"
 import OrderCountdown from "@/components/OrderCountdown"
+import { apiCache } from "@/lib/api-cache"
 
 interface OrderItem {
   id: string
@@ -91,7 +92,8 @@ export default function PaymentPage({ params }: { params: Promise<{ orderId: str
 
     try {
       setLoading(true)
-      const res = await fetch(`/api/orders/${orderId}`)
+      // 使用缓存的 fetch 防止重复请求
+      const res = await apiCache.fetch(`/api/orders/${orderId}`)
 
       if (!res.ok) {
         throw new Error("订单不存在")

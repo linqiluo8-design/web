@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from "react"
 import { useSession } from "next-auth/react"
+import { useRouter } from "next/navigation"
 
 interface ChatMessage {
   id: string
@@ -23,6 +24,7 @@ interface ChatSession {
 
 export default function CustomerChat() {
   const { data: session } = useSession()
+  const router = useRouter()
   const [isOpen, setIsOpen] = useState(false)
   const [sessionId, setSessionId] = useState<string | null>(null)
   const [messages, setMessages] = useState<ChatMessage[]>([])
@@ -31,21 +33,49 @@ export default function CustomerChat() {
   const [visitorId, setVisitorId] = useState<string>("")
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
+  // 检查是否是管理员
+  const [isAdmin, setIsAdmin] = useState(false)
+  const [permissionsChecked, setPermissionsChecked] = useState(false)
+
   // 图片上传相关状态
   const [selectedImage, setSelectedImage] = useState<File | null>(null)
   const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // 生成或获取访客ID
+  // 检查用户权限
   useEffect(() => {
-    let vid = localStorage.getItem("chatVisitorId")
-    if (!vid) {
-      vid = `visitor_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-      localStorage.setItem("chatVisitorId", vid)
+    if (session?.user) {
+      // 检查是否是管理员或有客服聊天权限
+      fetch('/api/auth/permissions')
+        .then(res => res.json())
+        .then(data => {
+          const permissions = data.permissions || {}
+          const level = permissions['CUSTOMER_CHAT']
+          const hasAccess = data.role === 'ADMIN' || level === 'READ' || level === 'WRITE'
+          setIsAdmin(hasAccess)
+          setPermissionsChecked(true)
+        })
+        .catch(err => {
+          console.error('权限检查失败:', err)
+          setPermissionsChecked(true)
+        })
+    } else {
+      setPermissionsChecked(true)
     }
-    setVisitorId(vid)
-  }, [])
+  }, [session])
+
+  // 生成或获取访客ID（仅非管理员需要）
+  useEffect(() => {
+    if (!isAdmin && permissionsChecked) {
+      let vid = localStorage.getItem("chatVisitorId")
+      if (!vid) {
+        vid = `visitor_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+        localStorage.setItem("chatVisitorId", vid)
+      }
+      setVisitorId(vid)
+    }
+  }, [isAdmin, permissionsChecked])
 
   // 当打开聊天窗口时，获取或创建会话
   useEffect(() => {
@@ -302,6 +332,31 @@ export default function CustomerChat() {
         break // 只处理第一张图片
       }
     }
+  }
+
+  // 管理员点击处理
+  const handleAdminClick = () => {
+    router.push('/backendmanager/chat')
+  }
+
+  // 如果是管理员，显示不同的入口
+  if (isAdmin) {
+    return (
+      <div className="fixed bottom-6 right-6 z-50">
+        <button
+          onClick={handleAdminClick}
+          className="relative bg-gradient-to-r from-blue-600 to-blue-500 text-white rounded-full shadow-2xl hover:shadow-blue-500/50 transition-all duration-300 flex items-center gap-2 px-4 py-3 hover:scale-105 group"
+          aria-label="客服聊天"
+        >
+          <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-2xl">
+            💬
+          </div>
+          <div className="flex flex-col items-start">
+            <span className="font-bold text-sm leading-none">客服聊天</span>
+          </div>
+        </button>
+      </div>
+    )
   }
 
   return (

@@ -7,7 +7,8 @@ import { withRateLimit, RateLimitPresets } from "@/lib/rate-limit"
 const registerSchema = z.object({
   name: z.string()
     .min(2, "名字至少2个字符")
-    .max(100, "名字长度不能超过100个字符"),
+    .max(100, "名字长度不能超过100个字符")
+    .optional(), // 名字改为可选
   email: z.string()
     .email("请输入有效的邮箱地址")
     .max(254, "邮箱长度不能超过254个字符"), // RFC 5321标准
@@ -38,10 +39,13 @@ export async function POST(req: Request) {
       // 加密密码
       const hashedPassword = await bcrypt.hash(password, 10)
 
+      // 如果没有提供名字，从邮箱生成一个默认名字
+      const userName = name || email.split('@')[0]
+
       // 创建用户（默认状态为 PENDING，需要管理员审核）
       const user = await prisma.user.create({
         data: {
-          name,
+          name: userName,
           email,
           password: hashedPassword,
           // accountStatus 默认为 PENDING（在 schema 中定义）

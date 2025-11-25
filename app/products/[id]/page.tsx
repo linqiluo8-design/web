@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import Image from "next/image"
 import Link from "next/link"
 import { useCart } from "@/hooks/useCart"
+import { useReferralCode } from "@/hooks/useReferralCode"
 import { useToast } from "@/components/Toast"
 
 interface Product {
@@ -32,6 +33,7 @@ interface MembershipInfo {
 export default function ProductDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter()
   const { addToCart: addToCartHook } = useCart()
+  const { referralCode } = useReferralCode() // Capture distribution code from URL
   const { showToast } = useToast()
   const [product, setProduct] = useState<Product | null>(null)
   const [loading, setLoading] = useState(true)

@@ -1,7 +1,12 @@
+"use client"
+
 import Link from "next/link"
 import BannerCarousel from "@/components/BannerCarousel"
+import { useReferralCode } from "@/hooks/useReferralCode"
 
 export default function Home() {
+  // Capture distribution code from URL if present
+  useReferralCode()
   return (
     <div className="container mx-auto px-4 py-12">
       {/* 轮播图 */}

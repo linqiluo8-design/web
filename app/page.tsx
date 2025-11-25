@@ -9,6 +9,40 @@ export default function Home() {
         <BannerCarousel />
       </section>
 
+      {/* 分销横幅 */}
+      <section className="mb-12">
+        <div className="bg-gradient-to-r from-orange-500 via-red-500 to-pink-500 rounded-2xl shadow-2xl overflow-hidden">
+          <div className="flex flex-col md:flex-row items-center justify-between p-6 md:p-8">
+            <div className="flex items-center gap-4 md:gap-6 mb-4 md:mb-0">
+              <div className="flex-shrink-0">
+                <div className="w-16 h-16 md:w-20 md:h-20 bg-white bg-opacity-20 backdrop-blur-sm rounded-full flex items-center justify-center">
+                  <svg className="w-10 h-10 md:w-12 md:h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+              </div>
+              <div className="text-white">
+                <div className="flex items-center gap-2 mb-1">
+                  <h3 className="text-2xl md:text-3xl font-bold">💰 成为分销商，轻松赚佣金</h3>
+                  <span className="text-xs bg-yellow-400 text-orange-800 px-2 py-1 rounded-full font-bold animate-pulse">HOT</span>
+                </div>
+                <p className="text-sm md:text-base text-white text-opacity-95">
+                  分享商品给好友，每笔成交最高可获得 <span className="font-bold text-yellow-300 text-lg">15% 佣金</span>，零成本创业，月入过万不是梦！
+                </p>
+              </div>
+            </div>
+            <div className="flex-shrink-0 w-full md:w-auto">
+              <Link
+                href="/distribution"
+                className="block w-full md:w-auto px-8 py-3.5 bg-white text-orange-600 rounded-xl font-bold hover:bg-yellow-50 transition-all shadow-lg hover:shadow-xl hover:scale-105 text-center text-lg"
+              >
+                立即加入 →
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Hero Section */}
       <section className="text-center py-20">
         <h1 className="text-5xl font-bold text-gray-900 mb-6">

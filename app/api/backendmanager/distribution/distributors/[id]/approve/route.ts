@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
-import prisma from "@/lib/prisma"
+import { prisma } from "@/lib/prisma"
 
 // 审核通过分销商申请
 export async function POST(

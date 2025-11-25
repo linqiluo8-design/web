@@ -6,9 +6,12 @@ import { prisma } from "@/lib/prisma"
 // 审核通过分销商申请
 export async function POST(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Next.js 16: params 是 Promise，需要解包
+    const { id } = await params
+
     const session = await getServerSession(authOptions)
 
     if (!session?.user?.email) {
@@ -31,8 +34,6 @@ export async function POST(
     if (!hasPermission) {
       return NextResponse.json({ error: "无权限操作" }, { status: 403 })
     }
-
-    const { id } = params
     const body = await req.json()
     const { commissionRate } = body
 

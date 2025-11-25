@@ -253,6 +253,19 @@ export default function BackendManagerPage() {
             <p className="text-green-700 text-sm">处理客户消息和咨询</p>
           </Link>
         )}
+
+        {hasPermission('DISTRIBUTION') && (
+          <Link
+            href="/backendmanager/distribution"
+            className="block p-6 bg-gradient-to-br from-yellow-50 to-yellow-100 rounded-lg shadow hover:shadow-lg transition-shadow border border-yellow-200 hover:border-yellow-500"
+          >
+            <div className="flex items-center gap-3 mb-2">
+              <span className="text-2xl">💰</span>
+              <h2 className="text-xl font-bold text-yellow-900">分销管理</h2>
+            </div>
+            <p className="text-yellow-700 text-sm">审核分销商申请、管理佣金和提现</p>
+          </Link>
+        )}
       </div>
 
       {/* 如果没有任何可访问的模块 */}
@@ -267,6 +280,7 @@ export default function BackendManagerPage() {
        !hasPermission('SYSTEM_SETTINGS') &&
        !hasPermission('SECURITY_ALERTS') &&
        !hasPermission('CUSTOMER_CHAT') &&
+       !hasPermission('DISTRIBUTION') &&
        session?.user?.role !== 'ADMIN' && (
         <div className="text-center py-12">
           <p className="text-gray-600">您还没有任何管理权限</p>

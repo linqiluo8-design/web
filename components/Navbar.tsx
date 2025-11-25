@@ -101,6 +101,15 @@ export function Navbar() {
               >
                 我的订单
               </Link>
+              <Link
+                href="/distribution"
+                className={`${isActive("/distribution") ? "px-3 py-2 rounded-md text-sm font-medium text-blue-600 bg-blue-50" : "px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50"} relative`}
+              >
+                <span className="flex items-center gap-1">
+                  💰 推广赚钱
+                  <span className="text-xs bg-gradient-to-r from-orange-500 to-red-500 text-white px-1.5 py-0.5 rounded-full">HOT</span>
+                </span>
+              </Link>
               <button
                 onClick={() => window.dispatchEvent(new Event('openChat'))}
                 className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50"
@@ -137,8 +146,16 @@ export function Navbar() {
                     <div className="px-4 py-2 text-sm text-gray-500 border-b">
                       {session.user.email}
                     </div>
+                    <Link
+                      href="/distribution"
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      onClick={() => setShowUserMenu(false)}
+                    >
+                      💰 我的推广
+                    </Link>
                     {(session.user.role === "ADMIN" || hasPermission('SYSTEM_SETTINGS')) && (
                       <>
+                        <hr className="my-1" />
                         <Link
                           href="/backendmanager/settings"
                           className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
@@ -146,9 +163,9 @@ export function Navbar() {
                         >
                           系统设置
                         </Link>
-                        <hr className="my-1" />
                       </>
                     )}
+                    <hr className="my-1" />
                     <button
                       onClick={handleSignOut}
                       className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"

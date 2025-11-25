@@ -1,10 +1,11 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { use, useEffect, useState, useCallback, useRef } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import Image from "next/image"
 import OrderCountdown from "@/components/OrderCountdown"
+import { apiCache } from "@/lib/api-cache"
 
 interface OrderItem {
   id: string
@@ -31,8 +32,11 @@ interface Order {
 
 export default function PaymentPage({ params }: { params: Promise<{ orderId: string }> }) {
   const router = useRouter()
+
+  // ✅ 使用 React 19 的 use() hook 正确解析 Promise，避免无限循环
+  const { orderId } = use(params)
+
   const [order, setOrder] = useState<Order | null>(null)
-  const [orderId, setOrderId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [selectedMethod, setSelectedMethod] = useState<string>("")
@@ -53,20 +57,14 @@ export default function PaymentPage({ params }: { params: Promise<{ orderId: str
     paypal: true,
   })
 
-  useEffect(() => {
-    params.then((resolvedParams) => {
-      setOrderId(resolvedParams.orderId)
-    })
-  }, [params])
+  // 防止重复请求的标志
+  const fetchingOrder = useRef(false)
+  const loadingPaymentConfig = useRef(false)
 
-  useEffect(() => {
-    if (orderId) {
-      fetchOrder()
-      loadPaymentConfig()
-    }
-  }, [orderId])
+  const loadPaymentConfig = useCallback(async () => {
+    if (loadingPaymentConfig.current) return
+    loadingPaymentConfig.current = true
 
-  const loadPaymentConfig = async () => {
     try {
       const res = await fetch("/api/system-config?keys=payment_alipay_enabled,payment_wechat_enabled,payment_paypal_enabled")
       if (res.ok) {
@@ -80,15 +78,19 @@ export default function PaymentPage({ params }: { params: Promise<{ orderId: str
     } catch (error) {
       console.error("加载支付配置失败:", error)
       // 如果加载失败，默认全部启用
+    } finally {
+      loadingPaymentConfig.current = false
     }
-  }
+  }, [])
 
-  const fetchOrder = async () => {
-    if (!orderId) return
+  const fetchOrder = useCallback(async () => {
+    if (!orderId || fetchingOrder.current) return
+    fetchingOrder.current = true
 
     try {
       setLoading(true)
-      const res = await fetch(`/api/orders/${orderId}`)
+      // 使用缓存的 fetch 防止重复请求
+      const res = await apiCache.fetch(`/api/orders/${orderId}`)
 
       if (!res.ok) {
         throw new Error("订单不存在")
@@ -101,8 +103,16 @@ export default function PaymentPage({ params }: { params: Promise<{ orderId: str
       setError(err instanceof Error ? err.message : "获取订单失败")
     } finally {
       setLoading(false)
+      fetchingOrder.current = false
     }
-  }
+  }, [orderId])
+
+  useEffect(() => {
+    if (orderId) {
+      fetchOrder()
+      loadPaymentConfig()
+    }
+  }, [orderId, fetchOrder, loadPaymentConfig])
 
   const handleOrderExpire = () => {
     // 订单过期后重新获取订单状态

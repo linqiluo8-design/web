@@ -29,6 +29,7 @@ model User {
   orders        Order[]
   permissions   Permission[]  // 用户权限
   memberships   Membership[]  // 用户购买的会员
+  distributor   Distributor?  // 分销商信息
 }
 
 enum UserRole {
@@ -69,6 +70,7 @@ enum PermissionModule {
   ORDER_LOOKUP     // 订单查询
   ANALYTICS        // 浏览量统计
   SYSTEM_LOGS      // 系统日志管理
+  DISTRIBUTION     // 分销管理
 }
 
 enum PermissionLevel {
@@ -167,23 +169,26 @@ model CartItem {
 
 // 订单模型
 model Order {
-  id            String   @id @default(cuid())
-  userId        String?  // 可选，支持匿名订单
-  membershipId  String?  // 可选，使用会员码购买
-  orderNumber   String   @unique
-  totalAmount   Float
+  id             String   @id @default(cuid())
+  userId         String?  // 可选，支持匿名订单
+  membershipId   String?  // 可选，使用会员码购买
+  distributorId  String?  // 可选，分销商ID（通过分销链接下单）
+  orderNumber    String   @unique
+  totalAmount    Float
   originalAmount Float?  // 原价（使用会员折扣前）
-  discount      Float?   // 使用的折扣率
-  status        String   @default("pending") // pending, paid, cancelled, refunded
-  paymentMethod String?  // alipay, wechat, paypal
-  expiresAt     DateTime? // 订单过期时间（15分钟后自动取消）
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  discount       Float?   // 使用的折扣率
+  status         String   @default("pending") // pending, paid, cancelled, refunded
+  paymentMethod  String?  // alipay, wechat, paypal
+  expiresAt      DateTime? // 订单过期时间（15分钟后自动取消）
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
-  user        User?       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  membership  Membership? @relation(fields: [membershipId], references: [id], onDelete: SetNull)
-  orderItems  OrderItem[]
-  payment     Payment?
+  user             User?              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  membership       Membership?        @relation(fields: [membershipId], references: [id], onDelete: SetNull)
+  distributor      Distributor?       @relation(fields: [distributorId], references: [id], onDelete: SetNull)
+  orderItems       OrderItem[]
+  payment          Payment?
+  distributionOrder DistributionOrder?
 }
 
 // 订单项模型
@@ -442,4 +447,120 @@ model MembershipExportRecord {
   @@index([visitorId])
   @@index([membershipCode])
   @@index([exportDate])
+}
+
+// ==================== 分销系统模型 ====================
+
+// 分销商模型
+model Distributor {
+  id              String   @id @default(cuid())
+  userId          String   @unique // 关联用户
+  code            String   @unique // 分销商唯一码（用于生成分销链接）
+  commissionRate  Float    @default(0.1) // 默认佣金比例（10%）
+  status          String   @default("pending") // pending, active, suspended, rejected
+  appliedAt       DateTime @default(now()) // 申请时间
+  approvedAt      DateTime? // 审核通过时间
+  approvedBy      String?  // 审核人员ID
+  rejectedReason  String?  // 拒绝原因
+  // 联系信息
+  contactName     String?  // 联系人姓名
+  contactPhone    String?  // 联系电话
+  contactEmail    String?  // 联系邮箱
+  // 银行信息（用于提现）
+  bankName        String?  // 银行名称
+  bankAccount     String?  // 银行账号
+  bankAccountName String?  // 账户名
+  // 统计数据
+  totalEarnings   Float    @default(0) // 总收益
+  availableBalance Float   @default(0) // 可提现余额
+  withdrawnAmount Float    @default(0) // 已提现金额
+  totalOrders     Int      @default(0) // 总订单数
+  totalClicks     Int      @default(0) // 总点击数
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user              User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orders            Order[]               // 通过分销链接产生的订单
+  distributionOrders DistributionOrder[]  // 分销订单记录
+  clicks            DistributionClick[]   // 点击记录
+  withdrawals       CommissionWithdrawal[] // 提现记录
+
+  @@index([code])
+  @@index([status])
+  @@index([userId])
+}
+
+// 分销订单记录（佣金计算和结算）
+model DistributionOrder {
+  id                String   @id @default(cuid())
+  orderId           String   @unique // 关联订单
+  distributorId     String   // 分销商ID
+  orderAmount       Float    // 订单金额
+  commissionAmount  Float    // 佣金金额
+  commissionRate    Float    // 佣金比例（记录当时的比例）
+  status            String   @default("pending") // pending, confirmed, settled, cancelled
+  confirmedAt       DateTime? // 确认时间（订单支付成功后）
+  settledAt         DateTime? // 结算时间（佣金发放到余额）
+  cancelledAt       DateTime? // 取消时间（订单取消或退款）
+  cancelReason      String?  // 取消原因
+  notes             String?  // 备注
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  order       Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  distributor Distributor @relation(fields: [distributorId], references: [id], onDelete: Cascade)
+
+  @@index([distributorId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+// 分销链接点击记录
+model DistributionClick {
+  id            String   @id @default(cuid())
+  distributorId String   // 分销商ID
+  productId     String?  // 产品ID（可选）
+  visitorId     String   // 访客唯一标识
+  ipAddress     String   // 访问者IP
+  userAgent     String?  // User Agent
+  referer       String?  // 来源URL
+  converted     Boolean  @default(false) // 是否转化为订单
+  orderId       String?  // 转化的订单ID（如果有）
+  clickedAt     DateTime @default(now())
+
+  distributor Distributor @relation(fields: [distributorId], references: [id], onDelete: Cascade)
+
+  @@index([distributorId])
+  @@index([visitorId])
+  @@index([productId])
+  @@index([clickedAt])
+}
+
+// 佣金提现记录
+model CommissionWithdrawal {
+  id            String   @id @default(cuid())
+  distributorId String   // 分销商ID
+  amount        Float    // 提现金额
+  fee           Float    @default(0) // 提现手续费
+  actualAmount  Float    // 实际到账金额
+  status        String   @default("pending") // pending, processing, completed, rejected
+  // 银行信息（提现时的银行信息，可能与账户中的不同）
+  bankName      String   // 银行名称
+  bankAccount   String   // 银行账号
+  bankAccountName String // 账户名
+  // 处理信息
+  processedBy   String?  // 处理人员ID
+  processedAt   DateTime? // 处理时间
+  completedAt   DateTime? // 完成时间
+  rejectedReason String?  // 拒绝原因
+  transactionId String?  // 交易ID/凭证号
+  notes         String?  // 备注
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  distributor Distributor @relation(fields: [distributorId], references: [id], onDelete: Cascade)
+
+  @@index([distributorId])
+  @@index([status])
+  @@index([createdAt])
 }

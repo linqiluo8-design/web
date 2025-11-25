@@ -15,6 +15,8 @@ const createOrderSchema = z.object({
   paymentMethod: z.enum(["alipay", "wechat", "paypal"]).optional(),
   // 会员码（可选）
   membershipCode: z.string().optional(),
+  // 分销码（可选）
+  referralCode: z.string().optional(),
 })
 
 // 生成安全的唯一订单号
@@ -110,6 +112,7 @@ export async function POST(req: Request) {
     let totalAmount = 0
     let membership = null
     let membershipDiscount = null
+    let distributor = null
 
     // 安全检查：订单项数量限制
     if (data.items.length > 100) {
@@ -479,6 +482,40 @@ export async function POST(req: Request) {
       totalAmount = originalAmount
     }
 
+    // 验证分销码
+    if (data.referralCode) {
+      distributor = await prisma.distributor.findUnique({
+        where: {
+          code: data.referralCode.toUpperCase()
+        }
+      })
+
+      // 如果分销码无效，只记录日志但不阻止订单创建
+      if (!distributor) {
+        console.warn(`无效的分销码: ${data.referralCode}`)
+      } else if (distributor.status !== "active") {
+        console.warn(`分销商状态非激活: ${data.referralCode}, 状态: ${distributor.status}`)
+        distributor = null // 非激活状态不计入分销
+      } else {
+        // 记录分销点击
+        await prisma.distributionClick.create({
+          data: {
+            distributorId: distributor.id,
+            ipAddress: req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || "unknown",
+            userAgent: req.headers.get("user-agent") || "unknown"
+          }
+        })
+
+        // 更新分销商总点击数
+        await prisma.distributor.update({
+          where: { id: distributor.id },
+          data: {
+            totalClicks: { increment: 1 }
+          }
+        })
+      }
+    }
+
     // 安全检查：免费商品使用会员码检测
     if (membership && originalAmount <= 0.01) {
       try {
@@ -634,6 +671,7 @@ export async function POST(req: Request) {
         originalAmount: membership ? originalAmount : null,
         discount: membershipDiscount,
         membershipId: membership?.id,
+        distributorId: distributor?.id, // 保存分销商ID
         status: "pending",
         paymentMethod: data.paymentMethod,
         expiresAt, // 设置订单过期时间

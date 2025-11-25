@@ -38,7 +38,15 @@ export async function POST(request: Request) {
     if (status === "success") {
       const transactionId = `MOCK_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
 
-      await prisma.$transaction([
+      // 获取订单的分销商信息
+      const order = await prisma.order.findUnique({
+        where: { id: payment.orderId },
+        include: {
+          distributor: true
+        }
+      })
+
+      const operations: any[] = [
         // 更新支付记录
         prisma.payment.update({
           where: { id: paymentId },
@@ -56,7 +64,44 @@ export async function POST(request: Request) {
             expiresAt: null // 支付成功后清除过期时间
           }
         })
-      ])
+      ]
+
+      // 如果订单有关联的分销商，创建分销订单和分配佣金
+      if (order?.distributorId && order.distributor) {
+        const distributor = order.distributor
+
+        // 计算佣金金额
+        const commissionAmount = order.totalAmount * distributor.commissionRate
+
+        // 创建分销订单记录
+        operations.push(
+          prisma.distributionOrder.create({
+            data: {
+              orderId: order.id,
+              distributorId: distributor.id,
+              orderAmount: order.totalAmount,
+              commissionAmount,
+              commissionRate: distributor.commissionRate,
+              status: "pending" // 待确认
+            }
+          })
+        )
+
+        // 更新分销商的待结算佣金
+        operations.push(
+          prisma.distributor.update({
+            where: { id: distributor.id },
+            data: {
+              pendingCommission: { increment: commissionAmount },
+              totalOrders: { increment: 1 }
+            }
+          })
+        )
+
+        console.log(`分销订单创建成功: 订单${order.orderNumber}, 分销商${distributor.code}, 佣金¥${commissionAmount.toFixed(2)}`)
+      }
+
+      await prisma.$transaction(operations)
 
       return NextResponse.json({
         success: true,

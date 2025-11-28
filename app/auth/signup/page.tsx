@@ -72,19 +72,27 @@ export default function SignUpPage() {
         return
       }
 
-      // 注册成功，自动登录
-      const signInResult = await signIn("credentials", {
-        email: formData.email,
-        password: formData.password,
-        redirect: false,
-      })
-
-      if (signInResult?.ok) {
-        alert("注册成功！")
-        router.push("/")
-      } else {
-        alert("注册成功，请登录")
+      // 根据是否需要审核，决定下一步操作
+      if (data.requiresApproval) {
+        // 需要审核，显示提示信息
+        alert(data.message || "注册成功！您的账号需要管理员审核后才能登录，我们会尽快处理。")
         router.push("/auth/signin")
+      } else {
+        // 自动批准，尝试自动登录
+        const signInResult = await signIn("credentials", {
+          email: formData.email,
+          password: formData.password,
+          redirect: false,
+        })
+
+        if (signInResult?.ok) {
+          alert(data.message || "注册成功！")
+          router.push("/")
+        } else {
+          // 自动登录失败，引导用户手动登录
+          alert(data.message + "\n请手动登录。")
+          router.push("/auth/signin")
+        }
       }
     } catch (err) {
       setError("注册失败，请稍后重试")

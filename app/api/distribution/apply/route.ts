@@ -57,6 +57,10 @@ export async function POST(req: Request) {
       code = generateCode()
     }
 
+    // 检查是否自动批准分销商（通过环境变量控制）
+    const autoApprove = process.env.AUTO_APPROVE_DISTRIBUTORS === 'true'
+    const status = autoApprove ? 'active' : 'pending'
+
     // 创建分销商申请
     const distributor = await prisma.distributor.create({
       data: {
@@ -68,19 +72,27 @@ export async function POST(req: Request) {
         bankName: bankName || null,
         bankAccount: bankAccount || null,
         bankAccountName: bankAccountName || null,
-        status: "pending",
+        status, // 根据环境变量设置状态
         commissionRate: 0.1, // 默认10%佣金
+        approvedAt: autoApprove ? new Date() : null, // 自动批准时设置批准时间
       }
     })
 
+    // 根据审核状态返回不同的提示信息
+    const message = autoApprove
+      ? "恭喜！您已成功成为分销商，现在就可以开始推广赚佣金了！"
+      : "申请已提交，等待管理员审核。审核通过后您将收到通知。"
+
     return NextResponse.json({
       success: true,
-      message: "申请已提交，等待审核",
+      message,
+      requiresApproval: !autoApprove, // 前端可以根据这个字段显示不同的提示
       distributor: {
         id: distributor.id,
         code: distributor.code,
         status: distributor.status,
-        appliedAt: distributor.appliedAt
+        appliedAt: distributor.appliedAt,
+        approvedAt: distributor.approvedAt
       }
     })
   } catch (error) {

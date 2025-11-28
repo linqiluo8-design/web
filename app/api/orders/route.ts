@@ -497,12 +497,18 @@ export async function POST(req: Request) {
         console.warn(`分销商状态非激活: ${data.referralCode}, 状态: ${distributor.status}`)
         distributor = null // 非激活状态不计入分销
       } else {
+        // 生成访客唯一标识（基于 IP + User Agent + 时间戳）
+        const ipAddress = req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || "unknown"
+        const userAgent = req.headers.get("user-agent") || "unknown"
+        const visitorId = `${ipAddress}_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
+
         // 记录分销点击
         await prisma.distributionClick.create({
           data: {
             distributorId: distributor.id,
-            ipAddress: req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || "unknown",
-            userAgent: req.headers.get("user-agent") || "unknown"
+            visitorId,
+            ipAddress,
+            userAgent
           }
         })
 

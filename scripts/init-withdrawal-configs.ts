@@ -38,6 +38,15 @@ const withdrawalConfigs = [
     description: "提现手续费率（如 0.02 表示 2%）"
   },
 
+  // ===== 佣金结算配置 =====
+  {
+    key: "commission_settlement_cooldown_days",
+    value: "15",
+    type: "number",
+    category: "withdrawal",
+    description: "佣金结算冷静期（天），订单支付后需等待此期限才能结算佣金，防止退款风险"
+  },
+
   // ===== 自动审核条件配置 =====
   {
     key: "withdrawal_auto_max_amount",

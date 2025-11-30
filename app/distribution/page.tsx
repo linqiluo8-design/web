@@ -370,11 +370,17 @@ export default function DistributionPage() {
           </p>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg shadow p-6 border-2 border-green-200">
           <p className="text-gray-600 text-sm mb-2">可提现余额</p>
-          <p className="text-3xl font-bold text-green-600">
+          <p className="text-3xl font-bold text-green-600 mb-3">
             ¥{distributor.availableBalance.toFixed(2)}
           </p>
+          <Link
+            href="/distribution/withdrawals"
+            className="inline-block w-full text-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium text-sm"
+          >
+            立即提现
+          </Link>
         </div>
 
         <div className="bg-white rounded-lg shadow p-6">
@@ -414,14 +420,25 @@ export default function DistributionPage() {
           </button>
         </div>
 
-        <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-          <p className="text-sm text-yellow-800">
-            💡 佣金比例：{(distributor.commissionRate * 100).toFixed(0)}% |
-            总点击数：{distributor.totalClicks} |
-            转化率：{distributor.totalClicks > 0
-              ? ((distributor.totalDistributionOrders / distributor.totalClicks) * 100).toFixed(2)
-              : "0.00"}%
-          </p>
+        <div className="mt-4 space-y-2">
+          <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <p className="text-sm text-yellow-800">
+              💡 佣金比例：{(distributor.commissionRate * 100).toFixed(0)}% |
+              总点击数：{distributor.totalClicks} |
+              转化率：{distributor.totalClicks > 0
+                ? ((distributor.totalDistributionOrders / distributor.totalClicks) * 100).toFixed(2)
+                : "0.00"}%
+            </p>
+          </div>
+
+          {distributor.pendingCommission > 0 && (
+            <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-sm text-blue-800">
+                ⏳ <strong>待结算佣金说明：</strong>订单支付成功后，佣金会进入15天的结算冷静期，
+                期间如果订单退款，佣金将自动取消。超过冷静期后，佣金会自动转入可提现余额。
+              </p>
+            </div>
+          )}
         </div>
       </div>
 

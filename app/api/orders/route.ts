@@ -706,6 +706,29 @@ export async function POST(req: Request) {
       }
     })
 
+    // 如果有分销商，创建分销订单记录
+    if (distributor) {
+      const commissionAmount = totalAmount * distributor.commissionRate
+      await prisma.distributionOrder.create({
+        data: {
+          orderId: order.id,
+          distributorId: distributor.id,
+          orderAmount: totalAmount,
+          commissionAmount,
+          commissionRate: distributor.commissionRate,
+          status: "pending"
+        }
+      })
+
+      // 更新分销商的总订单数
+      await prisma.distributor.update({
+        where: { id: distributor.id },
+        data: {
+          totalOrders: { increment: 1 }
+        }
+      })
+    }
+
     return NextResponse.json({
       order,
       orderNumber,

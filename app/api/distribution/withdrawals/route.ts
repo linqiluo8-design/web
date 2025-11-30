@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
+import { checkWithdrawalRisk, validateWithdrawalBasics, createSecurityAlert } from "@/lib/withdrawal-risk-check"
 
 // 获取提现记录列表
 export async function GET(req: Request) {
@@ -111,32 +112,26 @@ export async function POST(req: Request) {
       }, { status: 400 })
     }
 
-    // 检查最低提现金额（可配置）
-    const minWithdrawal = 100
-    if (amount < minWithdrawal) {
-      return NextResponse.json({
-        error: `最低提现金额为 ¥${minWithdrawal}`
-      }, { status: 400 })
+    // ===== 新增：基础验证（使用风控工具） =====
+    const basicValidation = await validateWithdrawalBasics(amount, user.distributor.id)
+    if (!basicValidation.valid) {
+      return NextResponse.json({ error: basicValidation.error }, { status: 400 })
     }
 
-    // 检查是否有待处理的提现申请
-    const pendingWithdrawals = await prisma.commissionWithdrawal.count({
-      where: {
-        distributorId: user.distributor.id,
-        status: { in: ["pending", "processing"] }
-      }
+    // ===== 新增：风险检查 =====
+    const riskResult = await checkWithdrawalRisk(amount, user.distributor)
+
+    // 获取手续费率配置
+    const feeRateConfig = await prisma.systemConfig.findUnique({
+      where: { key: 'withdrawal_fee_rate' }
     })
-
-    if (pendingWithdrawals > 0) {
-      return NextResponse.json({
-        error: "您有待处理的提现申请，请等待处理完成后再申请"
-      }, { status: 400 })
-    }
-
-    // 计算手续费（例如：2%，可配置）
-    const feeRate = 0.02
+    const feeRate = feeRateConfig ? parseFloat(feeRateConfig.value) : 0.02
     const fee = amount * feeRate
     const actualAmount = amount - fee
+
+    // 决定初始状态：如果可以自动审核，直接设为 processing；否则为 pending
+    const initialStatus = riskResult.canAutoApprove ? "processing" : "pending"
+    const now = new Date()
 
     // 创建提现申请
     const withdrawal = await prisma.$transaction(async (tx) => {
@@ -144,7 +139,9 @@ export async function POST(req: Request) {
       await tx.distributor.update({
         where: { id: user.distributor.id },
         data: {
-          availableBalance: { decrement: amount }
+          availableBalance: { decrement: amount },
+          // 如果是首次提现，记录时间
+          ...(user.distributor.firstWithdrawalAt ? {} : { firstWithdrawalAt: now })
         }
       })
 
@@ -158,21 +155,61 @@ export async function POST(req: Request) {
           bankName,
           bankAccount,
           bankAccountName,
-          status: "pending"
+          status: initialStatus,
+          // 自动审核相关字段
+          isAutoApproved: riskResult.canAutoApprove,
+          autoApprovedAt: riskResult.canAutoApprove ? now : null,
+          riskCheckResult: JSON.stringify({
+            riskScore: riskResult.riskScore,
+            riskLevel: riskResult.riskLevel,
+            risks: riskResult.risks,
+            reasons: riskResult.reasons
+          }),
+          riskScore: riskResult.riskScore,
+          // 如果是自动审核，记录处理信息
+          processedAt: riskResult.canAutoApprove ? now : null
         }
       })
     })
 
+    // 如果需要记录安全警报
+    if (riskResult.shouldAlert) {
+      const ipAddress = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip')
+      const userAgent = req.headers.get('user-agent')
+      await createSecurityAlert(
+        user.distributor.id,
+        user.id,
+        amount,
+        riskResult,
+        ipAddress || undefined,
+        userAgent || undefined
+      )
+    }
+
+    // 返回结果
+    const message = riskResult.canAutoApprove
+      ? "提现申请已自动审核通过，等待打款"
+      : "提现申请已提交，等待人工审核"
+
     return NextResponse.json({
       success: true,
-      message: "提现申请已提交，等待审核",
+      message,
       withdrawal: {
         id: withdrawal.id,
         amount: withdrawal.amount,
         fee: withdrawal.fee,
         actualAmount: withdrawal.actualAmount,
         status: withdrawal.status,
+        isAutoApproved: withdrawal.isAutoApproved,
+        riskScore: withdrawal.riskScore,
         createdAt: withdrawal.createdAt
+      },
+      // 额外信息：风险检查结果（仅用于调试，生产环境可移除）
+      riskInfo: {
+        canAutoApprove: riskResult.canAutoApprove,
+        riskLevel: riskResult.riskLevel,
+        riskScore: riskResult.riskScore,
+        risks: riskResult.risks
       }
     })
   } catch (error) {

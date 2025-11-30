@@ -19,6 +19,11 @@ interface Withdrawal {
   processedAt?: string
   completedAt?: string
   transactionId?: string
+  // 自动审核相关
+  isAutoApproved: boolean
+  autoApprovedAt?: string
+  riskScore?: number
+  riskCheckResult?: string
   distributor: {
     id: string
     code: string
@@ -306,6 +311,20 @@ export default function WithdrawalsManagementPage() {
                         <span className={`px-3 py-1 rounded-full text-sm font-medium border ${getStatusColor(withdrawal.status)}`}>
                           {getStatusText(withdrawal.status)}
                         </span>
+                        {withdrawal.isAutoApproved && (
+                          <span className="px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800 border border-green-200">
+                            🤖 自动审核
+                          </span>
+                        )}
+                        {withdrawal.riskScore !== undefined && withdrawal.riskScore > 0 && (
+                          <span className={`px-3 py-1 rounded-full text-sm font-medium border ${
+                            withdrawal.riskScore >= 30 ? 'bg-red-100 text-red-800 border-red-200' :
+                            withdrawal.riskScore >= 10 ? 'bg-yellow-100 text-yellow-800 border-yellow-200' :
+                            'bg-green-100 text-green-800 border-green-200'
+                          }`}>
+                            风险评分: {withdrawal.riskScore.toFixed(0)}
+                          </span>
+                        )}
                       </div>
 
                       <div className="text-sm text-gray-600 space-y-1 mb-3">
@@ -350,6 +369,22 @@ export default function WithdrawalsManagementPage() {
                             <p className="text-red-800">
                               <strong>拒绝原因：</strong>{withdrawal.rejectedReason}
                             </p>
+                          </div>
+                        )}
+
+                        {withdrawal.riskCheckResult && (
+                          <div className="p-3 bg-blue-50 border border-blue-200 rounded text-sm">
+                            <p className="text-blue-800 font-semibold mb-1">风险检查详情：</p>
+                            <pre className="text-xs text-blue-700 whitespace-pre-wrap">
+                              {(() => {
+                                try {
+                                  const riskData = JSON.parse(withdrawal.riskCheckResult)
+                                  return `风险等级: ${riskData.riskLevel}\n触发因素: ${riskData.risks.join(', ')}`
+                                } catch {
+                                  return withdrawal.riskCheckResult
+                                }
+                              })()}
+                            </pre>
                           </div>
                         )}
                       </div>

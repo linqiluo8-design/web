@@ -470,6 +470,18 @@ model Distributor {
   bankName        String?  // 银行名称
   bankAccount     String?  // 银行账号
   bankAccountName String?  // 账户名
+  // 实名认证相关
+  isVerified      Boolean  @default(false) // 是否通过实名认证
+  verifiedAt      DateTime? // 认证通过时间
+  realName        String?  // 真实姓名
+  idCardNumber    String?  // 身份证号（加密存储）
+  // 风控相关
+  lastBankInfoUpdate DateTime? // 最后一次银行信息更新时间
+  firstWithdrawalAt  DateTime? // 首次提现时间
+  riskLevel       String   @default("low") // 风险等级：low, medium, high
+  isFrozen        Boolean  @default(false) // 账户是否被冻结
+  frozenReason    String?  // 冻结原因
+  frozenAt        DateTime? // 冻结时间
   // 统计数据
   totalEarnings   Float    @default(0) // 总收益
   availableBalance Float   @default(0) // 可提现余额
@@ -555,6 +567,11 @@ model CommissionWithdrawal {
   rejectedReason String?  // 拒绝原因
   transactionId String?  // 交易ID/凭证号
   notes         String?  // 备注
+  // 自动审核相关
+  isAutoApproved Boolean  @default(false) // 是否自动审核通过
+  autoApprovedAt DateTime? // 自动审核时间
+  riskCheckResult String? @db.Text // 风控检查结果（JSON）
+  riskScore      Float?   @default(0) // 风险评分（0-100）
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 

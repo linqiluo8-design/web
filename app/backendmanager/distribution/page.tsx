@@ -239,12 +239,20 @@ export default function DistributionManagementPage() {
           <h1 className="text-3xl font-bold mb-2">分销管理</h1>
           <p className="text-gray-600">管理分销商申请和佣金</p>
         </div>
-        <Link
-          href="/backendmanager/distribution/withdrawals"
-          className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
-        >
-          提现管理
-        </Link>
+        <div className="flex gap-3">
+          <Link
+            href="/backendmanager/distribution/withdrawal-config"
+            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+          >
+            ⚙️ 提现配置
+          </Link>
+          <Link
+            href="/backendmanager/distribution/withdrawals"
+            className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
+          >
+            提现管理
+          </Link>
+        </div>
       </div>
 
       {/* 统计卡片 */}

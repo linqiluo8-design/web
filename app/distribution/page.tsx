@@ -370,11 +370,17 @@ export default function DistributionPage() {
           </p>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg shadow p-6 border-2 border-green-200">
           <p className="text-gray-600 text-sm mb-2">可提现余额</p>
-          <p className="text-3xl font-bold text-green-600">
+          <p className="text-3xl font-bold text-green-600 mb-3">
             ¥{distributor.availableBalance.toFixed(2)}
           </p>
+          <Link
+            href="/distribution/withdrawals"
+            className="inline-block w-full text-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium text-sm"
+          >
+            立即提现
+          </Link>
         </div>
 
         <div className="bg-white rounded-lg shadow p-6">

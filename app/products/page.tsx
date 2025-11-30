@@ -5,6 +5,7 @@ import Link from "next/link"
 import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { useCart } from "@/hooks/useCart"
+import { useReferralCode } from "@/hooks/useReferralCode"
 import { useToast } from "@/components/Toast"
 
 interface Product {
@@ -37,6 +38,7 @@ interface Category {
 export default function ProductsPage() {
   const router = useRouter()
   const { addToCart: addToCartHook } = useCart()
+  const { getReferralCode } = useReferralCode()
   const { showToast } = useToast()
   const categoryFilterRef = useRef<HTMLDivElement>(null)
   const [data, setData] = useState<ProductsResponse | null>(null)
@@ -193,6 +195,13 @@ export default function ProductsPage() {
       // 如果使用了会员码，添加会员信息
       if (useMembershipCode) {
         orderData.membershipCode = useMembershipCode
+      }
+
+      // 如果有分销码，添加分销信息
+      const referralCode = getReferralCode()
+      if (referralCode) {
+        orderData.referralCode = referralCode
+        console.log(`🎯 订单关联分销码: ${referralCode}`)
       }
 
       const res = await fetch("/api/orders", {

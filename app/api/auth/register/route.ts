@@ -7,7 +7,8 @@ import { withRateLimit, RateLimitPresets } from "@/lib/rate-limit"
 const registerSchema = z.object({
   name: z.string()
     .min(2, "名字至少2个字符")
-    .max(100, "名字长度不能超过100个字符"),
+    .max(100, "名字长度不能超过100个字符")
+    .optional(), // 名字改为可选
   email: z.string()
     .email("请输入有效的邮箱地址")
     .max(254, "邮箱长度不能超过254个字符"), // RFC 5321标准
@@ -38,13 +39,20 @@ export async function POST(req: Request) {
       // 加密密码
       const hashedPassword = await bcrypt.hash(password, 10)
 
-      // 创建用户（默认状态为 PENDING，需要管理员审核）
+      // 如果没有提供名字，从邮箱生成一个默认名字
+      const userName = name || email.split('@')[0]
+
+      // 检查是否自动批准新用户（通过环境变量控制）
+      const autoApprove = process.env.AUTO_APPROVE_USERS === 'true'
+      const accountStatus = autoApprove ? 'APPROVED' : 'PENDING'
+
+      // 创建用户
       const user = await prisma.user.create({
         data: {
-          name,
+          name: userName,
           email,
           password: hashedPassword,
-          // accountStatus 默认为 PENDING（在 schema 中定义）
+          accountStatus, // 根据环境变量设置状态
         },
         select: {
           id: true,
@@ -55,10 +63,16 @@ export async function POST(req: Request) {
         }
       })
 
+      // 根据审核状态返回不同的提示信息
+      const message = autoApprove
+        ? "注册成功！您现在可以直接登录了。"
+        : "注册成功！您的账号需要管理员审核后才能登录，我们会尽快处理，请耐心等待。"
+
       return NextResponse.json(
         {
           user,
-          message: "注册成功！您的账号需要管理员审核后才能登录，请耐心等待。"
+          message,
+          requiresApproval: !autoApprove, // 前端可以根据这个字段显示不同的提示
         },
         { status: 201 }
       )

@@ -73,6 +73,46 @@ export async function POST(req: Request) {
         data: { status: "paid" },
       })
 
+      // 处理分销佣金结算
+      if (order.distributorId) {
+        try {
+          // 查找分销订单记录
+          const distributionOrder = await prisma.distributionOrder.findUnique({
+            where: { orderId: order.id }
+          })
+
+          if (distributionOrder && distributionOrder.status === "pending") {
+            // 更新分销订单状态为已确认，并立即结算
+            await prisma.distributionOrder.update({
+              where: { id: distributionOrder.id },
+              data: {
+                status: "settled",
+                confirmedAt: new Date(),
+                settledAt: new Date()
+              }
+            })
+
+            // 更新分销商余额和收益统计
+            await prisma.distributor.update({
+              where: { id: order.distributorId },
+              data: {
+                totalEarnings: { increment: distributionOrder.commissionAmount },
+                availableBalance: { increment: distributionOrder.commissionAmount }
+              }
+            })
+
+            console.log("分销佣金已结算:", {
+              orderId: order.id,
+              distributorId: order.distributorId,
+              commissionAmount: distributionOrder.commissionAmount
+            })
+          }
+        } catch (error) {
+          console.error("处理分销佣金结算失败:", error)
+          // 不影响支付回调的成功响应
+        }
+      }
+
       console.log("微信支付成功:", orderNumber)
       return NextResponse.json({ code: "SUCCESS", message: "成功" })
     }

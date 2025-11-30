@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import Image from "next/image"
 import Link from "next/link"
 import { useCart } from "@/hooks/useCart"
+import { useReferralCode } from "@/hooks/useReferralCode"
 import { useToast } from "@/components/Toast"
 
 interface Product {
@@ -32,6 +33,7 @@ interface MembershipInfo {
 export default function ProductDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter()
   const { addToCart: addToCartHook } = useCart()
+  const { referralCode } = useReferralCode() // Capture distribution code from URL
   const { showToast } = useToast()
   const [product, setProduct] = useState<Product | null>(null)
   const [loading, setLoading] = useState(true)
@@ -164,6 +166,12 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
       // 如果使用了会员码，添加会员信息
       if (membership) {
         orderData.membershipCode = membership.code
+      }
+
+      // 如果有分销码，添加分销信息
+      if (referralCode) {
+        orderData.referralCode = referralCode
+        console.log(`🎯 订单关联分销码: ${referralCode}`)
       }
 
       const res = await fetch("/api/orders", {
@@ -401,7 +409,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
           </div>
 
           {/* 操作按钮 */}
-          <div className="flex gap-4 mb-8">
+          <div className="flex gap-4 mb-6">
             <button
               onClick={addToCart}
               className="flex-1 px-6 py-3 bg-orange-500 text-white rounded-md hover:bg-orange-600 transition-colors font-medium"
@@ -414,6 +422,34 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
             >
               立即购买
             </button>
+          </div>
+
+          {/* 分享赚佣金卡片 */}
+          <div className="mb-6 bg-gradient-to-r from-orange-50 to-red-50 border border-orange-200 rounded-lg p-4">
+            <div className="flex items-start gap-3">
+              <div className="flex-shrink-0">
+                <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-red-500 rounded-full flex items-center justify-center">
+                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-1">
+                  <h4 className="font-bold text-gray-900 text-sm">💰 分享赚佣金</h4>
+                  <span className="text-xs bg-gradient-to-r from-orange-500 to-red-500 text-white px-1.5 py-0.5 rounded-full font-bold">HOT</span>
+                </div>
+                <p className="text-xs text-gray-700 mb-2">
+                  成为分销商，分享此商品赚取高达 <span className="font-bold text-orange-600">15% 佣金</span>
+                </p>
+                <Link
+                  href="/distribution"
+                  className="inline-block text-xs px-3 py-1.5 bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-md hover:from-orange-600 hover:to-red-600 transition-all font-medium"
+                >
+                  立即成为分销商 →
+                </Link>
+              </div>
+            </div>
           </div>
 
           {/* 标签 */}

@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation"
 import Image from "next/image"
 import Link from "next/link"
 import { useCart } from "@/hooks/useCart"
+import { useReferralCode } from "@/hooks/useReferralCode"
 import { useState } from "react"
 import { useToast } from "@/components/Toast"
 
@@ -27,6 +28,7 @@ interface MembershipInfo {
 export default function CartPage() {
   const router = useRouter()
   const { cart, updateQuantity, removeFromCart, clearCart, total, isLoaded } = useCart()
+  const { getReferralCode } = useReferralCode()
   const { showToast } = useToast()
   const [membershipCode, setMembershipCode] = useState("")
   const [membership, setMembership] = useState<MembershipInfo | null>(null)
@@ -127,6 +129,13 @@ export default function CartPage() {
       // 如果使用了会员码，添加会员信息
       if (membership) {
         orderData.membershipCode = membership.code
+      }
+
+      // 如果有分销码，添加分销信息
+      const referralCode = getReferralCode()
+      if (referralCode) {
+        orderData.referralCode = referralCode
+        console.log(`🎯 订单关联分销码: ${referralCode}`)
       }
 
       const res = await fetch("/api/orders", {

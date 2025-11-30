@@ -168,6 +168,12 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
         orderData.membershipCode = membership.code
       }
 
+      // 如果有分销码，添加分销信息
+      if (referralCode) {
+        orderData.referralCode = referralCode
+        console.log(`🎯 订单关联分销码: ${referralCode}`)
+      }
+
       const res = await fetch("/api/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

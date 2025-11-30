@@ -30,7 +30,8 @@ const UPLOAD_DIR = path.join(process.cwd(), "public", "uploads", "chat")
  * 4. 图片尺寸限制
  * 5. 随机文件名防止覆盖和路径遍历
  * 6. 速率限制（每分钟最多5张图片）
- * 7. 自动压缩优化
+ * 7. 自动压缩优化（保持原始格式）
+ * 8. 支持 JPEG、PNG、WebP 压缩，GIF 动画保持原样
  */
 export async function POST(req: Request) {
   return withRateLimit(req, { max: 5, windowSeconds: 60, prefix: 'chat-image' }, async () => {
@@ -110,22 +111,46 @@ export async function POST(req: Request) {
 
       // 9. 处理和压缩图片
       let processedBuffer
-      const { width, height } = metadata
+      const { width, height, format } = metadata
 
-      // 如果图片较大，进行压缩
+      // 根据原始格式处理图片
+      let sharpInstance = sharp(buffer)
+
+      // 如果图片较大，进行缩放
       if (width! > 1920 || height! > 1920) {
-        processedBuffer = await sharp(buffer)
-          .resize(1920, 1920, {
-            fit: "inside",
-            withoutEnlargement: true
-          })
-          .jpeg({ quality: 85 })
-          .toBuffer()
-      } else {
-        // 只进行质量压缩
-        processedBuffer = await sharp(buffer)
-          .jpeg({ quality: 90 })
-          .toBuffer()
+        sharpInstance = sharpInstance.resize(1920, 1920, {
+          fit: "inside",
+          withoutEnlargement: true
+        })
+      }
+
+      // 根据格式进行优化压缩，保持原格式
+      switch (format) {
+        case "jpeg":
+        case "jpg":
+          processedBuffer = await sharpInstance
+            .jpeg({ quality: 85, mozjpeg: true })
+            .toBuffer()
+          break
+        case "png":
+          processedBuffer = await sharpInstance
+            .png({ quality: 85, compressionLevel: 9 })
+            .toBuffer()
+          break
+        case "webp":
+          processedBuffer = await sharpInstance
+            .webp({ quality: 85 })
+            .toBuffer()
+          break
+        case "gif":
+          // GIF 动画保持原样，不压缩以保留动画
+          processedBuffer = buffer
+          break
+        default:
+          // 其他格式转换为 JPEG
+          processedBuffer = await sharpInstance
+            .jpeg({ quality: 85, mozjpeg: true })
+            .toBuffer()
       }
 
       // 10. 保存文件

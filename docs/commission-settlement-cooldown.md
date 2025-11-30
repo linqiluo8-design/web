@@ -337,6 +337,139 @@ crontab -e
 4. ✅ 提供了完善的监控和警报机制
 
 这是分销系统中一个**非常重要的安全机制**，强烈建议启用。
+我已经成功实现了完整的安全防护方案，彻底解决了你担心的退款风险漏洞！
+
+🔐 问题已解决
+原有漏洞
+❌ 用户购买 → 佣金立即可提现 → 分销商提现 → 用户退款 → 平台损失
+
+现在的安全机制
+✅ 用户购买 → 佣金进入15天冷静期 → 无退款才可提现 → 防止套现
+
+📦 实现的功能
+1. 佣金结算冷静期（15天，可配置）
+订单支付成功
+    ↓
+佣金状态: confirmed (已确认，但不可提现)
+佣金暂存: pendingCommission (待结算佣金) ⏳
+    ↓
+等待 15 天
+    ↓
+【情况A】无退款 → 自动结算到 availableBalance (可提现) ✅
+【情况B】有退款 → 自动取消佣金 ❌
+
+2. 自动结算定时任务
+API: /api/cron/settle-commissions
+功能：每天自动检查并结算超过冷静期的佣金
+使用：配置 cron job 每天执行
+3. 智能退款处理
+API: /api/orders/[id]/refund
+冷静期内退款：从待结算佣金中扣除 ✅
+已结算后退款（余额充足）：从可提现余额中扣除 ✅
+已结算后退款（已提现）：创建高优先级警报，需人工处理 ⚠️
+4. 用户提示
+分销中心页面新增说明：
+
+⏳ **待结算佣金说明：**订单支付成功后，佣金会进入15天的结算冷静期，期间如果订单退款，佣金将自动取消。超过冷静期后，佣金会自动转入可提现余额。
+
+📝 修改的文件
+核心逻辑
+✅ app/api/payment/callback/route.ts - 通用支付回调
+✅ app/api/payment/callback/wechat/route.ts - 微信支付
+✅ app/api/payment/callback/alipay/route.ts - 支付宝
+✅ app/api/payment/callback/paypal/route.ts - PayPal
+新增功能
+✅ app/api/cron/settle-commissions/route.ts - 自动结算任务
+✅ app/api/orders/[id]/refund/route.ts - 退款处理
+✅ docs/commission-settlement-cooldown.md - 完整文档
+配置和前端
+✅ scripts/init-withdrawal-configs.ts - 添加冷静期配置
+✅ app/distribution/page.tsx - 添加冷静期提示
+🚀 部署步骤
+1. 初始化配置
+npx tsx scripts/init-withdrawal-configs.ts
+
+2. 配置定时任务（选择一种）
+方式 A：Vercel Cron Jobs（推荐） 在 vercel.json 添加：
+
+{
+  "crons": [{
+    "path": "/api/cron/settle-commissions",
+    "schedule": "0 2 * * *"
+  }]
+}
+
+方式 B：外部 Cron 服务 使用 cron-job.org，每天凌晨2点访问：
+
+https://your-domain.com/api/cron/settle-commissions
+
+🛡️ 安全优势
+场景	旧系统	新系统
+恶意套现	❌ 可立即提现后退款	✅ 冷静期内无法提现
+正常退货	❌ 平台承担佣金损失	✅ 自动取消佣金
+已提现的退款	❌ 无法处理	✅ 创建警报，人工追讨
+📊 监控建议
+查看待结算佣金总额：
+
+SELECT SUM(pendingCommission) FROM Distributor;
+
+查看需要人工处理的退款警报：
+
+SELECT * FROM SecurityAlert
+WHERE type = 'REFUND_COMMISSION_SHORTAGE'
+AND status = 'pending';
+
+所有更改已提交到分支 claude/add-withdrawal-button-01P97JwBwSNEJMbaZXYjmci1，包括：
+
+✅ 分销中心添加提现按钮
+✅ 实现佣金结算冷静期机制
+✅ 完整的退款处理逻辑
+✅ 自动结算定时任务
+✅ 详细的文档说明
+这个安全机制能有效防止你担心的退款风险漏洞！🎉
+
+这个“冷静期”设计记得写入文档，并提交GitHub
+
+好的！实际上我已经完成了文档的编写和提交。让我确认一下：
+
+Bash
+git log --oneline -3
+88b3d0c feat: 实现佣金结算冷静期机制，防止退款风险漏洞
+2c505cd feat: 在分销中心添加醒目的提现按钮
+260af58 Merge pull request #66 from linqiluo8-design/claude/fix-chat-image-upload-01NHPyzWaNjfjD9a4jwzYBBB
+Bash
+git show 88b3d0c --stat | grep -E "(docs|md)"
+- 新增：docs/commission-settlement-cooldown.md
+    3. 详见文档：docs/commission-settlement-cooldown.md
+ docs/commission-settlement-cooldown.md   | 345 +++++++++++++++++++++++++++++++
+Bash
+git log --oneline origin/claude/add-withdrawal-button-01P97JwBwSNEJMbaZXYjmci1 -1
+88b3d0c feat: 实现佣金结算冷静期机制，防止退款风险漏洞
+✅ 已完成！ 冷静期机制的完整文档已经编写并提交到 GitHub。
+
+📄 已提交的文档
+文档位置：docs/commission-settlement-cooldown.md
+
+内容包括：
+
+📋 问题背景和安全漏洞分析
+✅ 延迟结算机制的解决方案
+🔧 详细的技术实现说明
+📊 佣金状态流转图
+🚀 完整的部署步骤
+📈 监控和维护指南
+🔒 安全优势分析
+📦 Git 提交记录
+commit 88b3d0c
+feat: 实现佣金结算冷静期机制，防止退款风险漏洞
+
+主要改动：
+✅ 新增完整文档：docs/commission-settlement-cooldown.md (345行)
+✅ 修改支付回调：佣金设为 confirmed 而非 settled
+✅ 新增自动结算任务：app/api/cron/settle-commissions/route.ts
+✅ 新增退款处理：app/api/orders/[id]/refund/route.ts
+✅ 添加冷静期配置：commission_settlement_cooldown_days
+✅ 前端添加用户提示
 
 ---
 

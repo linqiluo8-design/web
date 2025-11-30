@@ -420,14 +420,25 @@ export default function DistributionPage() {
           </button>
         </div>
 
-        <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-          <p className="text-sm text-yellow-800">
-            💡 佣金比例：{(distributor.commissionRate * 100).toFixed(0)}% |
-            总点击数：{distributor.totalClicks} |
-            转化率：{distributor.totalClicks > 0
-              ? ((distributor.totalDistributionOrders / distributor.totalClicks) * 100).toFixed(2)
-              : "0.00"}%
-          </p>
+        <div className="mt-4 space-y-2">
+          <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <p className="text-sm text-yellow-800">
+              💡 佣金比例：{(distributor.commissionRate * 100).toFixed(0)}% |
+              总点击数：{distributor.totalClicks} |
+              转化率：{distributor.totalClicks > 0
+                ? ((distributor.totalDistributionOrders / distributor.totalClicks) * 100).toFixed(2)
+                : "0.00"}%
+            </p>
+          </div>
+
+          {distributor.pendingCommission > 0 && (
+            <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-sm text-blue-800">
+                ⏳ <strong>待结算佣金说明：</strong>订单支付成功后，佣金会进入15天的结算冷静期，
+                期间如果订单退款，佣金将自动取消。超过冷静期后，佣金会自动转入可提现余额。
+              </p>
+            </div>
+          )}
         </div>
       </div>
 

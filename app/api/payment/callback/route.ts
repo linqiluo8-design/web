@@ -57,7 +57,7 @@ export async function POST(request: Request) {
         }
       })
 
-      // 处理分销佣金结算
+      // 处理分销佣金（进入冷静期，暂不结算）
       if (order.distributorId) {
         try {
           // 查找分销订单记录
@@ -66,33 +66,36 @@ export async function POST(request: Request) {
           })
 
           if (distributionOrder && distributionOrder.status === "pending") {
-            // 更新分销订单状态为已确认，并立即结算
+            // 更新分销订单状态为已确认（confirmed），但不结算（settled）
+            // 需要等待冷静期（默认15天）后才会自动结算
             await prisma.distributionOrder.update({
               where: { id: distributionOrder.id },
               data: {
-                status: "settled",
-                confirmedAt: new Date(),
-                settledAt: new Date()
+                status: "confirmed",
+                confirmedAt: new Date()
+                // 注意：不设置 settledAt，等待冷静期后才结算
               }
             })
 
-            // 更新分销商余额和收益统计
+            // 更新分销商统计：增加总收益和待结算佣金（pendingCommission）
+            // 不增加 availableBalance（可提现余额），防止立即提现后用户退款的风险
             await prisma.distributor.update({
               where: { id: order.distributorId },
               data: {
                 totalEarnings: { increment: distributionOrder.commissionAmount },
-                availableBalance: { increment: distributionOrder.commissionAmount }
+                pendingCommission: { increment: distributionOrder.commissionAmount }
               }
             })
 
-            console.log("分销佣金已结算:", {
+            console.log("分销佣金已确认，进入结算冷静期:", {
               orderId: order.id,
               distributorId: order.distributorId,
-              commissionAmount: distributionOrder.commissionAmount
+              commissionAmount: distributionOrder.commissionAmount,
+              status: "confirmed"
             })
           }
         } catch (error) {
-          console.error("处理分销佣金结算失败:", error)
+          console.error("处理分销佣金确认失败:", error)
           // 不影响支付回调的成功响应
         }
       }

@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma"
 // 批准提现申请
 export async function POST(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions)
@@ -34,7 +34,7 @@ export async function POST(
       return NextResponse.json({ error: "权限不足" }, { status: 403 })
     }
 
-    const { id } = params
+    const { id } = await params
 
     // 查询提现记录
     const withdrawal = await prisma.commissionWithdrawal.findUnique({

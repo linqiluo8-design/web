@@ -354,6 +354,10 @@ export async function POST(req: Request) {
     // 需要分销管理的写权限
     await requireWrite('DISTRIBUTION')
 
+    // 获取自定义配置值
+    const body = await req.json().catch(() => ({}))
+    const customValues = body.customValues || {}
+
     let created = 0
     let skipped = 0
     const errors: string[] = []
@@ -370,9 +374,17 @@ export async function POST(req: Request) {
           continue
         }
 
+        // 使用自定义值（如果提供）或默认值
+        const value = customValues[config.key] !== undefined
+          ? customValues[config.key]
+          : config.value
+
         // 创建配置
         await prisma.systemConfig.create({
-          data: config
+          data: {
+            ...config,
+            value: value.toString()
+          }
         })
         created++
       } catch (error: any) {

@@ -26,6 +26,17 @@ export default function WithdrawalConfigPage() {
   // 配置值状态
   const [configValues, setConfigValues] = useState<{ [key: string]: string }>({})
 
+  // 初始化时的自定义配置值
+  const [initConfigValues, setInitConfigValues] = useState<{ [key: string]: string }>({
+    commission_settlement_cooldown_days: "15",
+    withdrawal_min_amount: "100",
+    withdrawal_max_amount: "50000",
+    withdrawal_fee_rate: "0.02",
+    withdrawal_auto_max_amount: "5000",
+    withdrawal_daily_count_limit: "3",
+    withdrawal_daily_amount_limit: "10000"
+  })
+
   // 检查权限
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -92,7 +103,9 @@ export default function WithdrawalConfigPage() {
     try {
       const response = await fetch('/api/backendmanager/init-withdrawal-configs', {
         method: 'POST',
-        credentials: 'include'
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ customValues: initConfigValues })
       })
 
       const data = await response.json()
@@ -260,6 +273,109 @@ export default function WithdrawalConfigPage() {
               检测到数据库中没有提现配置项，需要先初始化配置才能使用。
             </p>
 
+            {/* 可编辑的关键配置 */}
+            <div className="bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-300 rounded-lg p-6 mb-6 text-left">
+              <h3 className="font-semibold text-green-900 mb-3 flex items-center">
+                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+                ✏️ 自定义关键配置（可选）
+              </h3>
+              <p className="text-sm text-green-800 mb-4">
+                在初始化前，您可以修改以下关键配置的默认值：
+              </p>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-green-900 mb-1">
+                    💰 佣金结算冷静期（天）
+                  </label>
+                  <input
+                    type="number"
+                    value={initConfigValues.commission_settlement_cooldown_days}
+                    onChange={(e) => setInitConfigValues({...initConfigValues, commission_settlement_cooldown_days: e.target.value})}
+                    className="w-full px-3 py-2 border-2 border-green-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
+                    min="1"
+                    max="90"
+                  />
+                  <p className="text-xs text-green-700 mt-1">推荐：7-30天</p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-green-900 mb-1">
+                    最低提现金额（元）
+                  </label>
+                  <input
+                    type="number"
+                    value={initConfigValues.withdrawal_min_amount}
+                    onChange={(e) => setInitConfigValues({...initConfigValues, withdrawal_min_amount: e.target.value})}
+                    className="w-full px-3 py-2 border-2 border-green-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
+                    min="1"
+                  />
+                  <p className="text-xs text-green-700 mt-1">推荐：50-200元</p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-green-900 mb-1">
+                    最高提现金额（元）
+                  </label>
+                  <input
+                    type="number"
+                    value={initConfigValues.withdrawal_max_amount}
+                    onChange={(e) => setInitConfigValues({...initConfigValues, withdrawal_max_amount: e.target.value})}
+                    className="w-full px-3 py-2 border-2 border-green-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
+                    min="1000"
+                  />
+                  <p className="text-xs text-green-700 mt-1">推荐：30000-100000元</p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-green-900 mb-1">
+                    提现手续费率（%）
+                  </label>
+                  <input
+                    type="number"
+                    value={(parseFloat(initConfigValues.withdrawal_fee_rate) * 100).toFixed(2)}
+                    onChange={(e) => setInitConfigValues({...initConfigValues, withdrawal_fee_rate: (parseFloat(e.target.value) / 100).toString()})}
+                    className="w-full px-3 py-2 border-2 border-green-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
+                    min="0"
+                    max="10"
+                    step="0.1"
+                  />
+                  <p className="text-xs text-green-700 mt-1">推荐：0-3%</p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-green-900 mb-1">
+                    自动审核最大金额（元）
+                  </label>
+                  <input
+                    type="number"
+                    value={initConfigValues.withdrawal_auto_max_amount}
+                    onChange={(e) => setInitConfigValues({...initConfigValues, withdrawal_auto_max_amount: e.target.value})}
+                    className="w-full px-3 py-2 border-2 border-green-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
+                    min="0"
+                  />
+                  <p className="text-xs text-green-700 mt-1">推荐：3000-10000元</p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-green-900 mb-1">
+                    每日提现次数限制
+                  </label>
+                  <input
+                    type="number"
+                    value={initConfigValues.withdrawal_daily_count_limit}
+                    onChange={(e) => setInitConfigValues({...initConfigValues, withdrawal_daily_count_limit: e.target.value})}
+                    className="w-full px-3 py-2 border-2 border-green-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
+                    min="1"
+                    max="10"
+                  />
+                  <p className="text-xs text-green-700 mt-1">推荐：3-5次</p>
+                </div>
+              </div>
+            </div>
+
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-6 text-left max-h-96 overflow-y-auto">
               <h3 className="font-semibold text-blue-900 mb-4">📋 将创建以下配置项（共 26 项）：</h3>
 
@@ -271,10 +387,10 @@ export default function WithdrawalConfigPage() {
                 </h4>
                 <ul className="text-xs text-blue-700 space-y-1 ml-8">
                   <li>✓ 自动审核开关 - 默认关闭</li>
-                  <li>✓ 最低提现金额 - ¥100</li>
-                  <li>✓ 最高提现金额 - ¥50,000</li>
-                  <li>✓ 提现手续费率 - 2%</li>
-                  <li>✓ <strong className="text-blue-600">佣金结算冷静期 - 15天</strong></li>
+                  <li>✓ 最低提现金额 - ¥{initConfigValues.withdrawal_min_amount}</li>
+                  <li>✓ 最高提现金额 - ¥{parseInt(initConfigValues.withdrawal_max_amount).toLocaleString()}</li>
+                  <li>✓ 提现手续费率 - {(parseFloat(initConfigValues.withdrawal_fee_rate) * 100).toFixed(2)}%</li>
+                  <li>✓ <strong className="text-blue-600">佣金结算冷静期 - {initConfigValues.commission_settlement_cooldown_days}天</strong></li>
                 </ul>
               </div>
 
@@ -285,7 +401,7 @@ export default function WithdrawalConfigPage() {
                   自动审核条件（4项）
                 </h4>
                 <ul className="text-xs text-blue-700 space-y-1 ml-8">
-                  <li>✓ 自动审核最大金额 - ¥5,000</li>
+                  <li>✓ 自动审核最大金额 - ¥{parseInt(initConfigValues.withdrawal_auto_max_amount).toLocaleString()}</li>
                   <li>✓ 要求最少注册天数 - 30天</li>
                   <li>✓ 要求实名认证 - 否</li>
                   <li>✓ 银行信息稳定期 - 7天</li>
@@ -299,8 +415,8 @@ export default function WithdrawalConfigPage() {
                   风控限制（3项）
                 </h4>
                 <ul className="text-xs text-blue-700 space-y-1 ml-8">
-                  <li>✓ 每日提现次数限制 - 3次</li>
-                  <li>✓ 每日提现金额限制 - ¥10,000</li>
+                  <li>✓ 每日提现次数限制 - {initConfigValues.withdrawal_daily_count_limit}次</li>
+                  <li>✓ 每日提现金额限制 - ¥{parseInt(initConfigValues.withdrawal_daily_amount_limit).toLocaleString()}</li>
                   <li>✓ 每月提现金额限制 - ¥50,000</li>
                 </ul>
               </div>
@@ -347,7 +463,7 @@ export default function WithdrawalConfigPage() {
 
             <div className="mt-6 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
               <p className="text-sm text-yellow-800">
-                💡 <strong>提示：</strong>初始化后，所有配置将使用推荐的默认值，您可以随时在配置页面中调整。
+                💡 <strong>提示：</strong>您可以在上方修改关键配置的默认值，未修改的配置项将使用推荐的默认值。初始化后，所有配置都可以在配置页面中随时调整。
               </p>
             </div>
           </div>

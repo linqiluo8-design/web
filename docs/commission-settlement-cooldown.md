@@ -492,9 +492,129 @@ crontab -e
 
 ### 3. 配置冷静期天数（可选）
 
-在系统配置中调整 `commission_settlement_cooldown_days`：
-- 建议值：7-30 天
-- 默认值：15 天
+冷静期天数通过配置项 `commission_settlement_cooldown_days` 控制。有以下几种配置方法：
+
+#### 方法 1：通过后台管理界面配置（推荐）
+
+**适用场景**：管理员需要快速调整冷静期，无需技术操作
+
+**访问路径**：`/backendmanager/distribution/withdrawal-config`
+
+**操作步骤**：
+1. 使用管理员账号登录系统
+2. 访问"后台管理" → "分销管理" → "提现审核配置"
+3. 在"基础配置"区块找到"佣金结算冷静期"设置
+4. 修改天数（建议：7-30天）
+5. 点击"保存所有配置"按钮
+
+**优点**：
+- ✅ 可视化界面，操作简单
+- ✅ 实时生效，无需重启
+- ✅ 自动验证输入值
+- ✅ 有配置摘要展示
+
+---
+
+#### 方法 2：通过数据库直接修改
+
+**适用场景**：批量初始化、脚本化部署
+
+**SQL 命令**：
+```sql
+-- 查看当前配置
+SELECT * FROM SystemConfig
+WHERE key = 'commission_settlement_cooldown_days';
+
+-- 修改冷静期为 30 天
+UPDATE SystemConfig
+SET value = '30'
+WHERE key = 'commission_settlement_cooldown_days';
+```
+
+**注意事项**：
+- ⚠️ 需要数据库访问权限
+- ⚠️ 输入值必须是数字字符串
+- ⚠️ 修改后立即生效
+
+---
+
+#### 方法 3：通过 API 接口修改
+
+**适用场景**：自动化运维、集成第三方系统
+
+**API 端点**：`PUT /api/backendmanager/withdrawal-config`
+
+**请求示例**：
+```bash
+curl -X PUT https://your-domain.com/api/backendmanager/withdrawal-config \
+  -H "Content-Type: application/json" \
+  -H "Cookie: next-auth.session-token=YOUR_SESSION_TOKEN" \
+  -d '{
+    "configs": [
+      {
+        "key": "commission_settlement_cooldown_days",
+        "value": "30",
+        "type": "number"
+      }
+    ]
+  }'
+```
+
+**权限要求**：
+- 需要登录且拥有 `DISTRIBUTION` 模块的 `WRITE` 权限
+- 或者是系统管理员（`ADMIN` 角色）
+
+---
+
+#### 方法 4：修改初始化脚本默认值
+
+**适用场景**：新环境部署、重置配置
+
+**文件路径**：`scripts/init-withdrawal-configs.ts`
+
+**修改方法**：
+```typescript
+// 找到这一段配置
+{
+  key: "commission_settlement_cooldown_days",
+  value: "15",  // 修改这里的默认值
+  type: "number",
+  category: "withdrawal",
+  description: "佣金结算冷静期（天），订单支付后需等待此期限才能结算佣金，防止退款风险"
+}
+```
+
+**执行脚本**：
+```bash
+npx tsx scripts/init-withdrawal-configs.ts
+```
+
+**注意事项**：
+- ⚠️ 此方法会重置所有提现配置为默认值
+- ⚠️ 适合首次部署或完全重置配置
+
+---
+
+### 配置建议
+
+根据不同业务场景，推荐以下冷静期设置：
+
+| 业务类型 | 推荐天数 | 说明 |
+|---------|---------|------|
+| 虚拟商品/课程 | 7-10 天 | 虚拟商品无物流延迟，可适当缩短 |
+| 实物商品 | 15-20 天 | 考虑物流时间和七天无理由退货 |
+| 高价值商品 | 20-30 天 | 高价商品退款风险大，延长保护期 |
+| 预售商品 | 30+ 天 | 预售商品发货周期长，需更长保护 |
+
+**重要提示**：
+- 🔐 冷静期越长，安全性越高，但分销商体验越差
+- ⚡ 冷静期越短，分销商满意度越高，但退款风险越大
+- 🎯 建议根据历史退款率动态调整，平衡安全与体验
+
+**配置生效时间**：
+- 修改配置后**立即生效**，无需重启服务
+- 已经进入冷静期的订单按**旧配置**计算
+- 新订单按**新配置**计算冷静期
 
 ## 📈 监控和维护
 

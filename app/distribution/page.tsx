@@ -205,93 +205,98 @@ export default function DistributionPage() {
               </ul>
             </div>
 
-            <div className="space-y-4 mb-6">
-              <div>
-                <label className="block text-sm font-medium mb-2">
-                  联系人姓名 <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={applyForm.contactName}
-                  onChange={(e) => setApplyForm({...applyForm, contactName: e.target.value})}
-                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="请输入您的姓名"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-2">
-                  联系电话 <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="tel"
-                  value={applyForm.contactPhone}
-                  onChange={(e) => setApplyForm({...applyForm, contactPhone: e.target.value})}
-                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="请输入联系电话"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-2">
-                  联系邮箱 <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="email"
-                  value={applyForm.contactEmail}
-                  onChange={(e) => setApplyForm({...applyForm, contactEmail: e.target.value})}
-                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="请输入联系邮箱"
-                />
-              </div>
-
-              <div className="border-t pt-4">
-                <h3 className="font-medium mb-3">银行信息（可选，用于提现）</h3>
-
-                <div className="space-y-4">
+            {/* 只有登录用户才显示申请表单 */}
+            {session?.user && (
+              <>
+                <div className="space-y-4 mb-6">
                   <div>
-                    <label className="block text-sm font-medium mb-2">银行名称</label>
+                    <label className="block text-sm font-medium mb-2">
+                      联系人姓名 <span className="text-red-500">*</span>
+                    </label>
                     <input
                       type="text"
-                      value={applyForm.bankName}
-                      onChange={(e) => setApplyForm({...applyForm, bankName: e.target.value})}
+                      value={applyForm.contactName}
+                      onChange={(e) => setApplyForm({...applyForm, contactName: e.target.value})}
                       className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="例如：中国工商银行"
+                      placeholder="请输入您的姓名"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium mb-2">银行账号</label>
+                    <label className="block text-sm font-medium mb-2">
+                      联系电话 <span className="text-red-500">*</span>
+                    </label>
                     <input
-                      type="text"
-                      value={applyForm.bankAccount}
-                      onChange={(e) => setApplyForm({...applyForm, bankAccount: e.target.value})}
+                      type="tel"
+                      value={applyForm.contactPhone}
+                      onChange={(e) => setApplyForm({...applyForm, contactPhone: e.target.value})}
                       className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="请输入银行账号"
+                      placeholder="请输入联系电话"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium mb-2">账户名</label>
+                    <label className="block text-sm font-medium mb-2">
+                      联系邮箱 <span className="text-red-500">*</span>
+                    </label>
                     <input
-                      type="text"
-                      value={applyForm.bankAccountName}
-                      onChange={(e) => setApplyForm({...applyForm, bankAccountName: e.target.value})}
+                      type="email"
+                      value={applyForm.contactEmail}
+                      onChange={(e) => setApplyForm({...applyForm, contactEmail: e.target.value})}
                       className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="请输入账户名"
+                      placeholder="请输入联系邮箱"
                     />
+                  </div>
+
+                  <div className="border-t pt-4">
+                    <h3 className="font-medium mb-3">银行信息（可选，用于提现）</h3>
+
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium mb-2">银行名称</label>
+                        <input
+                          type="text"
+                          value={applyForm.bankName}
+                          onChange={(e) => setApplyForm({...applyForm, bankName: e.target.value})}
+                          className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          placeholder="例如：中国工商银行"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium mb-2">银行账号</label>
+                        <input
+                          type="text"
+                          value={applyForm.bankAccount}
+                          onChange={(e) => setApplyForm({...applyForm, bankAccount: e.target.value})}
+                          className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          placeholder="请输入银行账号"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium mb-2">账户名</label>
+                        <input
+                          type="text"
+                          value={applyForm.bankAccountName}
+                          onChange={(e) => setApplyForm({...applyForm, bankAccountName: e.target.value})}
+                          className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          placeholder="请输入账户名"
+                        />
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </div>
 
-            <button
-              onClick={handleApply}
-              disabled={applying}
-              className="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 transition-colors font-medium"
-            >
-              {applying ? "提交中..." : "提交申请"}
-            </button>
+                <button
+                  onClick={handleApply}
+                  disabled={applying}
+                  className="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 transition-colors font-medium"
+                >
+                  {applying ? "提交中..." : "提交申请"}
+                </button>
+              </>
+            )}
           </div>
         </div>
       </div>

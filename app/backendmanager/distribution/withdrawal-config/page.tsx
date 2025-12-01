@@ -260,18 +260,81 @@ export default function WithdrawalConfigPage() {
               检测到数据库中没有提现配置项，需要先初始化配置才能使用。
             </p>
 
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-6 text-left">
-              <h3 className="font-semibold text-blue-900 mb-3">📋 将创建以下配置项：</h3>
-              <ul className="text-sm text-blue-800 space-y-2">
-                <li>• <strong>基础配置（5项）</strong>：自动审核开关、金额限制、手续费率、<strong className="text-blue-600">冷静期天数</strong>等</li>
-                <li>• <strong>自动审核条件（4项）</strong>：最大金额、注册天数、实名认证要求等</li>
-                <li>• <strong>风控限制（3项）</strong>：每日/每月提现次数和金额限制</li>
-                <li>• <strong>风险权重（9项）</strong>：各种风险因素的评分权重</li>
-                <li>• <strong>风险阈值（2项）</strong>：自动审核和人工审核的阈值分数</li>
-              </ul>
-              <p className="text-sm text-blue-700 mt-3 font-semibold">
-                共 26 个配置项
-              </p>
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-6 text-left max-h-96 overflow-y-auto">
+              <h3 className="font-semibold text-blue-900 mb-4">📋 将创建以下配置项（共 26 项）：</h3>
+
+              {/* 基础配置 */}
+              <div className="mb-4">
+                <h4 className="font-semibold text-blue-800 mb-2 flex items-center">
+                  <span className="bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs mr-2">1</span>
+                  基础配置（5项）
+                </h4>
+                <ul className="text-xs text-blue-700 space-y-1 ml-8">
+                  <li>✓ 自动审核开关 - 默认关闭</li>
+                  <li>✓ 最低提现金额 - ¥100</li>
+                  <li>✓ 最高提现金额 - ¥50,000</li>
+                  <li>✓ 提现手续费率 - 2%</li>
+                  <li>✓ <strong className="text-blue-600">佣金结算冷静期 - 15天</strong></li>
+                </ul>
+              </div>
+
+              {/* 自动审核条件 */}
+              <div className="mb-4">
+                <h4 className="font-semibold text-blue-800 mb-2 flex items-center">
+                  <span className="bg-green-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs mr-2">2</span>
+                  自动审核条件（4项）
+                </h4>
+                <ul className="text-xs text-blue-700 space-y-1 ml-8">
+                  <li>✓ 自动审核最大金额 - ¥5,000</li>
+                  <li>✓ 要求最少注册天数 - 30天</li>
+                  <li>✓ 要求实名认证 - 否</li>
+                  <li>✓ 银行信息稳定期 - 7天</li>
+                </ul>
+              </div>
+
+              {/* 风控限制 */}
+              <div className="mb-4">
+                <h4 className="font-semibold text-blue-800 mb-2 flex items-center">
+                  <span className="bg-orange-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs mr-2">3</span>
+                  风控限制（3项）
+                </h4>
+                <ul className="text-xs text-blue-700 space-y-1 ml-8">
+                  <li>✓ 每日提现次数限制 - 3次</li>
+                  <li>✓ 每日提现金额限制 - ¥10,000</li>
+                  <li>✓ 每月提现金额限制 - ¥50,000</li>
+                </ul>
+              </div>
+
+              {/* 风险权重 */}
+              <div className="mb-4">
+                <h4 className="font-semibold text-blue-800 mb-2 flex items-center">
+                  <span className="bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs mr-2">4</span>
+                  风险评分权重（9项）
+                </h4>
+                <ul className="text-xs text-blue-700 space-y-1 ml-8">
+                  <li>✓ 账户冻结 - 100分（直接拒绝）</li>
+                  <li>✓ 大额提现 - 30分</li>
+                  <li>✓ 首次提现 - 20分</li>
+                  <li>✓ 未实名认证 - 15分</li>
+                  <li>✓ 新注册账户 - 15分</li>
+                  <li>✓ 高风险账户 - 10分</li>
+                  <li>✓ 银行信息近期变更 - 10分</li>
+                  <li>✓ 中风险账户 - 5分</li>
+                  <li>✓ 超过每日限制 - 5分</li>
+                </ul>
+              </div>
+
+              {/* 风险阈值 */}
+              <div>
+                <h4 className="font-semibold text-blue-800 mb-2 flex items-center">
+                  <span className="bg-purple-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs mr-2">5</span>
+                  风险等级阈值（2项）
+                </h4>
+                <ul className="text-xs text-blue-700 space-y-1 ml-8">
+                  <li>✓ 自动审核阈值 - 10分（低于此分数自动通过）</li>
+                  <li>✓ 人工审核阈值 - 30分（高于此分数记录警报）</li>
+                </ul>
+              </div>
             </div>
 
             <button

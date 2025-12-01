@@ -219,6 +219,237 @@ settled → cancelled (佣金取消，从 availableBalance 扣除或创建警报
   或创建安全警报 (如果余额不足)
 ```
 
+## 💰 资金流转与提现划扣逻辑
+
+### Distributor 表字段说明
+
+| 字段 | 说明 | 何时增加 | 何时减少 | 用途 |
+|------|------|----------|----------|------|
+| `totalEarnings` | **总收益**（统计） | 订单支付成功 | 订单退款 | 📊 展示用 |
+| `pendingCommission` | **待结算佣金**（冷静期） | 订单支付成功 | 15天后自动结算 / 退款 | ⏳ 冷静期暂存 |
+| `availableBalance` | **可提现余额** | 冷静期结束自动结算 | **用户申请提现时** | 💵 **提现划扣来源** |
+| `withdrawnAmount` | **已提现金额**（统计） | 管理员完成提现 | 无 | 📊 展示用 |
+
+### 完整资金流转示例
+
+假设：用户下单 ¥1000，佣金比例 10%（¥100）
+
+#### 阶段 1：订单支付成功
+**触发文件**：`app/api/payment/callback/route.ts:82-88`
+
+```typescript
+await prisma.distributor.update({
+  where: { id: order.distributorId },
+  data: {
+    totalEarnings: { increment: 100 },      // 0 → 100
+    pendingCommission: { increment: 100 }   // 0 → 100 ⏳
+  }
+})
+```
+
+**状态变化**：
+```
+totalEarnings:      0 → 100
+pendingCommission:  0 → 100 ⏳ (冷静期，不可提现)
+availableBalance:   0 → 0
+withdrawnAmount:    0 → 0
+```
+
+💡 **此时钱还不能提现**，只记录在待结算佣金中
+
+---
+
+#### 阶段 2：15天冷静期后自动结算
+**触发文件**：`app/api/cron/settle-commissions/route.ts:85-94`
+
+```typescript
+await prisma.distributor.update({
+  where: { id: distributorId },
+  data: {
+    pendingCommission: { decrement: 100 },  // 100 → 0
+    availableBalance: { increment: 100 }    // 0 → 100 ✅
+  }
+})
+```
+
+**状态变化**：
+```
+totalEarnings:      100 (不变)
+pendingCommission:  100 → 0
+availableBalance:   0 → 100 ✅ (可以提现了!)
+withdrawnAmount:    0 → 0
+```
+
+💡 **现在钱可以提现了**，已转入可提现余额
+
+---
+
+#### 阶段 3：用户申请提现
+**触发文件**：`app/api/distribution/withdrawals/route.ts:138-146`
+
+```typescript
+await prisma.$transaction(async (tx) => {
+  // 扣除余额（立即冻结）
+  await tx.distributor.update({
+    where: { id: user.distributor.id },
+    data: {
+      availableBalance: { decrement: 100 }  // 100 → 0 ❄️
+    }
+  })
+
+  // 创建提现记录
+  return tx.commissionWithdrawal.create({
+    distributorId: user.distributor.id,
+    amount: 100,
+    fee: 2,          // 2% 手续费
+    actualAmount: 98, // 实际到账
+    status: "pending" // 待审核
+  })
+})
+```
+
+**状态变化**：
+```
+totalEarnings:      100 (不变)
+pendingCommission:  0 (不变)
+availableBalance:   100 → 0 ❄️ (余额冻结，防止重复提现)
+withdrawnAmount:    0 (不变)
+```
+
+💡 **关键**：钱从 `availableBalance` 扣除，防止重复提现
+
+---
+
+#### 阶段 4：管理员完成提现
+**触发文件**：`app/api/backendmanager/distribution/withdrawals/[id]/complete/route.ts:62-79`
+
+```typescript
+await prisma.$transaction(async (tx) => {
+  // 更新分销商已提现金额（统计用）
+  await tx.distributor.update({
+    where: { id: withdrawal.distributorId },
+    data: {
+      withdrawnAmount: { increment: 100 }  // 0 → 100 📊
+    }
+  })
+
+  // 更新提现记录状态
+  return tx.commissionWithdrawal.update({
+    where: { id },
+    data: {
+      status: "completed",           // pending → completed
+      transactionId: "BANK_TX_123", // 银行转账凭证
+      completedAt: new Date()
+    }
+  })
+})
+```
+
+**状态变化**：
+```
+totalEarnings:      100 (不变)
+pendingCommission:  0 (不变)
+availableBalance:   0 (不变)
+withdrawnAmount:    0 → 100 📊 (仅统计，展示总提现金额)
+```
+
+💡 **这里只是统计记录**，真实转账由管理员手动完成
+
+---
+
+### 提现划扣来源总结
+
+#### ✅ 系统层面（数据库）
+**从 `Distributor.availableBalance` 扣除**
+
+- **扣除时机**：用户提交提现申请的瞬间
+- **扣除位置**：`app/api/distribution/withdrawals/route.ts:142`
+- **目的**：防止重复提现
+
+#### 💵 实际资金层面
+**平台从自己的银行账户转账给分销商**
+
+系统只负责：
+1. **记录**提现申请
+2. **扣除**分销商的可提现余额（防止重复提现）
+3. **通知**管理员打款
+4. 管理员**手动**通过银行转账
+5. **更新**提现记录状态为"已完成"
+
+---
+
+### 特殊场景处理
+
+#### 场景 A：用户在冷静期内退款
+**触发文件**：`app/api/orders/[id]/refund/route.ts`
+
+```typescript
+// 佣金还在 pendingCommission 中
+await tx.distributor.update({
+  where: { id: distributorId },
+  data: {
+    totalEarnings: { decrement: 100 },      // 100 → 0
+    pendingCommission: { decrement: 100 }   // 100 → 0 ✅
+  }
+})
+```
+
+**结果**：✅ 自动处理，无风险
+
+---
+
+#### 场景 B：用户在结算后、提现前退款
+```typescript
+// 佣金在 availableBalance 中
+await tx.distributor.update({
+  where: { id: distributorId },
+  data: {
+    totalEarnings: { decrement: 100 },      // 100 → 0
+    availableBalance: { decrement: 100 }    // 100 → 0 ✅
+  }
+})
+```
+
+**结果**：✅ 自动处理，从可提现余额扣除
+
+---
+
+#### 场景 C：用户在提现后退款（已完成提现）
+```typescript
+// 余额不足，无法扣除
+if (distributor.availableBalance < commissionAmount) {
+  // 创建安全警报
+  await tx.securityAlert.create({
+    type: "REFUND_COMMISSION_SHORTAGE",
+    severity: "high",
+    description: `订单退款但分销商余额不足。需追讨 ¥${shortage}`
+  })
+}
+```
+
+**结果**：⚠️ 创建高优先级警报，需人工处理（联系分销商追讨）
+
+---
+
+### 关键设计原则
+
+1. **三层余额隔离**
+   - `pendingCommission`：冷静期暂存，不可提现
+   - `availableBalance`：可提现余额，提现时扣除
+   - `withdrawnAmount`：统计字段，仅用于展示
+
+2. **提前扣除机制**
+   - 提现申请时立即扣除 `availableBalance`
+   - 防止同一笔钱重复提现
+
+3. **冷静期保护**
+   - 订单支付后15天内不结算到可提现余额
+   - 降低退款风险
+
+4. **异常告警**
+   - 余额不足时创建警报
+   - 便于人工追讨和审计
+
 ## 🚀 部署步骤
 
 ### 1. 运行配置初始化

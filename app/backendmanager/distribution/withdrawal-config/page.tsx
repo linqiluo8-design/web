@@ -21,6 +21,7 @@ export default function WithdrawalConfigPage() {
   const [saving, setSaving] = useState(false)
   const [hasPermission, setHasPermission] = useState(false)
   const [permissionChecked, setPermissionChecked] = useState(false)
+  const [initializing, setInitializing] = useState(false)
 
   // 配置值状态
   const [configValues, setConfigValues] = useState<{ [key: string]: string }>({})
@@ -78,6 +79,35 @@ export default function WithdrawalConfigPage() {
       alert("获取配置失败，请刷新重试")
     } finally {
       setLoading(false)
+    }
+  }
+
+  // 初始化配置
+  const handleInitialize = async () => {
+    if (!confirm("确定要初始化提现配置吗？这将创建所有默认配置项。")) {
+      return
+    }
+
+    setInitializing(true)
+    try {
+      const response = await fetch('/api/backendmanager/init-withdrawal-configs', {
+        method: 'POST',
+        credentials: 'include'
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        alert(`初始化成功！\n新创建：${data.created} 个配置项\n已存在：${data.skipped} 个配置项`)
+        fetchConfigs()
+      } else {
+        alert(data.error || "初始化失败")
+      }
+    } catch (error) {
+      console.error("初始化失败:", error)
+      alert("初始化失败，请重试")
+    } finally {
+      setInitializing(false)
     }
   }
 
@@ -197,6 +227,70 @@ export default function WithdrawalConfigPage() {
 
   if (!hasPermission) {
     return null
+  }
+
+  // 如果配置为空，显示初始化界面
+  if (configs.length === 0 && !loading) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="max-w-3xl mx-auto">
+          {/* 头部 */}
+          <div className="mb-8">
+            <Link
+              href="/backendmanager/distribution"
+              className="text-blue-600 hover:text-blue-700 mb-2 inline-block"
+            >
+              ← 返回分销管理
+            </Link>
+            <h1 className="text-3xl font-bold">提现审核配置</h1>
+            <p className="text-gray-600 mt-2">
+              配置自动审核规则和风控参数，平衡效率与安全
+            </p>
+          </div>
+
+          {/* 空状态提示 */}
+          <div className="bg-white rounded-lg shadow p-8 text-center">
+            <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
+              <svg className="w-10 h-10 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+              </svg>
+            </div>
+            <h2 className="text-2xl font-bold mb-3">尚未初始化配置</h2>
+            <p className="text-gray-600 mb-6">
+              检测到数据库中没有提现配置项，需要先初始化配置才能使用。
+            </p>
+
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-6 text-left">
+              <h3 className="font-semibold text-blue-900 mb-3">📋 将创建以下配置项：</h3>
+              <ul className="text-sm text-blue-800 space-y-2">
+                <li>• <strong>基础配置（5项）</strong>：自动审核开关、金额限制、手续费率、<strong className="text-blue-600">冷静期天数</strong>等</li>
+                <li>• <strong>自动审核条件（4项）</strong>：最大金额、注册天数、实名认证要求等</li>
+                <li>• <strong>风控限制（3项）</strong>：每日/每月提现次数和金额限制</li>
+                <li>• <strong>风险权重（9项）</strong>：各种风险因素的评分权重</li>
+                <li>• <strong>风险阈值（2项）</strong>：自动审核和人工审核的阈值分数</li>
+              </ul>
+              <p className="text-sm text-blue-700 mt-3 font-semibold">
+                共 26 个配置项
+              </p>
+            </div>
+
+            <button
+              onClick={handleInitialize}
+              disabled={initializing}
+              className="px-8 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 disabled:bg-gray-400 transition-colors text-lg"
+            >
+              {initializing ? "初始化中..." : "🚀 立即初始化配置"}
+            </button>
+
+            <div className="mt-6 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+              <p className="text-sm text-yellow-800">
+                💡 <strong>提示：</strong>初始化后，所有配置将使用推荐的默认值，您可以随时在配置页面中调整。
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   // 计算当前配置摘要

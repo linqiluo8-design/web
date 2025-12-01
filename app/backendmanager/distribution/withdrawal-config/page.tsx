@@ -34,7 +34,9 @@ export default function WithdrawalConfigPage() {
     withdrawal_fee_rate: "0.02",
     withdrawal_auto_max_amount: "5000",
     withdrawal_daily_count_limit: "3",
-    withdrawal_daily_amount_limit: "10000"
+    withdrawal_daily_amount_limit: "10000",
+    withdrawal_monthly_amount_limit: "50000",
+    withdrawal_auto_min_days: "30"
   })
 
   // 检查权限
@@ -282,7 +284,7 @@ export default function WithdrawalConfigPage() {
                 ✏️ 自定义关键配置（可选）
               </h3>
               <p className="text-sm text-green-800 mb-4">
-                在初始化前，您可以修改以下关键配置的默认值：
+                在初始化前，您可以修改以下 9 个关键配置的默认值（包含冷静期、提现限额、风控规则等）：
               </p>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -361,7 +363,22 @@ export default function WithdrawalConfigPage() {
 
                 <div>
                   <label className="block text-sm font-medium text-green-900 mb-1">
-                    每日提现次数限制
+                    自动审核最少注册天数
+                  </label>
+                  <input
+                    type="number"
+                    value={initConfigValues.withdrawal_auto_min_days}
+                    onChange={(e) => setInitConfigValues({...initConfigValues, withdrawal_auto_min_days: e.target.value})}
+                    className="w-full px-3 py-2 border-2 border-green-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
+                    min="0"
+                    max="365"
+                  />
+                  <p className="text-xs text-green-700 mt-1">推荐：7-90天</p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-green-900 mb-1">
+                    🔒 每日提现次数限制
                   </label>
                   <input
                     type="number"
@@ -372,6 +389,34 @@ export default function WithdrawalConfigPage() {
                     max="10"
                   />
                   <p className="text-xs text-green-700 mt-1">推荐：3-5次</p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-green-900 mb-1">
+                    🔒 每日提现金额限制（元）
+                  </label>
+                  <input
+                    type="number"
+                    value={initConfigValues.withdrawal_daily_amount_limit}
+                    onChange={(e) => setInitConfigValues({...initConfigValues, withdrawal_daily_amount_limit: e.target.value})}
+                    className="w-full px-3 py-2 border-2 border-green-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
+                    min="1000"
+                  />
+                  <p className="text-xs text-green-700 mt-1">推荐：5000-30000元</p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-green-900 mb-1">
+                    🔒 每月提现金额限制（元）
+                  </label>
+                  <input
+                    type="number"
+                    value={initConfigValues.withdrawal_monthly_amount_limit}
+                    onChange={(e) => setInitConfigValues({...initConfigValues, withdrawal_monthly_amount_limit: e.target.value})}
+                    className="w-full px-3 py-2 border-2 border-green-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
+                    min="10000"
+                  />
+                  <p className="text-xs text-green-700 mt-1">推荐：30000-100000元</p>
                 </div>
               </div>
             </div>
@@ -402,7 +447,7 @@ export default function WithdrawalConfigPage() {
                 </h4>
                 <ul className="text-xs text-blue-700 space-y-1 ml-8">
                   <li>✓ 自动审核最大金额 - ¥{parseInt(initConfigValues.withdrawal_auto_max_amount).toLocaleString()}</li>
-                  <li>✓ 要求最少注册天数 - 30天</li>
+                  <li>✓ 要求最少注册天数 - {initConfigValues.withdrawal_auto_min_days}天</li>
                   <li>✓ 要求实名认证 - 否</li>
                   <li>✓ 银行信息稳定期 - 7天</li>
                 </ul>
@@ -417,7 +462,7 @@ export default function WithdrawalConfigPage() {
                 <ul className="text-xs text-blue-700 space-y-1 ml-8">
                   <li>✓ 每日提现次数限制 - {initConfigValues.withdrawal_daily_count_limit}次</li>
                   <li>✓ 每日提现金额限制 - ¥{parseInt(initConfigValues.withdrawal_daily_amount_limit).toLocaleString()}</li>
-                  <li>✓ 每月提现金额限制 - ¥50,000</li>
+                  <li>✓ 每月提现金额限制 - ¥{parseInt(initConfigValues.withdrawal_monthly_amount_limit).toLocaleString()}</li>
                 </ul>
               </div>
 

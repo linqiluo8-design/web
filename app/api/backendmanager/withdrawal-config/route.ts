@@ -92,18 +92,12 @@ export async function PUT(req: Request) {
           )
         }
 
-        // 冷静期天数验证（生产环境最少 7 天）
-        if (config.key === 'commission_settlement_cooldown_days') {
-          const nodeEnv = process.env.NODE_ENV || 'development'
-          const isTestMode = nodeEnv === 'test' || nodeEnv === 'development'
-          const minDays = isTestMode ? 0 : 7
-
-          if (num < minDays) {
-            return NextResponse.json(
-              { error: `冷静期天数不能少于 ${minDays} 天（当前环境：${nodeEnv}${isTestMode ? '，允许 0 天用于测试' : '，生产环境最少 7 天防范欺诈风险'}）` },
-              { status: 400 }
-            )
-          }
+        // 冷静期天数验证（最少 7 天，test001/test002 测试用户除外）
+        if (config.key === 'commission_settlement_cooldown_days' && num < 7) {
+          return NextResponse.json(
+            { error: '冷静期天数不能少于 7 天（防范欺诈风险，test001/test002 测试用户除外）' },
+            { status: 400 }
+          )
         }
       }
     }

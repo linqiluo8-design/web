@@ -358,16 +358,12 @@ export async function POST(req: Request) {
     const body = await req.json().catch(() => ({}))
     const customValues = body.customValues || {}
 
-    // 验证冷静期天数（生产环境最少 7 天）
+    // 验证冷静期天数（最少 7 天）
     if (customValues.commission_settlement_cooldown_days !== undefined) {
-      const nodeEnv = process.env.NODE_ENV || 'development'
-      const isTestMode = nodeEnv === 'test' || nodeEnv === 'development'
-      const minDays = isTestMode ? 0 : 7
       const cooldownDays = parseInt(customValues.commission_settlement_cooldown_days)
-
-      if (cooldownDays < minDays) {
+      if (cooldownDays < 7) {
         return NextResponse.json({
-          error: `冷静期天数不能少于 ${minDays} 天（当前环境：${nodeEnv}${isTestMode ? '，允许 0 天用于测试' : '，生产环境最少 7 天防范欺诈风险'}）`,
+          error: '冷静期天数不能少于 7 天（防范欺诈风险，test001/test002 测试用户享有0天特权）',
           success: false
         }, { status: 400 })
       }

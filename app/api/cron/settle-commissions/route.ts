@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma"
 
 /**
  * 测试用户名单（允许 0 天冷静期，立即结算）
+ * 匹配规则：邮箱前缀（test001@example.com, test002@example.com）
  */
 const TEST_USERS = ['test001', 'test002']
 
@@ -89,9 +90,11 @@ export async function GET(req: Request) {
         status: "confirmed",
         distributor: {
           user: {
-            email: {
-              in: TEST_USERS.map(user => `${user}@test.com`)
-            }
+            OR: TEST_USERS.map(testUser => ({
+              email: {
+                startsWith: `${testUser}@`
+              }
+            }))
           }
         }
       },

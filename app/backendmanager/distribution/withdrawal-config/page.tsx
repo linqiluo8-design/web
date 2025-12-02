@@ -300,7 +300,7 @@ export default function WithdrawalConfigPage() {
                     min="7"
                     max="90"
                   />
-                  <p className="text-xs text-green-700 mt-1">推荐：7-30天（test001/test002 测试用户支持0天）</p>
+                  <p className="text-xs text-green-700 mt-1">推荐：7-30天（test001@example.com/test002@example.com 测试用户支持0天）</p>
                 </div>
 
                 <div>
@@ -514,7 +514,7 @@ export default function WithdrawalConfigPage() {
 
             <div className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
               <p className="text-sm text-blue-800">
-                🧪 <strong>测试用户：</strong>test001 和 test002 用户享有特殊权限：① 0天冷静期（立即结算佣金）② 提现必须人工审核（更安全）
+                🧪 <strong>测试用户：</strong>test001@example.com 和 test002@example.com 享有特殊权限：① 0天冷静期（立即结算佣金）② 提现必须强制人工审核（更安全）
               </p>
             </div>
           </div>

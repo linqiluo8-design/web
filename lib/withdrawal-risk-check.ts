@@ -8,6 +8,7 @@ import { prisma } from "@/lib/prisma"
 
 /**
  * 测试用户名单（强制人工审核）
+ * 匹配规则：邮箱前缀（test001@example.com, test002@example.com）
  */
 const TEST_USERS = ['test001', 'test002']
 

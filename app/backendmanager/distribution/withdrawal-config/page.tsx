@@ -22,6 +22,9 @@ export default function WithdrawalConfigPage() {
   const [hasPermission, setHasPermission] = useState(false)
   const [permissionChecked, setPermissionChecked] = useState(false)
   const [initializing, setInitializing] = useState(false)
+  const [envMode, setEnvMode] = useState<string>('production')
+  const [isTestMode, setIsTestMode] = useState(false)
+  const [cooldownMinDays, setCooldownMinDays] = useState(7)
 
   // 配置值状态
   const [configValues, setConfigValues] = useState<{ [key: string]: string }>({})
@@ -70,6 +73,24 @@ export default function WithdrawalConfigPage() {
         })
     }
   }, [status, session, router])
+
+  // 获取环境模式
+  useEffect(() => {
+    fetch('/api/system/env-mode')
+      .then(res => res.json())
+      .then(data => {
+        setEnvMode(data.mode)
+        setIsTestMode(data.isTestMode)
+        setCooldownMinDays(data.cooldownMinDays)
+      })
+      .catch(err => {
+        console.error('获取环境模式失败:', err)
+        // 默认使用生产环境配置（更安全）
+        setEnvMode('production')
+        setIsTestMode(false)
+        setCooldownMinDays(7)
+      })
+  }, [])
 
   // 获取配置
   const fetchConfigs = async () => {
@@ -297,10 +318,18 @@ export default function WithdrawalConfigPage() {
                     value={initConfigValues.commission_settlement_cooldown_days}
                     onChange={(e) => setInitConfigValues({...initConfigValues, commission_settlement_cooldown_days: e.target.value})}
                     className="w-full px-3 py-2 border-2 border-green-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
-                    min="1"
+                    min={cooldownMinDays}
                     max="90"
                   />
-                  <p className="text-xs text-green-700 mt-1">推荐：7-30天</p>
+                  {isTestMode ? (
+                    <p className="text-xs text-green-700 mt-1">
+                      测试模式：推荐 7-30天（允许 0=立即结算）
+                    </p>
+                  ) : (
+                    <p className="text-xs text-orange-700 mt-1">
+                      ⚠️ 生产环境：最少 7 天（防范欺诈风险）
+                    </p>
+                  )}
                 </div>
 
                 <div>
@@ -506,7 +535,22 @@ export default function WithdrawalConfigPage() {
               {initializing ? "初始化中..." : "🚀 立即初始化配置"}
             </button>
 
-            <div className="mt-6 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+            {/* 环境模式提示 */}
+            <div className={`mt-6 border rounded-lg p-4 ${isTestMode ? 'bg-blue-50 border-blue-200' : 'bg-orange-50 border-orange-200'}`}>
+              <p className={`text-sm ${isTestMode ? 'text-blue-800' : 'text-orange-800'}`}>
+                {isTestMode ? (
+                  <>
+                    🧪 <strong>测试模式 ({envMode})：</strong>允许 0 天冷静期，方便快速测试功能。<strong className="text-red-600">生产环境请设置为 production！</strong>
+                  </>
+                ) : (
+                  <>
+                    🔒 <strong>生产模式 ({envMode})：</strong>冷静期最少 7 天，保障资金安全，防范欺诈风险。
+                  </>
+                )}
+              </p>
+            </div>
+
+            <div className="mt-4 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
               <p className="text-sm text-yellow-800">
                 💡 <strong>提示：</strong>您可以在上方修改关键配置的默认值，未修改的配置项将使用推荐的默认值。初始化后，所有配置都可以在配置页面中随时调整。
               </p>

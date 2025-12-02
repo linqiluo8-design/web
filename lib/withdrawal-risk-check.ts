@@ -7,10 +7,10 @@
 import { prisma } from "@/lib/prisma"
 
 /**
- * 测试用户名单（强制人工审核）
- * 匹配规则：邮箱前缀（test001@example.com, test002@example.com）
+ * 测试用户邮箱白名单（强制人工审核）
+ * 仅这两个邮箱享有特权，精确匹配
  */
-const TEST_USERS = ['test001', 'test002']
+const TEST_USER_EMAILS = ['test001@example.com', 'test002@example.com']
 
 /**
  * 系统配置缓存接口
@@ -203,7 +203,7 @@ export async function checkWithdrawalRisk(
   const reasons: string[] = []
   let riskScore = 0
 
-  // 0. 检查是否为测试用户（test001, test002）
+  // 0. 检查是否为测试用户（精确匹配 test001@example.com, test002@example.com）
   let isTestUser = false
   try {
     const user = await prisma.user.findUnique({
@@ -211,11 +211,10 @@ export async function checkWithdrawalRisk(
       select: { email: true }
     })
     if (user?.email) {
-      const emailPrefix = user.email.split('@')[0]
-      isTestUser = TEST_USERS.includes(emailPrefix)
+      isTestUser = TEST_USER_EMAILS.includes(user.email)
       if (isTestUser) {
         risks.push('测试用户')
-        reasons.push(`测试用户（${emailPrefix}）提现需人工审核，即使配置了自动审核`)
+        reasons.push(`测试用户（${user.email}）提现需人工审核，即使配置了自动审核`)
         riskScore += 50  // 添加风险分数确保不会自动审核
       }
     }

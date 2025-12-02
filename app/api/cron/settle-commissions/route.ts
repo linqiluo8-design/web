@@ -2,30 +2,10 @@ import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 
 /**
- * 测试用户名单（允许 0 天冷静期，立即结算）
- * 匹配规则：邮箱前缀（test001@example.com, test002@example.com）
+ * 测试用户邮箱白名单（允许 0 天冷静期，立即结算）
+ * 仅这两个邮箱享有特权，精确匹配
  */
-const TEST_USERS = ['test001', 'test002']
-
-/**
- * 检查是否为测试用户
- */
-async function isTestUser(distributorId: string): Promise<boolean> {
-  const distributor = await prisma.distributor.findUnique({
-    where: { id: distributorId },
-    include: {
-      user: {
-        select: { email: true }
-      }
-    }
-  })
-
-  if (!distributor?.user?.email) return false
-
-  // 检查邮箱前缀是否在测试用户列表中
-  const emailPrefix = distributor.user.email.split('@')[0]
-  return TEST_USERS.includes(emailPrefix)
-}
+const TEST_USER_EMAILS = ['test001@example.com', 'test002@example.com']
 
 /**
  * 自动结算超过冷静期的佣金
@@ -56,7 +36,7 @@ export async function GET(req: Request) {
 
     console.log(`开始结算冷静期超过 ${cooldownDays} 天的佣金...`)
     console.log(`冷静期截止时间: ${cooldownDeadline.toISOString()}`)
-    console.log(`测试用户（${TEST_USERS.join(', ')}）使用 0 天冷静期`)
+    console.log(`测试用户（${TEST_USER_EMAILS.join(', ')}）使用 0 天冷静期`)
 
     // 查找所有待结算的订单（状态为 confirmed 且确认时间超过冷静期）
     const pendingOrders = await prisma.distributionOrder.findMany({
@@ -90,11 +70,9 @@ export async function GET(req: Request) {
         status: "confirmed",
         distributor: {
           user: {
-            OR: TEST_USERS.map(testUser => ({
-              email: {
-                startsWith: `${testUser}@`
-              }
-            }))
+            email: {
+              in: TEST_USER_EMAILS  // 精确匹配完整邮箱
+            }
           }
         }
       },
@@ -147,9 +125,9 @@ export async function GET(req: Request) {
           continue
         }
 
-        // 检查是否为测试用户
+        // 检查是否为测试用户（精确匹配）
         const isTest = distributionOrder.distributor?.user?.email
-          ? TEST_USERS.some(testUser => distributionOrder.distributor.user.email.startsWith(testUser))
+          ? TEST_USER_EMAILS.includes(distributionOrder.distributor.user.email)
           : false
 
         // 使用事务确保数据一致性

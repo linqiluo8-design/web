@@ -379,6 +379,9 @@ export default function ChatAdminPage() {
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-3xl font-bold mb-2">客服聊天管理</h1>
+          <p className="text-sm text-gray-500">
+            ℹ️ 超过15天未活跃的会话已自动隐藏（数据库保留）
+          </p>
         </div>
         <div className="text-sm text-gray-600">
           {sessions.length} 个活跃会话

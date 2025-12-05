@@ -32,12 +32,25 @@ export async function GET(req: Request) {
       case "orders": {
         // 获取分销订单列表
         const page = parseInt(searchParams.get("page") || "1")
-        const pageSize = parseInt(searchParams.get("pageSize") || "20")
+        const pageSize = parseInt(searchParams.get("pageSize") || "5")
+        const search = searchParams.get("search") || ""
         const skip = (page - 1) * pageSize
+
+        // 构建查询条件
+        const whereCondition: any = { distributorId: user.distributor.id }
+
+        // 如果有搜索条件，添加订单号搜索
+        if (search.trim()) {
+          whereCondition.order = {
+            orderNumber: {
+              contains: search.trim()
+            }
+          }
+        }
 
         const [orders, total] = await Promise.all([
           prisma.distributionOrder.findMany({
-            where: { distributorId: user.distributor.id },
+            where: whereCondition,
             include: {
               order: {
                 include: {
@@ -59,7 +72,7 @@ export async function GET(req: Request) {
             take: pageSize
           }),
           prisma.distributionOrder.count({
-            where: { distributorId: user.distributor.id }
+            where: whereCondition
           })
         ])
 

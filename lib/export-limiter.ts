@@ -118,8 +118,14 @@ export async function checkOrderExportLimit(
 
       let reason = ''
       if (limitedCount === totalCount) {
-        // 所有订单都达到限制
-        reason = '您的所有订单今天已达到导出限制，每个订单最多导出2次'
+        // 所有选中的订单都达到限制
+        if (totalCount === 1) {
+          // 单个订单超限
+          reason = '该订单今天已达到导出限制（每个订单最多导出2次）'
+        } else {
+          // 多个订单全部超限
+          reason = '您选择的所有订单今天已达到导出限制，每个订单最多导出2次'
+        }
       } else {
         // 部分订单达到限制
         const remainingCount = totalCount - limitedCount
@@ -387,8 +393,14 @@ export async function checkMembershipExportLimit(
 
       let reason = ''
       if (limitedCount === totalCount) {
-        // 所有会员订单都达到限制
-        reason = '您的所有会员订单今天已达到导出限制，每个订单最多导出2次'
+        // 所有选中的会员订单都达到限制
+        if (totalCount === 1) {
+          // 单个会员订单超限
+          reason = '该会员订单今天已达到导出限制（每个订单最多导出2次）'
+        } else {
+          // 多个会员订单全部超限
+          reason = '您选择的所有会员订单今天已达到导出限制，每个订单最多导出2次'
+        }
       } else {
         // 部分会员订单达到限制
         const remainingCount = totalCount - limitedCount

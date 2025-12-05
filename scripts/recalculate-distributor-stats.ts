@@ -32,6 +32,11 @@ async function recalculateDistributorStats() {
           where: { distributorId: distributor.id }
         })
 
+        // 获取所有提现记录
+        const withdrawals = await prisma.commissionWithdrawal.findMany({
+          where: { distributorId: distributor.id }
+        })
+
         // 计算统计数据
         const stats = orders.reduce(
           (acc, order) => {
@@ -46,19 +51,34 @@ async function recalculateDistributorStats() {
             }
             return acc
           },
-          { totalEarnings: 0, pendingCommission: 0, availableBalance: 0 }
+          { totalEarnings: 0, pendingCommission: 0, availableBalance: 0, withdrawnAmount: 0 }
         )
+
+        // 计算提现相关数据
+        withdrawals.forEach(withdrawal => {
+          if (withdrawal.status === 'pending' || withdrawal.status === 'processing') {
+            // 待处理的提现：已从 availableBalance 扣除
+            stats.availableBalance -= withdrawal.amount
+          }
+          if (withdrawal.status === 'completed') {
+            // 已完成的提现：计入 withdrawnAmount，已从 availableBalance 扣除
+            stats.withdrawnAmount += withdrawal.amount
+            stats.availableBalance -= withdrawal.amount
+          }
+          // rejected 状态的提现不影响余额（钱会退回 availableBalance）
+        })
 
         // 检查是否需要更新
         const needsUpdate =
           distributor.totalEarnings !== stats.totalEarnings ||
           distributor.pendingCommission !== stats.pendingCommission ||
-          distributor.availableBalance !== stats.availableBalance
+          distributor.availableBalance !== stats.availableBalance ||
+          distributor.withdrawnAmount !== stats.withdrawnAmount
 
         if (needsUpdate) {
           console.log(`🔧 修复分销商: ${distributor.user?.email || distributor.id}`)
-          console.log(`   旧值: totalEarnings=${distributor.totalEarnings}, pendingCommission=${distributor.pendingCommission}, availableBalance=${distributor.availableBalance}`)
-          console.log(`   新值: totalEarnings=${stats.totalEarnings}, pendingCommission=${stats.pendingCommission}, availableBalance=${stats.availableBalance}`)
+          console.log(`   旧值: totalEarnings=${distributor.totalEarnings}, pendingCommission=${distributor.pendingCommission}, availableBalance=${distributor.availableBalance}, withdrawnAmount=${distributor.withdrawnAmount}`)
+          console.log(`   新值: totalEarnings=${stats.totalEarnings}, pendingCommission=${stats.pendingCommission}, availableBalance=${stats.availableBalance}, withdrawnAmount=${stats.withdrawnAmount}`)
 
           // 更新数据库
           await prisma.distributor.update({
@@ -66,7 +86,8 @@ async function recalculateDistributorStats() {
             data: {
               totalEarnings: stats.totalEarnings,
               pendingCommission: stats.pendingCommission,
-              availableBalance: stats.availableBalance
+              availableBalance: stats.availableBalance,
+              withdrawnAmount: stats.withdrawnAmount
             }
           })
 

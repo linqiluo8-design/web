@@ -484,7 +484,8 @@ model Distributor {
   frozenAt        DateTime? // 冻结时间
   // 统计数据
   totalEarnings   Float    @default(0) // 总收益
-  availableBalance Float   @default(0) // 可提现余额
+  pendingCommission Float  @default(0) // 待结算佣金（冷静期内）
+  availableBalance Float   @default(0) // 可提现余额（已过冷静期）
   withdrawnAmount Float    @default(0) // 已提现金额
   totalOrders     Int      @default(0) // 总订单数
   totalClicks     Int      @default(0) // 总点击数

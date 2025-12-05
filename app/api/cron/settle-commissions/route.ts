@@ -2,6 +2,12 @@ import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 
 /**
+ * 测试用户邮箱白名单（允许 0 天冷静期，立即结算）
+ * 仅这两个邮箱享有特权，精确匹配
+ */
+const TEST_USER_EMAILS = ['test001@example.com', 'test002@example.com']
+
+/**
  * 自动结算超过冷静期的佣金
  *
  * GET /api/cron/settle-commissions
@@ -10,6 +16,7 @@ import { prisma } from "@/lib/prisma"
  * 1. 查找所有状态为 "confirmed" 且超过冷静期的分销订单
  * 2. 将这些订单的状态改为 "settled"
  * 3. 将佣金从 pendingCommission 转移到 availableBalance
+ * 4. 测试用户（test001, test002）支持 0 天冷静期，立即结算
  *
  * 建议配置：
  * - 使用 cron job 每天定时执行（如每天凌晨2点）
@@ -29,6 +36,7 @@ export async function GET(req: Request) {
 
     console.log(`开始结算冷静期超过 ${cooldownDays} 天的佣金...`)
     console.log(`冷静期截止时间: ${cooldownDeadline.toISOString()}`)
+    console.log(`测试用户（${TEST_USER_EMAILS.join(', ')}）使用 0 天冷静期`)
 
     // 查找所有待结算的订单（状态为 confirmed 且确认时间超过冷静期）
     const pendingOrders = await prisma.distributionOrder.findMany({
@@ -45,13 +53,58 @@ export async function GET(req: Request) {
             orderNumber: true,
             status: true
           }
+        },
+        distributor: {
+          include: {
+            user: {
+              select: { email: true }
+            }
+          }
         }
       }
     })
 
-    console.log(`找到 ${pendingOrders.length} 个待结算的分销订单`)
+    // 查找测试用户的所有 confirmed 订单（不受冷静期限制）
+    const testUserOrders = await prisma.distributionOrder.findMany({
+      where: {
+        status: "confirmed",
+        distributor: {
+          user: {
+            email: {
+              in: TEST_USER_EMAILS  // 精确匹配完整邮箱
+            }
+          }
+        }
+      },
+      include: {
+        order: {
+          select: {
+            id: true,
+            orderNumber: true,
+            status: true
+          }
+        },
+        distributor: {
+          include: {
+            user: {
+              select: { email: true }
+            }
+          }
+        }
+      }
+    })
 
-    if (pendingOrders.length === 0) {
+    // 合并订单列表（去重）
+    const allOrders = [...pendingOrders, ...testUserOrders]
+    const uniqueOrders = Array.from(
+      new Map(allOrders.map(order => [order.id, order])).values()
+    )
+
+    console.log(`找到 ${pendingOrders.length} 个普通待结算订单`)
+    console.log(`找到 ${testUserOrders.length} 个测试用户订单（0天冷静期）`)
+    console.log(`共 ${uniqueOrders.length} 个订单待结算`)
+
+    if (uniqueOrders.length === 0) {
       return NextResponse.json({
         success: true,
         message: "没有需要结算的佣金",
@@ -64,13 +117,18 @@ export async function GET(req: Request) {
     const errors: Array<{ orderId: string; error: string }> = []
 
     // 逐个结算订单
-    for (const distributionOrder of pendingOrders) {
+    for (const distributionOrder of uniqueOrders) {
       try {
         // 检查订单状态是否仍然为 paid（防止订单被退款）
         if (distributionOrder.order.status !== "paid") {
           console.warn(`订单 ${distributionOrder.order.orderNumber} 状态不是 paid (当前: ${distributionOrder.order.status})，跳过结算`)
           continue
         }
+
+        // 检查是否为测试用户（精确匹配）
+        const isTest = distributionOrder.distributor?.user?.email
+          ? TEST_USER_EMAILS.includes(distributionOrder.distributor.user.email)
+          : false
 
         // 使用事务确保数据一致性
         await prisma.$transaction(async (tx) => {
@@ -94,7 +152,8 @@ export async function GET(req: Request) {
         })
 
         settledCount++
-        console.log(`✅ 已结算: ${distributionOrder.order.orderNumber}, 佣金: ¥${distributionOrder.commissionAmount}`)
+        const userLabel = isTest ? '[测试用户-0天冷静期]' : ''
+        console.log(`✅ 已结算: ${distributionOrder.order.orderNumber}, 佣金: ¥${distributionOrder.commissionAmount} ${userLabel}`)
       } catch (error: any) {
         errorCount++
         const errorMsg = error.message || "未知错误"

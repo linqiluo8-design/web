@@ -7,6 +7,12 @@
 import { prisma } from "@/lib/prisma"
 
 /**
+ * 测试用户邮箱白名单（强制人工审核）
+ * 仅这两个邮箱享有特权，精确匹配
+ */
+const TEST_USER_EMAILS = ['test001@example.com', 'test002@example.com']
+
+/**
  * 系统配置缓存接口
  */
 interface WithdrawalConfig {
@@ -54,6 +60,7 @@ export interface RiskCheckResult {
  */
 interface DistributorInfo {
   id: string
+  userId: string
   createdAt: Date
   isVerified: boolean
   verifiedAt: Date | null
@@ -195,6 +202,25 @@ export async function checkWithdrawalRisk(
   const risks: string[] = []
   const reasons: string[] = []
   let riskScore = 0
+
+  // 0. 检查是否为测试用户（精确匹配 test001@example.com, test002@example.com）
+  let isTestUser = false
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: distributor.userId },
+      select: { email: true }
+    })
+    if (user?.email) {
+      isTestUser = TEST_USER_EMAILS.includes(user.email)
+      if (isTestUser) {
+        risks.push('测试用户')
+        reasons.push(`测试用户（${user.email}）提现需人工审核，即使配置了自动审核`)
+        riskScore += 50  // 添加风险分数确保不会自动审核
+      }
+    }
+  } catch (error) {
+    console.error('检查测试用户失败:', error)
+  }
 
   // 1. 账户冻结检查（权重最高，直接拒绝）
   if (distributor.isFrozen) {

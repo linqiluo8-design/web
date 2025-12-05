@@ -8,10 +8,17 @@ export async function GET() {
     // 需要客服聊天的读权限
     await requireRead('CUSTOMER_CHAT')
 
-    // 获取所有活跃的聊天会话
+    // 计算15天前的时间
+    const fifteenDaysAgo = new Date()
+    fifteenDaysAgo.setDate(fifteenDaysAgo.getDate() - 15)
+
+    // 获取所有活跃的聊天会话（排除超过15天未活跃的会话）
     const sessions = await prisma.chatSession.findMany({
       where: {
-        status: "active"
+        status: "active",
+        lastMessageAt: {
+          gte: fifteenDaysAgo // 只显示最后消息时间在15天内的会话
+        }
       },
       include: {
         messages: {

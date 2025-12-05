@@ -43,6 +43,13 @@ export default function CustomerChat() {
   const [uploading, setUploading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  // 拖拽相关状态
+  const [position, setPosition] = useState({ x: 0, y: 0 })
+  const [isDragging, setIsDragging] = useState(false)
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
+  const [hasMoved, setHasMoved] = useState(false)
+  const buttonRef = useRef<HTMLDivElement>(null)
+
   // 检查用户权限
   useEffect(() => {
     if (session?.user) {
@@ -121,6 +128,116 @@ export default function CustomerChat() {
     window.addEventListener('openChat', handleOpenChat)
     return () => window.removeEventListener('openChat', handleOpenChat)
   }, [])
+
+  // 从localStorage加载位置，默认右下角
+  useEffect(() => {
+    const savedPosition = localStorage.getItem('chatButtonPosition')
+    if (savedPosition) {
+      try {
+        const pos = JSON.parse(savedPosition)
+        setPosition(pos)
+      } catch (e) {
+        console.error('加载聊天按钮位置失败:', e)
+      }
+    }
+  }, [])
+
+  // 拖拽处理
+  const handleMouseDown = (e: React.MouseEvent) => {
+    // 防止在按钮内的其他元素上触发拖拽
+    if (e.target !== e.currentTarget && !(e.currentTarget as HTMLElement).contains(e.target as Node)) {
+      return
+    }
+
+    setIsDragging(true)
+    setHasMoved(false)
+    setDragStart({
+      x: e.clientX - position.x,
+      y: e.clientY - position.y
+    })
+    e.preventDefault()
+  }
+
+  useEffect(() => {
+    if (!isDragging) return
+
+    const handleMouseMove = (e: MouseEvent) => {
+      setHasMoved(true)
+      const newX = e.clientX - dragStart.x
+      const newY = e.clientY - dragStart.y
+
+      // 限制在视口范围内
+      const maxX = window.innerWidth - (buttonRef.current?.offsetWidth || 200)
+      const maxY = window.innerHeight - (buttonRef.current?.offsetHeight || 100)
+
+      const constrainedX = Math.max(0, Math.min(newX, maxX))
+      const constrainedY = Math.max(0, Math.min(newY, maxY))
+
+      setPosition({ x: constrainedX, y: constrainedY })
+    }
+
+    const handleMouseUp = () => {
+      setIsDragging(false)
+
+      // 保存位置到localStorage
+      if (hasMoved) {
+        localStorage.setItem('chatButtonPosition', JSON.stringify(position))
+      }
+    }
+
+    document.addEventListener('mousemove', handleMouseMove)
+    document.addEventListener('mouseup', handleMouseUp)
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove)
+      document.removeEventListener('mouseup', handleMouseUp)
+    }
+  }, [isDragging, dragStart, position, hasMoved])
+
+  // 点击处理（防止拖拽后触发）
+  const handleClick = () => {
+    if (!hasMoved) {
+      setIsOpen(!isOpen)
+    }
+  }
+
+  // 计算聊天窗口位置
+  const getChatWindowPosition = () => {
+    if (!buttonRef.current) return {}
+
+    const buttonWidth = buttonRef.current.offsetWidth
+    const windowWidth = 384 // w-96 = 24rem = 384px
+    const windowHeight = 500
+
+    // 判断按钮位置，决定聊天窗口显示在哪里
+    const isNearRight = position.x > window.innerWidth / 2
+    const isNearBottom = position.y > window.innerHeight / 2
+
+    let style: React.CSSProperties = {
+      position: 'fixed' as const,
+      width: '384px',
+      height: '500px',
+      zIndex: 50
+    }
+
+    if (isNearRight) {
+      // 靠右，窗口显示在左边
+      style.right = `${window.innerWidth - position.x}px`
+    } else {
+      // 靠左，窗口显示在右边
+      style.left = `${position.x + buttonWidth + 12}px`
+    }
+
+    if (isNearBottom) {
+      // 靠下，窗口在上方
+      style.bottom = `${window.innerHeight - position.y - (buttonRef.current?.offsetHeight || 0)}px`
+    } else {
+      // 靠上，窗口在下方
+      style.top = `${position.y}px`
+    }
+
+    return style
+  }
 
   const fetchOrCreateSession = async () => {
     try {
@@ -341,12 +458,30 @@ export default function CustomerChat() {
 
   // 如果是管理员，显示不同的入口
   if (isAdmin) {
+    const buttonStyle: React.CSSProperties = {
+      position: 'fixed',
+      left: position.x || 'auto',
+      top: position.y || 'auto',
+      right: position.x ? 'auto' : '24px',
+      bottom: position.y ? 'auto' : '24px',
+      zIndex: 50,
+      cursor: isDragging ? 'grabbing' : 'grab',
+      userSelect: 'none'
+    }
+
     return (
-      <div className="fixed bottom-6 right-6 z-50">
+      <div
+        ref={buttonRef}
+        style={buttonStyle}
+        onMouseDown={handleMouseDown}
+      >
         <button
-          onClick={handleAdminClick}
+          onClick={() => {
+            if (!hasMoved) handleAdminClick()
+          }}
           className="relative bg-gradient-to-r from-blue-600 to-blue-500 text-white rounded-full shadow-2xl hover:shadow-blue-500/50 transition-all duration-300 flex items-center gap-2 px-4 py-3 hover:scale-105 group"
           aria-label="客服聊天"
+          style={{ cursor: isDragging ? 'grabbing' : 'pointer' }}
         >
           <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-2xl">
             💬
@@ -359,19 +494,36 @@ export default function CustomerChat() {
     )
   }
 
+  // 按钮样式
+  const buttonStyle: React.CSSProperties = {
+    position: 'fixed',
+    left: position.x || 'auto',
+    top: position.y || 'auto',
+    right: position.x ? 'auto' : '24px',
+    bottom: position.y ? 'auto' : '24px',
+    zIndex: 50,
+    cursor: isDragging ? 'grabbing' : 'grab',
+    userSelect: 'none'
+  }
+
   return (
     <>
       {/* 聊天按钮 */}
-      <div className="fixed bottom-6 right-6 z-50">
+      <div
+        ref={buttonRef}
+        style={buttonStyle}
+        onMouseDown={handleMouseDown}
+      >
         {/* 脉冲动画背景 */}
-        {!isOpen && (
+        {!isOpen && !isDragging && (
           <div className="absolute inset-0 bg-blue-500 rounded-full animate-ping opacity-20"></div>
         )}
 
         <button
-          onClick={() => setIsOpen(!isOpen)}
+          onClick={handleClick}
           className="relative bg-gradient-to-r from-blue-600 to-blue-500 text-white rounded-full shadow-2xl hover:shadow-blue-500/50 transition-all duration-300 flex items-center gap-2 px-4 py-3 hover:scale-105 group"
           aria-label="客服聊天"
+          style={{ cursor: isDragging ? 'grabbing' : 'pointer' }}
         >
           {isOpen ? (
             <>
@@ -409,7 +561,10 @@ export default function CustomerChat() {
 
       {/* 聊天窗口 */}
       {isOpen && (
-        <div className="fixed bottom-24 right-6 w-96 bg-white rounded-lg shadow-2xl z-50 overflow-hidden border border-gray-200 flex flex-col" style={{ height: "500px" }}>
+        <div
+          className="bg-white rounded-lg shadow-2xl overflow-hidden border border-gray-200 flex flex-col"
+          style={getChatWindowPosition()}
+        >
           {/* 头部 */}
           <div className="bg-blue-600 text-white px-4 py-3 flex-shrink-0">
             <div className="flex items-center justify-between">

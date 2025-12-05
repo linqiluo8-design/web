@@ -38,11 +38,14 @@ export default function DistributionOrdersPage() {
   const [orders, setOrders] = useState<DistributionOrder[]>([])
   const [pagination, setPagination] = useState({
     page: 1,
-    pageSize: 20,
+    pageSize: 5,
     total: 0,
     totalPages: 0
   })
   const [loading, setLoading] = useState(true)
+  const [pageSize, setPageSize] = useState(5)
+  const [searchQuery, setSearchQuery] = useState("")
+  const [jumpToPage, setJumpToPage] = useState("")
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -51,14 +54,15 @@ export default function DistributionOrdersPage() {
     }
 
     if (status === "authenticated") {
-      fetchOrders(1)
+      fetchOrders(1, pageSize, searchQuery)
     }
   }, [status])
 
-  const fetchOrders = async (page: number) => {
+  const fetchOrders = async (page: number, size: number = pageSize, search: string = searchQuery) => {
     try {
       setLoading(true)
-      const response = await fetch(`/api/distribution/stats?type=orders&page=${page}&pageSize=20`)
+      const url = `/api/distribution/stats?type=orders&page=${page}&pageSize=${size}${search ? `&search=${encodeURIComponent(search)}` : ""}`
+      const response = await fetch(url)
 
       if (!response.ok) {
         const error = await response.json()
@@ -82,7 +86,28 @@ export default function DistributionOrdersPage() {
   }
 
   const handlePageChange = (newPage: number) => {
-    fetchOrders(newPage)
+    fetchOrders(newPage, pageSize, searchQuery)
+  }
+
+  const handlePageSizeChange = (newSize: number) => {
+    setPageSize(newSize)
+    fetchOrders(1, newSize, searchQuery)
+  }
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault()
+    fetchOrders(1, pageSize, searchQuery)
+  }
+
+  const handleJumpToPage = (e: React.FormEvent) => {
+    e.preventDefault()
+    const page = parseInt(jumpToPage)
+    if (!isNaN(page) && page >= 1 && page <= pagination.totalPages) {
+      fetchOrders(page, pageSize, searchQuery)
+      setJumpToPage("")
+    } else {
+      alert(`请输入有效的页码 (1-${pagination.totalPages})`)
+    }
   }
 
   const getStatusText = (status: string) => {
@@ -119,7 +144,7 @@ export default function DistributionOrdersPage() {
   return (
     <div className="container mx-auto px-4 py-8">
       {/* 页面标题 */}
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-4">
           <Link
             href="/distribution"
@@ -136,19 +161,112 @@ export default function DistributionOrdersPage() {
         </div>
       </div>
 
+      {/* 搜索和控制面板 */}
+      <div className="bg-white rounded-lg shadow p-4 mb-6">
+        <div className="flex flex-col md:flex-row gap-4">
+          {/* 搜索框 */}
+          <form onSubmit={handleSearch} className="flex-1">
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="搜索订单号..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault()
+                  handleSearch(e)
+                }}
+                className="absolute left-3 top-2.5 text-gray-400 hover:text-blue-600 transition-colors cursor-pointer"
+                aria-label="搜索"
+              >
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                  />
+                </svg>
+              </button>
+            </div>
+          </form>
+
+          {/* 每页显示数量 */}
+          <div className="flex items-center gap-2">
+            <label className="text-sm text-gray-600 whitespace-nowrap">每页显示:</label>
+            <select
+              value={pageSize}
+              onChange={(e) => handlePageSizeChange(parseInt(e.target.value))}
+              className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value={5}>5条</option>
+              <option value={10}>10条</option>
+              <option value={20}>20条</option>
+              <option value={50}>50条</option>
+              <option value={100}>100条</option>
+            </select>
+          </div>
+
+          {/* 跳转页面 */}
+          {pagination.totalPages > 1 && (
+            <form onSubmit={handleJumpToPage} className="flex items-center gap-2">
+              <label className="text-sm text-gray-600 whitespace-nowrap">跳转到:</label>
+              <input
+                type="number"
+                min="1"
+                max={pagination.totalPages}
+                placeholder="页码"
+                value={jumpToPage}
+                onChange={(e) => setJumpToPage(e.target.value)}
+                className="w-20 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <button
+                type="submit"
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+              >
+                跳转
+              </button>
+            </form>
+          )}
+        </div>
+      </div>
+
       {/* 订单列表 */}
       {orders.length === 0 ? (
         <div className="bg-white rounded-lg shadow p-12 text-center">
           <svg className="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
           </svg>
-          <p className="text-gray-600 mb-4">暂无推广订单</p>
-          <Link
-            href="/distribution"
-            className="text-blue-600 hover:text-blue-700"
-          >
-            返回分销中心
-          </Link>
+          <p className="text-gray-600 mb-4">
+            {searchQuery ? `未找到包含 "${searchQuery}" 的订单` : "暂无推广订单"}
+          </p>
+          {searchQuery ? (
+            <button
+              onClick={() => {
+                setSearchQuery("")
+                fetchOrders(1, pageSize, "")
+              }}
+              className="text-blue-600 hover:text-blue-700"
+            >
+              清除搜索条件
+            </button>
+          ) : (
+            <Link
+              href="/distribution"
+              className="text-blue-600 hover:text-blue-700"
+            >
+              返回分销中心
+            </Link>
+          )}
         </div>
       ) : (
         <>

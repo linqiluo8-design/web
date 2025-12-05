@@ -110,12 +110,6 @@ export function Navbar() {
                   <span className="text-xs bg-gradient-to-r from-orange-500 to-red-500 text-white px-1.5 py-0.5 rounded-full">HOT</span>
                 </span>
               </Link>
-              <button
-                onClick={() => window.dispatchEvent(new Event('openChat'))}
-                className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50"
-              >
-                在线客服
-              </button>
               {hasAnyPermission() && (
                 <Link
                   href="/backendmanager"

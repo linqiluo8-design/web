@@ -14,18 +14,22 @@ export async function GET(req: Request) {
     // 获取用户 session
     const session = await getServerSession(authOptions)
 
-    // 已登录用户无限制，直接返回
-    if (session?.user) {
+    // 检查是否是管理员
+    const isAdmin = session?.user?.role === 'ADMIN'
+
+    // 仅管理员无限制，直接返回
+    if (isAdmin) {
       return NextResponse.json({
         allowed: true,
+        isAdmin: true,
         paidOrderCount: 0,
         usedExports: 0,
-        remainingExports: 0,
-        totalAllowed: 0  // 0 表示无限制
+        remainingExports: -1,  // -1 表示无限制（管理员）
+        totalAllowed: -1
       })
     }
 
-    // 匿名用户才需要检查限制
+    // 非管理员用户（包括登录用户和匿名用户）需要检查限制
     const visitorId = searchParams.get("visitorId") || undefined
 
     // 获取订单号列表

@@ -1,0 +1,97 @@
+// ================================================
+// 订单导出功能 - Prisma Schema 更新
+// ================================================
+// 使用说明：
+// 1. 将以下内容添加到你的 prisma/schema.prisma 文件中
+// 2. 在 Order 模型中添加导出相关字段
+// 3. 在 User 模型中添加导出关联
+// ================================================
+
+// ------------------------------------------------
+// 新增模型：OrderExport（订单导出记录）
+// ------------------------------------------------
+// 添加位置：在 Order 模型之后
+
+model OrderExport {
+  id          String   @id @default(cuid())
+  orderId     String   // 订单ID
+  userId      String   // 导出用户ID
+  orderType   String   // 订单类型: "product" | "membership"
+  exportDate  DateTime @default(now()) // 导出日期时间
+  exportedAt  DateTime @default(now()) // 导出完成时间
+  fileSize    Int?     // 文件大小（字节）
+  fileName    String?  // 文件名
+  ipAddress   String?  // 导出者IP地址
+  userAgent   String?  // 浏览器User-Agent
+
+  // 关联关系
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // 复合索引（优化查询性能）
+  @@index([orderId, userId, exportDate])
+  @@index([userId, exportDate])
+  @@index([exportDate])
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// ------------------------------------------------
+// Order 模型更新
+// ------------------------------------------------
+// 在现有 Order 模型中添加以下字段：
+
+model Order {
+  // ... 现有字段 ...
+
+  // 新增：导出统计字段
+  exportCount     Int           @default(0)  // 总导出次数
+  lastExportedAt  DateTime?                  // 最后导出时间
+
+  // 新增：导出记录关联
+  exports         OrderExport[]
+
+  // ... 其他现有字段和关联 ...
+}
+
+// ------------------------------------------------
+// User 模型更新
+// ------------------------------------------------
+// 在现有 User 模型中添加以下关联：
+
+model User {
+  // ... 现有字段 ...
+
+  // 新增：导出记录关联
+  orderExports    OrderExport[]
+
+  // ... 其他现有字段和关联 ...
+}
+
+// ================================================
+// 使用 db push 应用更新（推荐）
+// ================================================
+// 命令：npx prisma db push
+//
+// 优点：
+// - 不会触发 shadow database 错误
+// - 保留现有数据
+// - 快速同步数据库结构
+//
+// 缺点：
+// - 不创建迁移历史记录
+// - 不适合生产环境
+//
+// ================================================
+
+// ================================================
+// 或使用迁移（适合生产环境）
+// ================================================
+// 命令：npx prisma migrate dev --name add_order_export
+//
+// 如果遇到 P3006 错误，请使用：
+// 1. npx prisma migrate reset（会清空数据）
+// 2. 或参考 scripts/fix-migration-error.sh
+//
+// ================================================

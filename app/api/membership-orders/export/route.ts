@@ -64,6 +64,9 @@ export async function GET(req: Request) {
     // 获取用户 session
     const session = await getServerSession(authOptions)
 
+    // 检查是否是管理员
+    const isAdmin = session?.user?.role === 'ADMIN'
+
     // 获取访客ID（用于匿名用户限制）
     const visitorId = searchParams.get("visitorId") || undefined
 
@@ -71,11 +74,9 @@ export async function GET(req: Request) {
     const membershipCodesParam = searchParams.get("membershipCodes")
     const membershipCodes = membershipCodesParam ? membershipCodesParam.split(',').filter(Boolean) : undefined
 
-    // 只对匿名用户检查导出限制
-    // 已登录用户（无论是否有权限）都不受限制
-    let isAnonymous = false
-    if (!session?.user) {
-      isAnonymous = true
+    // 只有管理员不受限制，其他用户（包括登录用户和匿名用户）都需要检查
+    let isAnonymous = !session?.user
+    if (!isAdmin) {
       const limitResult = await checkMembershipExportLimit(visitorId, membershipCodes)
 
       if (!limitResult.allowed) {

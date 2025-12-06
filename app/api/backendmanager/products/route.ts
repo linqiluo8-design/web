@@ -56,7 +56,7 @@ export async function GET(req: Request) {
     }
 
     // 获取商品列表和总数
-    const [products, total] = await Promise.all([
+    const [productsRaw, total] = await Promise.all([
       prisma.product.findMany({
         where,
         skip,
@@ -74,6 +74,12 @@ export async function GET(req: Request) {
           showImage: true,
           category: true,
           categoryId: true,
+          categoryRef: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
           networkDiskLink: true,
           status: true,
           createdAt: true,
@@ -81,6 +87,13 @@ export async function GET(req: Request) {
       }),
       prisma.product.count({ where }),
     ])
+
+    // 映射产品数据，优先使用 categoryRef.name，其次使用旧的 category 字段
+    const products = productsRaw.map((p) => ({
+      ...p,
+      category: p.categoryRef?.name || p.category || null,
+      categoryRef: undefined, // 不返回给前端
+    }))
 
     return NextResponse.json({
       products,

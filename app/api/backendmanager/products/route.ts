@@ -90,10 +90,32 @@ export async function GET(req: Request) {
 
     // 映射产品数据，优先使用 categoryRef.name，其次使用旧的 category 字段
     const products = productsRaw.map((p) => {
-      const { categoryRef, ...productWithoutRef } = p
+      // 计算最终的分类名称：优先使用关联的分类名，其次使用旧字段
+      const finalCategoryName = p.categoryRef?.name || p.category || null
+
+      // 调试日志 - 显示所有产品的分类信息
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`[Product Debug] "${p.title}":`)
+        console.log(`  categoryId: ${p.categoryId || '(null)'}`)
+        console.log(`  old category field: ${p.category || '(null)'}`)
+        console.log(`  categoryRef: ${p.categoryRef ? JSON.stringify(p.categoryRef) : '(null)'}`)
+        console.log(`  finalCategoryName: ${finalCategoryName || '(null)'}`)
+      }
+
+      // 返回产品对象，明确设置所有字段
       return {
-        ...productWithoutRef,
-        category: categoryRef?.name || p.category || null,
+        id: p.id,
+        title: p.title,
+        description: p.description,
+        content: p.content,
+        price: p.price,
+        coverImage: p.coverImage,
+        showImage: p.showImage,
+        category: finalCategoryName,  // 使用计算后的分类名称
+        categoryId: p.categoryId,
+        networkDiskLink: p.networkDiskLink,
+        status: p.status,
+        createdAt: p.createdAt,
       }
     })
 

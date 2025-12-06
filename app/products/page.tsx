@@ -33,6 +33,9 @@ interface ProductsResponse {
 interface Category {
   id: string
   name: string
+  _count?: {
+    products: number
+  }
 }
 
 export default function ProductsPage() {
@@ -260,7 +263,11 @@ export default function ProductsPage() {
       const res = await fetch("/api/categories")
       if (res.ok) {
         const data = await res.json()
-        setCategories(data.categories)
+        // 只显示有商品的分类，确保用户筛选有结果
+        const categoriesWithProducts = data.categories.filter(
+          (cat: Category) => cat._count && cat._count.products > 0
+        )
+        setCategories(categoriesWithProducts)
       }
     } catch (err) {
       console.error("获取分类失败:", err)
@@ -406,6 +413,11 @@ export default function ProductsPage() {
                       }`}>
                         {cat.name}
                       </span>
+                      {cat._count && cat._count.products > 0 && (
+                        <span className="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full">
+                          {cat._count.products}
+                        </span>
+                      )}
                       {selectedCategories.includes(cat.name) && (
                         <svg className="w-4 h-4 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
                           <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />

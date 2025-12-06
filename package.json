@@ -11,6 +11,7 @@
     "db:restore": "tsx scripts/restore-data.ts",
     "db:reset": "tsx scripts/reset-and-seed.ts",
     "db:fix-commission": "tsx scripts/recalculate-distributor-stats.ts",
+    "db:sync-categories": "tsx scripts/sync-product-categories.ts",
     "cron:settle": "tsx scripts/auto-settle-dev.ts",
     "security:scan": "node scripts/security-vulnerability-scan.js mock",
     "security:scan:real": "node scripts/security-vulnerability-scan.js real",

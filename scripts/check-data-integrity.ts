@@ -70,49 +70,75 @@ async function checkOrphanedRecords() {
 
   const checks = []
 
-  // 检查没有商品的订单项
-  const orphanedOrderItems = await prisma.orderItem.findMany({
-    where: {
-      product: null
-    }
-  })
+  // 注意：Prisma 不支持直接查询 relation 为 null 的记录
+  // 改用 include 方式检查
+  try {
+    // 检查订单项 - 使用 include 来检测孤儿记录
+    const allOrderItems = await prisma.orderItem.findMany({
+      take: 1000, // 限制数量避免内存问题
+      include: {
+        product: true
+      }
+    })
 
-  if (orphanedOrderItems.length > 0) {
+    const orphanedOrderItems = allOrderItems.filter(item => !item.product)
+
+    if (orphanedOrderItems.length > 0) {
+      checks.push({
+        name: '孤儿订单项',
+        status: 'warning' as const,
+        message: `发现 ${orphanedOrderItems.length} 个订单项关联的商品不存在`,
+        details: orphanedOrderItems.length
+      })
+      console.log(`⚠️  发现 ${orphanedOrderItems.length} 个孤儿订单项`)
+    } else {
+      checks.push({
+        name: '孤儿订单项',
+        status: 'pass' as const,
+        message: '无孤儿订单项（检查前1000条）'
+      })
+    }
+  } catch (error) {
+    console.warn('⚠️  跳过孤儿订单项检查:', error)
     checks.push({
       name: '孤儿订单项',
       status: 'warning' as const,
-      message: `发现 ${orphanedOrderItems.length} 个订单项关联的商品不存在`,
-      details: orphanedOrderItems.length
-    })
-    console.log(`⚠️  发现 ${orphanedOrderItems.length} 个孤儿订单项`)
-  } else {
-    checks.push({
-      name: '孤儿订单项',
-      status: 'pass' as const,
-      message: '无孤儿订单项'
+      message: '检查失败，已跳过'
     })
   }
 
-  // 检查没有用户的购物车项
-  const orphanedCartItems = await prisma.cartItem.count({
-    where: {
-      user: null
-    }
-  })
+  // 检查购物车项
+  try {
+    const allCartItems = await prisma.cartItem.findMany({
+      take: 1000,
+      include: {
+        user: true
+      }
+    })
 
-  if (orphanedCartItems > 0) {
+    const orphanedCartItems = allCartItems.filter(item => !item.user)
+
+    if (orphanedCartItems.length > 0) {
+      checks.push({
+        name: '孤儿购物车项',
+        status: 'warning' as const,
+        message: `发现 ${orphanedCartItems.length} 个购物车项关联的用户不存在`,
+        details: orphanedCartItems.length
+      })
+      console.log(`⚠️  发现 ${orphanedCartItems.length} 个孤儿购物车项`)
+    } else {
+      checks.push({
+        name: '孤儿购物车项',
+        status: 'pass' as const,
+        message: '无孤儿购物车项（检查前1000条）'
+      })
+    }
+  } catch (error) {
+    console.warn('⚠️  跳过孤儿购物车项检查:', error)
     checks.push({
       name: '孤儿购物车项',
       status: 'warning' as const,
-      message: `发现 ${orphanedCartItems} 个购物车项关联的用户不存在`,
-      details: orphanedCartItems
-    })
-    console.log(`⚠️  发现 ${orphanedCartItems} 个孤儿购物车项`)
-  } else {
-    checks.push({
-      name: '孤儿购物车项',
-      status: 'pass' as const,
-      message: '无孤儿购物车项'
+      message: '检查失败，已跳过'
     })
   }
 

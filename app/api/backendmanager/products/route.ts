@@ -89,11 +89,13 @@ export async function GET(req: Request) {
     ])
 
     // 映射产品数据，优先使用 categoryRef.name，其次使用旧的 category 字段
-    const products = productsRaw.map((p) => ({
-      ...p,
-      category: p.categoryRef?.name || p.category || null,
-      categoryRef: undefined, // 不返回给前端
-    }))
+    const products = productsRaw.map((p) => {
+      const { categoryRef, ...productWithoutRef } = p
+      return {
+        ...productWithoutRef,
+        category: categoryRef?.name || p.category || null,
+      }
+    })
 
     return NextResponse.json({
       products,

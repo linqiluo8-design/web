@@ -7,6 +7,9 @@ const globalForPrisma = globalThis as unknown as {
 export const prisma = globalForPrisma.prisma ?? new PrismaClient()
 
 // Prisma 中间件：自动同步商品分类字段
+// 注意：由于中间件内部调用 prisma 可能导致初始化问题，暂时禁用
+// 使用手动同步方案（更新接口已有同步逻辑）
+/*
 prisma.$use(async (params, next) => {
   // 仅处理 Product 模型的创建和更新操作
   if (params.model === 'Product' && (params.action === 'create' || params.action === 'update')) {
@@ -45,5 +48,6 @@ prisma.$use(async (params, next) => {
 
   return next(params)
 })
+*/
 
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma

@@ -5,13 +5,15 @@ import { requireAdmin } from "@/lib/permissions"
 // POST /api/backendmanager/orders/[id]/refund - 退款订单（仅管理员）
 export async function POST(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // 验证管理员权限
     await requireAdmin()
 
-    const orderId = params.id
+    // Next.js 15+ requires awaiting params
+    const { id } = await params
+    const orderId = id
 
     // 查询订单
     const order = await prisma.order.findUnique({

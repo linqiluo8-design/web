@@ -62,15 +62,23 @@ export async function POST(
       )
     }
 
-    // 在事务中更新订单和支付状态
+    // 查询是否存在分销订单
+    const distributionOrder = await prisma.distributionOrder.findUnique({
+      where: { orderId: orderId },
+      include: {
+        distributor: true
+      }
+    })
+
+    // 在事务中更新订单、支付和分销状态
     const result = await prisma.$transaction(async (tx) => {
-      // 更新订单状态为已退款
+      // 1. 更新订单状态为已退款
       const updatedOrder = await tx.order.update({
         where: { id: orderId },
         data: { status: "refunded" }
       })
 
-      // 如果有支付记录，也更新支付状态
+      // 2. 如果有支付记录，也更新支付状态
       if (order.payment) {
         await tx.payment.update({
           where: { id: order.payment.id },
@@ -78,13 +86,73 @@ export async function POST(
         })
       }
 
+      // 3. 如果是推广订单，更新分销订单状态
+      if (distributionOrder) {
+        const now = new Date()
+
+        // 更新分销订单状态为已取消
+        await tx.distributionOrder.update({
+          where: { id: distributionOrder.id },
+          data: {
+            status: "cancelled",
+            cancelledAt: now,
+            cancelReason: "订单已退款"
+          }
+        })
+
+        // 4. 如果佣金已结算，需要从分销商余额中扣除
+        if (distributionOrder.status === "settled") {
+          const distributor = distributionOrder.distributor
+
+          // 从可提现余额中扣除佣金
+          await tx.distributor.update({
+            where: { id: distributor.id },
+            data: {
+              availableBalance: {
+                decrement: distributionOrder.commissionAmount
+              },
+              totalEarnings: {
+                decrement: distributionOrder.commissionAmount
+              },
+              totalOrders: {
+                decrement: 1
+              }
+            }
+          })
+        } else if (distributionOrder.status === "confirmed") {
+          // 如果还在冷静期（confirmed 状态），从待结算佣金中扣除
+          await tx.distributor.update({
+            where: { id: distributionOrder.distributor.id },
+            data: {
+              pendingCommission: {
+                decrement: distributionOrder.commissionAmount
+              },
+              totalOrders: {
+                decrement: 1
+              }
+            }
+          })
+        }
+      }
+
       return updatedOrder
     })
 
+    // 构建退款成功消息
+    let message = "退款成功"
+    if (distributionOrder) {
+      if (distributionOrder.status === "settled") {
+        message += `，已从分销商余额扣除佣金 ¥${distributionOrder.commissionAmount.toFixed(2)}`
+      } else if (distributionOrder.status === "confirmed") {
+        message += `，已从分销商待结算佣金扣除 ¥${distributionOrder.commissionAmount.toFixed(2)}`
+      }
+    }
+
     return NextResponse.json({
       success: true,
-      message: "退款成功",
-      order: result
+      message: message,
+      order: result,
+      distributionHandled: !!distributionOrder
     })
 
   } catch (error: any) {

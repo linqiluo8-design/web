@@ -41,6 +41,8 @@ interface Stats {
     commissionAmount: number
     status: string
     createdAt: string
+    cancelledAt?: string
+    cancelReason?: string
   }>
 }
 
@@ -265,7 +267,8 @@ export default function DistributionPage() {
       completed: "已完成",
       rejected: "已拒绝",
       confirmed: "已确认",
-      settled: "已结算"
+      settled: "已结算",
+      cancelled: "已取消"
     }
     return statusMap[status] || status
   }
@@ -614,21 +617,48 @@ export default function DistributionPage() {
               {stats && stats.recentOrders.length > 0 ? (
                 <div className="space-y-3">
                   {stats.recentOrders.map((order) => (
-                    <div key={order.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                      <div>
-                        <p className="font-medium">{order.orderNumber}</p>
-                        <p className="text-sm text-gray-600">
-                          {new Date(order.createdAt).toLocaleString("zh-CN")}
-                        </p>
+                    <div key={order.id} className="p-4 bg-gray-50 rounded-lg">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-medium">{order.orderNumber}</p>
+                          <p className="text-sm text-gray-600">
+                            {new Date(order.createdAt).toLocaleString("zh-CN")}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-bold text-green-600">
+                            +¥{order.commissionAmount.toFixed(2)}
+                          </p>
+                          <p className="text-sm text-gray-600">
+                            {getStatusText(order.status)}
+                          </p>
+                        </div>
                       </div>
-                      <div className="text-right">
-                        <p className="font-bold text-green-600">
-                          +¥{order.commissionAmount.toFixed(2)}
-                        </p>
-                        <p className="text-sm text-gray-600">
-                          {getStatusText(order.status)}
-                        </p>
-                      </div>
+                      {/* 如果订单已取消（退款），显示详细信息 */}
+                      {order.status === "cancelled" && (
+                        <div className="mt-3 pt-3 border-t border-gray-200">
+                          <div className="flex items-start gap-2">
+                            <svg className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                            </svg>
+                            <div className="flex-1">
+                              <p className="text-sm text-red-600 font-medium">
+                                订单已退款，佣金取消
+                              </p>
+                              {order.cancelledAt && (
+                                <p className="text-xs text-gray-500 mt-1">
+                                  退款日期：{new Date(order.cancelledAt).toLocaleString("zh-CN")}
+                                </p>
+                              )}
+                              {order.cancelReason && (
+                                <p className="text-xs text-gray-500 mt-1">
+                                  原因：{order.cancelReason}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   ))}
                   <div className="text-center pt-4">

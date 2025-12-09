@@ -91,7 +91,9 @@ export async function GET(req: Request) {
             })),
             createdAt: order.createdAt,
             confirmedAt: order.confirmedAt,
-            settledAt: order.settledAt
+            settledAt: order.settledAt,
+            cancelledAt: order.cancelledAt,
+            cancelReason: order.cancelReason
           })),
           pagination: {
             page,
@@ -217,7 +219,9 @@ export async function GET(req: Request) {
             orderAmount: order.orderAmount,
             commissionAmount: order.commissionAmount,
             status: order.status,
-            createdAt: order.createdAt
+            createdAt: order.createdAt,
+            cancelledAt: order.cancelledAt,
+            cancelReason: order.cancelReason
           }))
         })
       }

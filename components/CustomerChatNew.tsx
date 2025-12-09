@@ -479,15 +479,15 @@ export default function CustomerChat() {
           onClick={() => {
             if (!hasMoved) handleAdminClick()
           }}
-          className="relative bg-gradient-to-r from-blue-600 to-blue-500 text-white rounded-full shadow-2xl hover:shadow-blue-500/50 transition-all duration-300 flex items-center gap-2 px-4 py-3 hover:scale-105 group"
+          className="relative bg-gradient-to-r from-blue-600 to-blue-500 text-white rounded-full shadow-2xl hover:shadow-blue-500/50 transition-all duration-300 flex items-center gap-2 px-4 py-3 hover:scale-105 group min-w-max"
           aria-label="客服聊天"
           style={{ cursor: isDragging ? 'grabbing' : 'pointer' }}
         >
-          <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-2xl">
+          <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-2xl flex-shrink-0">
             💬
           </div>
-          <div className="flex flex-col items-start">
-            <span className="font-bold text-sm leading-none">客服聊天</span>
+          <div className="flex flex-col items-start flex-shrink-0">
+            <span className="font-bold text-sm leading-none whitespace-nowrap">客服聊天</span>
           </div>
         </button>
       </div>
@@ -521,29 +521,29 @@ export default function CustomerChat() {
 
         <button
           onClick={handleClick}
-          className="relative bg-gradient-to-r from-blue-600 to-blue-500 text-white rounded-full shadow-2xl hover:shadow-blue-500/50 transition-all duration-300 flex items-center gap-2 px-4 py-3 hover:scale-105 group"
+          className="relative bg-gradient-to-r from-blue-600 to-blue-500 text-white rounded-full shadow-2xl hover:shadow-blue-500/50 transition-all duration-300 flex items-center gap-2 px-4 py-3 hover:scale-105 group min-w-max"
           aria-label="客服聊天"
           style={{ cursor: isDragging ? 'grabbing' : 'pointer' }}
         >
           {isOpen ? (
             <>
               {/* 关闭状态 */}
-              <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
+              <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center flex-shrink-0">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </div>
-              <span className="font-medium text-sm pr-1">关闭</span>
+              <span className="font-medium text-sm pr-1 whitespace-nowrap">关闭</span>
             </>
           ) : (
             <>
               {/* 客服头像 - 使用可爱的动漫风格表情 */}
-              <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-2xl animate-bounce-slow">
+              <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-2xl animate-bounce-slow flex-shrink-0">
                 👩‍💼
               </div>
-              <div className="flex flex-col items-start">
-                <span className="font-bold text-sm leading-none">在线客服</span>
-                <span className="text-xs opacity-90 leading-none mt-0.5">随时为您服务</span>
+              <div className="flex flex-col items-start flex-shrink-0">
+                <span className="font-bold text-sm leading-none whitespace-nowrap">在线客服</span>
+                <span className="text-xs opacity-90 leading-none mt-0.5 whitespace-nowrap">随时为您服务</span>
               </div>
               {/* 闪烁的小星星装饰 */}
               <div className="absolute -top-1 -left-1 text-yellow-300 animate-pulse">✨</div>

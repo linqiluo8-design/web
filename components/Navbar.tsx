@@ -55,22 +55,22 @@ export function Navbar() {
 
   return (
     <nav className="bg-white shadow-sm border-b">
-      <div className="container mx-auto px-4">
+      <div className="container mx-auto px-4 min-w-max">
         <div className="flex items-center justify-between h-16">
-          <div className="flex items-center space-x-8">
-            <Link href="/" className="text-xl font-bold text-blue-600">
+          <div className="flex items-center space-x-4 lg:space-x-8">
+            <Link href="/" className="text-xl font-bold text-blue-600 whitespace-nowrap flex-shrink-0">
               知识付费平台
             </Link>
-            <div className="hidden md:flex space-x-4">
+            <div className="hidden md:flex items-center space-x-2 lg:space-x-4 flex-shrink-0">
               <Link
                 href="/products"
-                className={isActive("/products") ? "px-3 py-2 rounded-md text-sm font-medium text-blue-600 bg-blue-50" : "px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50"}
+                className={`${isActive("/products") ? "px-3 py-2 rounded-md text-sm font-medium text-blue-600 bg-blue-50" : "px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50"} whitespace-nowrap`}
               >
                 商品列表
               </Link>
               <Link
                 href="/cart"
-                className={`${isActive("/cart") ? "px-3 py-2 rounded-md text-sm font-medium text-blue-600 bg-blue-50" : "px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50"} relative`}
+                className={`${isActive("/cart") ? "px-3 py-2 rounded-md text-sm font-medium text-blue-600 bg-blue-50" : "px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50"} relative whitespace-nowrap`}
               >
                 购物车
                 {itemCount > 0 && (
@@ -85,25 +85,25 @@ export function Navbar() {
               </Link>
               <Link
                 href="/membership"
-                className={isActive("/membership") ? "px-3 py-2 rounded-md text-sm font-medium text-blue-600 bg-blue-50" : "px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50"}
+                className={`${isActive("/membership") ? "px-3 py-2 rounded-md text-sm font-medium text-blue-600 bg-blue-50" : "px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50"} whitespace-nowrap`}
               >
                 购买会员
               </Link>
               <Link
                 href="/membership-orders"
-                className={isActive("/membership-orders") ? "px-3 py-2 rounded-md text-sm font-medium text-blue-600 bg-blue-50" : "px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50"}
+                className={`${isActive("/membership-orders") ? "px-3 py-2 rounded-md text-sm font-medium text-blue-600 bg-blue-50" : "px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50"} whitespace-nowrap`}
               >
                 会员订单
               </Link>
               <Link
                 href="/my-orders"
-                className={isActive("/my-orders") ? "px-3 py-2 rounded-md text-sm font-medium text-blue-600 bg-blue-50" : "px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50"}
+                className={`${isActive("/my-orders") ? "px-3 py-2 rounded-md text-sm font-medium text-blue-600 bg-blue-50" : "px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50"} whitespace-nowrap`}
               >
                 我的订单
               </Link>
               <Link
                 href="/distribution"
-                className={`${isActive("/distribution") ? "px-3 py-2 rounded-md text-sm font-medium text-blue-600 bg-blue-50" : "px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50"} relative`}
+                className={`${isActive("/distribution") ? "px-3 py-2 rounded-md text-sm font-medium text-blue-600 bg-blue-50" : "px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50"} relative whitespace-nowrap`}
               >
                 <span className="flex items-center gap-1">
                   💰 推广赚钱
@@ -113,25 +113,25 @@ export function Navbar() {
               {hasAnyPermission() && (
                 <Link
                   href="/backendmanager"
-                  className={isActive("/backendmanager") ? "px-3 py-2 rounded-md text-sm font-medium text-blue-600 bg-blue-50" : "px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50"}
+                  className={`${isActive("/backendmanager") ? "px-3 py-2 rounded-md text-sm font-medium text-blue-600 bg-blue-50" : "px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50"} whitespace-nowrap`}
                 >
                   后台管理
                 </Link>
               )}
             </div>
           </div>
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-4 flex-shrink-0">
             {session?.user && (
               <div className="relative">
                 <button
                   onClick={() => setShowUserMenu(!showUserMenu)}
-                  className="flex items-center space-x-2 px-4 py-2 text-sm font-medium text-gray-700 hover:text-blue-600 focus:outline-none"
+                  className="flex items-center space-x-2 px-4 py-2 text-sm font-medium text-gray-700 hover:text-blue-600 focus:outline-none whitespace-nowrap"
                 >
-                  <span>{session.user.email || session.user.name || "用户"}</span>
+                  <span className="max-w-[200px] truncate">{session.user.email || session.user.name || "用户"}</span>
                   {session.user.role === "ADMIN" && (
-                    <span className="ml-2 px-2 py-0.5 text-xs bg-blue-100 text-blue-800 rounded">管理员</span>
+                    <span className="ml-2 px-2 py-0.5 text-xs bg-blue-100 text-blue-800 rounded whitespace-nowrap">管理员</span>
                   )}
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                   </svg>
                 </button>

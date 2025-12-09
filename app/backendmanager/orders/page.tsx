@@ -119,6 +119,12 @@ export default function OrderManagementPage() {
     conditions: []
   })
 
+  // 退款相关状态
+  const [refundModalOpen, setRefundModalOpen] = useState(false)
+  const [refundingOrderId, setRefundingOrderId] = useState<string | null>(null)
+  const [refundingOrderNumber, setRefundingOrderNumber] = useState<string>("")
+  const [refundLoading, setRefundLoading] = useState(false)
+
   // 清理配置
   const [cleanupStartDate, setCleanupStartDate] = useState("")
   const [cleanupEndDate, setCleanupEndDate] = useState("")
@@ -288,6 +294,49 @@ export default function OrderManagementPage() {
     if (!isNaN(pageNum) && pageNum >= 1 && pageNum <= pagination.totalPages) {
       setPagination({ ...pagination, page: pageNum })
       setJumpToPage("")
+    }
+  }
+
+  // 打开退款确认弹窗
+  const openRefundModal = (orderId: string, orderNumber: string) => {
+    setRefundingOrderId(orderId)
+    setRefundingOrderNumber(orderNumber)
+    setRefundModalOpen(true)
+  }
+
+  // 关闭退款确认弹窗
+  const closeRefundModal = () => {
+    setRefundModalOpen(false)
+    setRefundingOrderId(null)
+    setRefundingOrderNumber("")
+  }
+
+  // 执行退款
+  const handleRefund = async () => {
+    if (!refundingOrderId) return
+
+    try {
+      setRefundLoading(true)
+      const response = await fetch(`/api/backendmanager/orders/${refundingOrderId}/refund`, {
+        method: "POST"
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        alert("退款成功")
+        closeRefundModal()
+        // 刷新订单列表和统计
+        fetchOrders()
+        fetchStats()
+      } else {
+        alert(data.error || "退款失败")
+      }
+    } catch (error) {
+      console.error("退款失败:", error)
+      alert("退款失败，请稍后重试")
+    } finally {
+      setRefundLoading(false)
     }
   }
 
@@ -602,6 +651,11 @@ export default function OrderManagementPage() {
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       创建时间
                     </th>
+                    {session?.user?.role === "ADMIN" && (
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        操作
+                      </th>
+                    )}
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
@@ -669,6 +723,24 @@ export default function OrderManagementPage() {
                       <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
                         {new Date(order.createdAt).toLocaleString("zh-CN")}
                       </td>
+                      {session?.user?.role === "ADMIN" && (
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                          {(order.status === "paid" || order.status === "completed") && (
+                            <button
+                              onClick={() => openRefundModal(order.id, order.orderNumber)}
+                              className="px-3 py-1 bg-red-100 text-red-700 rounded-md hover:bg-red-200 transition-colors text-xs font-medium"
+                            >
+                              退款
+                            </button>
+                          )}
+                          {order.status === "refunded" && (
+                            <span className="text-xs text-gray-400">已退款</span>
+                          )}
+                          {(order.status === "pending" || order.status === "cancelled") && (
+                            <span className="text-xs text-gray-400">-</span>
+                          )}
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
@@ -1142,6 +1214,37 @@ export default function OrderManagementPage() {
           <li>• 已清理的订单数据无法恢复，请谨慎操作</li>
         </ul>
       </div>
+
+      {/* 退款确认弹窗 */}
+      {refundModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+            <h3 className="text-lg font-semibold mb-4 text-gray-900">确认退款</h3>
+            <p className="text-gray-600 mb-6">
+              确定要退款订单 <span className="font-medium text-gray-900">{refundingOrderNumber}</span> 吗？
+            </p>
+            <p className="text-sm text-gray-500 mb-6">
+              退款后订单状态将变为"已退款"，此操作不可撤销。
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={closeRefundModal}
+                disabled={refundLoading}
+                className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+              >
+                取消
+              </button>
+              <button
+                onClick={handleRefund}
+                disabled={refundLoading}
+                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50"
+              >
+                {refundLoading ? "处理中..." : "确认退款"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

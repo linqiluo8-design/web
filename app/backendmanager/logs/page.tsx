@@ -29,6 +29,35 @@ interface Pagination {
   totalPages: number
 }
 
+// 常见操作类型（可搜索的操作名称）
+const COMMON_ACTIONS = [
+  { value: '', label: '全部操作', category: 'all' },
+  // 订单相关
+  { value: 'order_created', label: '订单创建', category: 'order' },
+  { value: 'order_creation_failed', label: '订单创建失败', category: 'order' },
+  // 支付相关
+  { value: 'payment_success', label: '支付成功', category: 'payment' },
+  { value: 'payment_failed', label: '支付失败', category: 'payment' },
+  { value: 'payment_callback_error', label: '支付回调错误', category: 'payment' },
+  // 退款相关
+  { value: 'order_refunded', label: '订单退款', category: 'refund' },
+  { value: 'refund_failed', label: '退款失败', category: 'refund' },
+  // 会员相关
+  { value: 'membership_purchased', label: '会员购买', category: 'membership' },
+  { value: 'membership_payment_failed', label: '会员支付失败', category: 'membership' },
+  { value: 'membership_callback_error', label: '会员回调错误', category: 'membership' },
+  // 系统操作
+  { value: 'logs_queried', label: '查询日志', category: 'system' },
+]
+
+// 搜索关键词示例
+const SEARCH_EXAMPLES = [
+  { label: '订单号', value: 'ORD' },
+  { label: '会员码', value: 'MEM-' },
+  { label: '支付成功', value: '支付成功' },
+  { label: '退款', value: '退款' },
+]
+
 export default function SystemLogsPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
@@ -43,6 +72,8 @@ export default function SystemLogsPage() {
   const [loading, setLoading] = useState(false)
   const [autoRefresh, setAutoRefresh] = useState(false)
   const [refreshInterval, setRefreshInterval] = useState(5000) // 5秒
+  const [showSearchHelp, setShowSearchHelp] = useState(false)
+  const [showHelpModal, setShowHelpModal] = useState(false)
 
   // 筛选条件
   const [filters, setFilters] = useState({
@@ -168,7 +199,19 @@ export default function SystemLogsPage() {
 
   return (
     <div className="container mx-auto p-6">
-      <h1 className="text-3xl font-bold mb-6">系统日志管理</h1>
+      {/* 页面标题和帮助 */}
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-3xl font-bold">系统日志管理</h1>
+        <button
+          onClick={() => setShowHelpModal(true)}
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          使用指南
+        </button>
+      </div>
 
       {/* 筛选和控制面板 */}
       <div className="bg-white p-6 rounded-lg shadow mb-6">
@@ -213,30 +256,66 @@ export default function SystemLogsPage() {
 
           {/* 操作名称 */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
               操作名称
+              <span className="text-xs text-gray-500 font-normal">
+                （选择业务操作类型）
+              </span>
             </label>
-            <input
-              type="text"
+            <select
               value={filters.action}
               onChange={(e) => setFilters({ ...filters, action: e.target.value })}
-              placeholder="如: order_created"
               className="w-full px-3 py-2 border rounded-lg"
-            />
+            >
+              {COMMON_ACTIONS.map((action) => (
+                <option key={action.value} value={action.value}>
+                  {action.label}
+                </option>
+              ))}
+            </select>
           </div>
 
           {/* 关键词搜索 */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
               关键词搜索
+              <button
+                type="button"
+                onClick={() => setShowSearchHelp(!showSearchHelp)}
+                className="text-blue-600 hover:text-blue-800 text-xs"
+              >
+                [查看示例]
+              </button>
             </label>
             <input
               type="text"
               value={filters.keyword}
               onChange={(e) => setFilters({ ...filters, keyword: e.target.value })}
-              placeholder="搜索消息、路径..."
+              placeholder="搜索订单号、会员码、消息..."
               className="w-full px-3 py-2 border rounded-lg"
             />
+            {showSearchHelp && (
+              <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-sm font-medium text-blue-900 mb-2">快捷搜索示例：</p>
+                <div className="flex flex-wrap gap-2">
+                  {SEARCH_EXAMPLES.map((example) => (
+                    <button
+                      key={example.value}
+                      onClick={() => {
+                        setFilters({ ...filters, keyword: example.value })
+                        setShowSearchHelp(false)
+                      }}
+                      className="px-3 py-1 bg-white border border-blue-300 rounded text-sm hover:bg-blue-100"
+                    >
+                      {example.label}: {example.value}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-xs text-gray-600 mt-2">
+                  💡 提示：可以搜索订单号、会员码、用户ID、路径等任何文本
+                </p>
+              </div>
+            )}
           </div>
 
           {/* 开始时间（精确到秒） */}
@@ -534,6 +613,204 @@ export default function SystemLogsPage() {
           </div>
         </div>
       </div>
+
+      {/* 帮助模态框 */}
+      {showHelpModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between">
+              <h2 className="text-2xl font-bold">系统日志使用指南</h2>
+              <button
+                onClick={() => setShowHelpModal(false)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="p-6 space-y-6">
+              {/* 日志级别说明 */}
+              <section>
+                <h3 className="text-lg font-bold mb-3 text-gray-900">📊 日志级别</h3>
+                <div className="space-y-2">
+                  <div className="flex items-start gap-3">
+                    <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-sm font-medium">INFO</span>
+                    <p className="text-sm text-gray-700">正常业务操作（订单创建、支付成功等）</p>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <span className="px-2 py-1 bg-yellow-100 text-yellow-800 rounded text-sm font-medium">WARN</span>
+                    <p className="text-sm text-gray-700">警告信息（支付失败、会员过期等）</p>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <span className="px-2 py-1 bg-red-100 text-red-800 rounded text-sm font-medium">ERROR</span>
+                    <p className="text-sm text-gray-700">错误和异常（系统错误、处理失败等）</p>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <span className="px-2 py-1 bg-gray-100 text-gray-800 rounded text-sm font-medium">DEBUG</span>
+                    <p className="text-sm text-gray-700">调试信息（开发环境使用）</p>
+                  </div>
+                </div>
+              </section>
+
+              {/* 日志分类说明 */}
+              <section>
+                <h3 className="text-lg font-bold mb-3 text-gray-900">🏷️ 日志分类</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="flex items-start gap-3">
+                    <span className="px-2 py-1 bg-purple-100 text-purple-800 rounded text-sm font-medium">API</span>
+                    <p className="text-sm text-gray-700">API 接口调用</p>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <span className="px-2 py-1 bg-green-100 text-green-800 rounded text-sm font-medium">认证</span>
+                    <p className="text-sm text-gray-700">用户登录、注册</p>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <span className="px-2 py-1 bg-orange-100 text-orange-800 rounded text-sm font-medium">支付</span>
+                    <p className="text-sm text-gray-700">支付、退款操作</p>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <span className="px-2 py-1 bg-red-100 text-red-800 rounded text-sm font-medium">安全</span>
+                    <p className="text-sm text-gray-700">安全警报、异常行为</p>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <span className="px-2 py-1 bg-indigo-100 text-indigo-800 rounded text-sm font-medium">数据库</span>
+                    <p className="text-sm text-gray-700">数据库操作</p>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <span className="px-2 py-1 bg-gray-100 text-gray-800 rounded text-sm font-medium">系统</span>
+                    <p className="text-sm text-gray-700">系统级操作</p>
+                  </div>
+                </div>
+              </section>
+
+              {/* 操作类型说明 */}
+              <section>
+                <h3 className="text-lg font-bold mb-3 text-gray-900">⚡ 常见操作类型</h3>
+                <div className="space-y-3">
+                  <div>
+                    <h4 className="font-semibold text-gray-800 mb-2">📦 订单相关</h4>
+                    <ul className="list-disc list-inside space-y-1 text-sm text-gray-700 ml-4">
+                      <li><code className="bg-gray-100 px-1 rounded">order_created</code> - 订单创建成功</li>
+                      <li><code className="bg-gray-100 px-1 rounded">order_creation_failed</code> - 订单创建失败</li>
+                    </ul>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-gray-800 mb-2">💳 支付相关</h4>
+                    <ul className="list-disc list-inside space-y-1 text-sm text-gray-700 ml-4">
+                      <li><code className="bg-gray-100 px-1 rounded">payment_success</code> - 支付成功</li>
+                      <li><code className="bg-gray-100 px-1 rounded">payment_failed</code> - 支付失败</li>
+                      <li><code className="bg-gray-100 px-1 rounded">payment_callback_error</code> - 支付回调错误</li>
+                    </ul>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-gray-800 mb-2">💰 退款相关</h4>
+                    <ul className="list-disc list-inside space-y-1 text-sm text-gray-700 ml-4">
+                      <li><code className="bg-gray-100 px-1 rounded">order_refunded</code> - 订单退款成功</li>
+                      <li><code className="bg-gray-100 px-1 rounded">refund_failed</code> - 退款失败</li>
+                    </ul>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-gray-800 mb-2">👤 会员相关</h4>
+                    <ul className="list-disc list-inside space-y-1 text-sm text-gray-700 ml-4">
+                      <li><code className="bg-gray-100 px-1 rounded">membership_purchased</code> - 会员购买成功</li>
+                      <li><code className="bg-gray-100 px-1 rounded">membership_payment_failed</code> - 会员支付失败</li>
+                      <li><code className="bg-gray-100 px-1 rounded">membership_callback_error</code> - 会员回调错误</li>
+                    </ul>
+                  </div>
+                </div>
+              </section>
+
+              {/* 关键词搜索示例 */}
+              <section>
+                <h3 className="text-lg font-bold mb-3 text-gray-900">🔍 关键词搜索示例</h3>
+                <div className="bg-gray-50 p-4 rounded-lg space-y-3">
+                  <div>
+                    <p className="font-semibold text-gray-800 mb-1">搜索特定订单：</p>
+                    <code className="text-sm bg-white px-3 py-1 rounded border">ORD1702467123456</code>
+                  </div>
+                  <div>
+                    <p className="font-semibold text-gray-800 mb-1">搜索会员相关：</p>
+                    <code className="text-sm bg-white px-3 py-1 rounded border">MEM-</code>
+                  </div>
+                  <div>
+                    <p className="font-semibold text-gray-800 mb-1">搜索支付成功的记录：</p>
+                    <code className="text-sm bg-white px-3 py-1 rounded border">支付成功</code>
+                  </div>
+                  <div>
+                    <p className="font-semibold text-gray-800 mb-1">搜索退款操作：</p>
+                    <code className="text-sm bg-white px-3 py-1 rounded border">退款</code>
+                  </div>
+                  <div>
+                    <p className="font-semibold text-gray-800 mb-1">搜索特定用户的操作：</p>
+                    <code className="text-sm bg-white px-3 py-1 rounded border">user_id</code>
+                  </div>
+                </div>
+              </section>
+
+              {/* 使用技巧 */}
+              <section>
+                <h3 className="text-lg font-bold mb-3 text-gray-900">💡 使用技巧</h3>
+                <ul className="space-y-2 text-sm text-gray-700">
+                  <li className="flex items-start gap-2">
+                    <span className="text-blue-600 font-bold">•</span>
+                    <span><strong>组合筛选：</strong>可以同时使用日志级别、分类、操作类型和关键词进行精确查询</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-blue-600 font-bold">•</span>
+                    <span><strong>时间范围：</strong>使用开始时间和结束时间可以精确到秒级别查询</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-blue-600 font-bold">•</span>
+                    <span><strong>查看详情：</strong>点击日志行可以展开查看完整的元数据信息</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-blue-600 font-bold">•</span>
+                    <span><strong>导出数据：</strong>支持导出为 CSV 或 JSON 格式用于离线分析</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-blue-600 font-bold">•</span>
+                    <span><strong>自动刷新：</strong>勾选自动刷新可以实时监控最新日志</span>
+                  </li>
+                </ul>
+              </section>
+
+              {/* 常见场景 */}
+              <section className="bg-blue-50 p-4 rounded-lg">
+                <h3 className="text-lg font-bold mb-3 text-blue-900">📌 常见查询场景</h3>
+                <div className="space-y-2 text-sm">
+                  <div>
+                    <strong className="text-blue-900">查看今天的所有订单：</strong>
+                    <p className="text-blue-800">选择操作类型 "订单创建" + 设置今天的开始和结束时间</p>
+                  </div>
+                  <div>
+                    <strong className="text-blue-900">排查支付失败原因：</strong>
+                    <p className="text-blue-800">选择日志级别 "WARN/ERROR" + 分类 "支付" + 操作类型 "支付失败"</p>
+                  </div>
+                  <div>
+                    <strong className="text-blue-900">查看特定订单的完整流程：</strong>
+                    <p className="text-blue-800">在关键词中输入订单号，查看该订单的所有相关日志</p>
+                  </div>
+                  <div>
+                    <strong className="text-blue-900">监控系统错误：</strong>
+                    <p className="text-blue-800">选择日志级别 "ERROR" + 启用自动刷新</p>
+                  </div>
+                </div>
+              </section>
+            </div>
+
+            <div className="sticky bottom-0 bg-gray-50 px-6 py-4 border-t">
+              <button
+                onClick={() => setShowHelpModal(false)}
+                className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                我知道了
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

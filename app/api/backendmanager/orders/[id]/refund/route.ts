@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireAdmin } from "@/lib/permissions"
+import { logger, extractRequestInfo } from "@/lib/logger"
 
 // POST /api/backendmanager/orders/[id]/refund - 退款订单（仅管理员）
 export async function POST(
@@ -148,6 +149,27 @@ export async function POST(
       }
     }
 
+    // 记录退款成功日志
+    const requestInfo = extractRequestInfo(request)
+    await logger.info({
+      category: 'payment',
+      action: 'order_refunded',
+      message: `订单退款成功 - ${order.orderNumber}`,
+      userId: result.userId || undefined,
+      ...requestInfo,
+      statusCode: 200,
+      metadata: {
+        orderId: result.id,
+        orderNumber: result.orderNumber,
+        totalAmount: result.totalAmount,
+        distributionHandled: !!distributionOrder,
+        distributionOrderId: distributionOrder?.id,
+        commissionAmount: distributionOrder?.commissionAmount,
+        distributionStatus: distributionOrder?.status,
+        distributorId: distributionOrder?.distributorId
+      }
+    })
+
     return NextResponse.json({
       success: true,
       message: message,
@@ -156,6 +178,22 @@ export async function POST(
     })
 
   } catch (error: any) {
+    // 记录退款失败日志
+    const requestInfo = extractRequestInfo(request)
+    await logger.error({
+      category: 'payment',
+      action: 'refund_failed',
+      message: `订单退款失败: ${error.message}`,
+      ...requestInfo,
+      statusCode: error.message === '未登录' ? 401 :
+                  error.message?.includes('管理员') ? 403 :
+                  500,
+      error: error,
+      metadata: {
+        orderId: orderId
+      }
+    })
+
     console.error("退款失败:", error)
     return NextResponse.json(
       { error: error.message || "退款失败" },

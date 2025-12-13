@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma"
 import { requireAuth } from "@/lib/session"
 import { z } from "zod"
 import crypto from "crypto"
+import { logger, extractRequestInfo } from "@/lib/logger"
 
 const createOrderSchema = z.object({
   // 订单项列表（匿名购物车）
@@ -729,6 +730,28 @@ export async function POST(req: Request) {
       })
     }
 
+    // 记录订单创建日志
+    const requestInfo = extractRequestInfo(req)
+    await logger.info({
+      category: 'api',
+      action: 'order_created',
+      message: `订单创建成功 - ${orderNumber}`,
+      userId: order.userId || undefined,
+      ...requestInfo,
+      statusCode: 201,
+      metadata: {
+        orderId: order.id,
+        orderNumber: orderNumber,
+        totalAmount: totalAmount,
+        originalAmount: originalAmount,
+        itemCount: validatedItems.length,
+        membershipUsed: !!membership,
+        membershipCode: membership?.membershipCode,
+        referralUsed: !!distributor,
+        referralCode: distributor?.code
+      }
+    })
+
     return NextResponse.json({
       order,
       orderNumber,
@@ -742,6 +765,22 @@ export async function POST(req: Request) {
     }, { status: 201 })
 
   } catch (error: any) {
+    // 记录错误日志
+    const requestInfo = extractRequestInfo(req)
+    await logger.error({
+      category: 'api',
+      action: 'order_creation_failed',
+      message: `订单创建失败: ${error.message}`,
+      ...requestInfo,
+      statusCode: error instanceof z.ZodError ? 400 : 500,
+      error: error,
+      metadata: {
+        itemCount: data?.items?.length || 0,
+        membershipCode: data?.membershipCode,
+        referralCode: data?.referralCode
+      }
+    })
+
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { error: error.errors[0].message },

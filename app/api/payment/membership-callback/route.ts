@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { logger, extractRequestInfo } from "@/lib/logger"
 
 // POST /api/payment/membership-callback - 会员支付回调
 export async function POST(request: Request) {
@@ -47,6 +48,26 @@ export async function POST(request: Request) {
         }
       })
 
+      // 记录会员购买成功日志
+      const requestInfo = extractRequestInfo(request)
+      await logger.info({
+        category: 'payment',
+        action: 'membership_purchased',
+        message: `会员购买成功 - ${membershipCode}`,
+        userId: membership.userId || undefined,
+        ...requestInfo,
+        statusCode: 200,
+        metadata: {
+          membershipId: membership.id,
+          membershipCode: membershipCode,
+          orderNumber: orderNumber,
+          planId: membership.planId,
+          purchasePrice: membership.purchasePrice,
+          discount: membership.discount,
+          duration: membership.duration
+        }
+      })
+
       return NextResponse.json({
         success: true,
         message: "支付成功",
@@ -61,6 +82,23 @@ export async function POST(request: Request) {
         }
       })
 
+      // 记录会员购买失败日志
+      const requestInfo = extractRequestInfo(request)
+      await logger.warn({
+        category: 'payment',
+        action: 'membership_payment_failed',
+        message: `会员支付失败 - ${membershipCode}`,
+        userId: membership.userId || undefined,
+        ...requestInfo,
+        statusCode: 200,
+        metadata: {
+          membershipId: membership.id,
+          membershipCode: membershipCode,
+          planId: membership.planId,
+          purchasePrice: membership.purchasePrice
+        }
+      })
+
       return NextResponse.json({
         success: false,
         message: "支付失败"
@@ -68,6 +106,22 @@ export async function POST(request: Request) {
     }
 
   } catch (error: any) {
+    // 记录错误日志
+    const requestInfo = extractRequestInfo(request)
+    await logger.error({
+      category: 'payment',
+      action: 'membership_callback_error',
+      message: `会员支付回调处理失败: ${error.message}`,
+      ...requestInfo,
+      statusCode: 500,
+      error: error,
+      metadata: {
+        membershipId: body?.membershipId,
+        membershipCode: body?.membershipCode,
+        status: body?.status
+      }
+    })
+
     console.error("会员支付回调处理失败:", error)
     return NextResponse.json(
       { error: "支付回调处理失败" },

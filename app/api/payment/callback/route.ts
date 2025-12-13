@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { logger, extractRequestInfo } from "@/lib/logger"
 
 export async function POST(request: Request) {
   try {
@@ -100,6 +101,26 @@ export async function POST(request: Request) {
         }
       }
 
+      // 记录支付成功日志
+      const requestInfo = extractRequestInfo(request)
+      await logger.info({
+        category: 'payment',
+        action: 'payment_success',
+        message: `订单支付成功 - ${orderNumber}`,
+        userId: order.userId || undefined,
+        ...requestInfo,
+        statusCode: 200,
+        metadata: {
+          orderId: order.id,
+          orderNumber: orderNumber,
+          paymentId: paymentId,
+          paymentMethod: payment.paymentMethod,
+          amount: payment.amount,
+          transactionId: transactionId,
+          distributorId: order.distributorId || undefined
+        }
+      })
+
       return NextResponse.json({
         success: true,
         message: "支付成功"
@@ -111,6 +132,24 @@ export async function POST(request: Request) {
         data: { status: "failed" }
       })
 
+      // 记录支付失败日志
+      const requestInfo = extractRequestInfo(request)
+      await logger.warn({
+        category: 'payment',
+        action: 'payment_failed',
+        message: `订单支付失败 - ${orderNumber}`,
+        userId: payment.order.userId || undefined,
+        ...requestInfo,
+        statusCode: 200,
+        metadata: {
+          orderId: payment.orderId,
+          orderNumber: orderNumber,
+          paymentId: paymentId,
+          paymentMethod: payment.paymentMethod,
+          amount: payment.amount
+        }
+      })
+
       return NextResponse.json({
         success: false,
         message: "支付失败"
@@ -118,6 +157,22 @@ export async function POST(request: Request) {
     }
 
   } catch (error: any) {
+    // 记录错误日志
+    const requestInfo = extractRequestInfo(request)
+    await logger.error({
+      category: 'payment',
+      action: 'payment_callback_error',
+      message: `支付回调处理失败: ${error.message}`,
+      ...requestInfo,
+      statusCode: 500,
+      error: error,
+      metadata: {
+        paymentId: body?.paymentId,
+        orderNumber: body?.orderNumber,
+        status: body?.status
+      }
+    })
+
     console.error("支付回调处理失败:", error)
     return NextResponse.json(
       { error: "支付回调处理失败" },

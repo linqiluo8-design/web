@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
+import { useMenuAccess } from "@/hooks/useMenuAccess"
 
 interface MembershipPlan {
   id: string
@@ -13,6 +14,7 @@ interface MembershipPlan {
 }
 
 export default function MembershipPage() {
+  const { isChecking: isCheckingAccess, hasAccess } = useMenuAccess("membership")
   const router = useRouter()
   const [plans, setPlans] = useState<MembershipPlan[]>([])
   const [loading, setLoading] = useState(true)
@@ -64,6 +66,14 @@ export default function MembershipPage() {
     if (duration === -1) return "终身有效"
     if (duration >= 365) return `${Math.floor(duration / 365)}年`
     return `${duration}天`
+  }
+
+  if (isCheckingAccess) {
+    return (
+      <div className="container mx-auto px-4 py-16">
+        <div className="text-center">加载中...</div>
+      </div>
+    )
   }
 
   if (loading) {

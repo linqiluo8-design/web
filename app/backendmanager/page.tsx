@@ -215,6 +215,19 @@ export default function BackendManagerPage() {
           </Link>
         )}
 
+        {(session?.user?.role === 'ADMIN' || hasPermission('SYSTEM_SETTINGS')) && (
+          <Link
+            href="/backendmanager/menu-settings"
+            className="block p-6 bg-gradient-to-br from-indigo-50 to-indigo-100 rounded-lg shadow hover:shadow-lg transition-shadow border border-indigo-200 hover:border-indigo-500"
+          >
+            <div className="flex items-center gap-3 mb-2">
+              <span className="text-2xl">🎛️</span>
+              <h2 className="text-xl font-bold text-indigo-900">菜单管理</h2>
+            </div>
+            <p className="text-indigo-700 text-sm">控制导航栏菜单的显示/隐藏</p>
+          </Link>
+        )}
+
         {hasPermission('SECURITY_ALERTS') && (
           <Link
             href="/backendmanager/security-alerts"

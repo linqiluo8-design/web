@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation"
 import { useCart } from "@/hooks/useCart"
 import { useReferralCode } from "@/hooks/useReferralCode"
 import { useToast } from "@/components/Toast"
+import { useMenuAccess } from "@/hooks/useMenuAccess"
 
 interface Product {
   id: string
@@ -39,6 +40,7 @@ interface Category {
 }
 
 export default function ProductsPage() {
+  const { isChecking: isCheckingAccess, hasAccess } = useMenuAccess("products")
   const router = useRouter()
   const { addToCart: addToCartHook } = useCart()
   const { getReferralCode } = useReferralCode()
@@ -307,6 +309,14 @@ export default function ProductsPage() {
       setPage(pageNum)
       setJumpToPage("")
     }
+  }
+
+  if (isCheckingAccess) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="text-center">加载中...</div>
+      </div>
+    )
   }
 
   if (loading) {

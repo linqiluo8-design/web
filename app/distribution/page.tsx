@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
+import { useMenuAccess } from "@/hooks/useMenuAccess"
 
 interface DistributorInfo {
   id: string
@@ -62,6 +63,7 @@ interface Withdrawal {
 }
 
 export default function DistributionPage() {
+  const { isChecking: isCheckingAccess, hasAccess } = useMenuAccess("distribution")
   const { data: session, status } = useSession()
   const router = useRouter()
   const [distributor, setDistributor] = useState<DistributorInfo | null>(null)
@@ -283,6 +285,14 @@ export default function DistributionPage() {
       settled: "text-green-600 bg-green-50"
     }
     return colorMap[status] || "text-gray-600 bg-gray-50"
+  }
+
+  if (isCheckingAccess) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="text-center">加载中...</div>
+      </div>
+    )
   }
 
   if (loading) {

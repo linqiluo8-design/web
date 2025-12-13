@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import OrderCountdown from "@/components/OrderCountdown"
+import { useMenuAccess } from "@/hooks/useMenuAccess"
 
 interface OrderRecord {
   orderNumber: string
@@ -33,6 +34,7 @@ interface Order {
 const ORDER_STORAGE_KEY = "my_orders"
 
 export default function MyOrdersPage() {
+  const { isChecking: isCheckingAccess, hasAccess } = useMenuAccess("myOrders")
   const [allOrders, setAllOrders] = useState<Order[]>([]) // 所有订单
   const [displayedOrders, setDisplayedOrders] = useState<Order[]>([]) // 当前页显示的订单
   const [loading, setLoading] = useState(true)
@@ -367,6 +369,14 @@ export default function MyOrdersPage() {
 
     // 调用后端API导出
     await exportOrdersViaAPI(orderNumbers, format)
+  }
+
+  if (isCheckingAccess) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="text-center">加载中...</div>
+      </div>
+    )
   }
 
   if (loading) {

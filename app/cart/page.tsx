@@ -7,6 +7,7 @@ import { useCart } from "@/hooks/useCart"
 import { useReferralCode } from "@/hooks/useReferralCode"
 import { useState } from "react"
 import { useToast } from "@/components/Toast"
+import { useMenuAccess } from "@/hooks/useMenuAccess"
 
 interface MembershipInfo {
   id: string
@@ -26,6 +27,7 @@ interface MembershipInfo {
 }
 
 export default function CartPage() {
+  const { isChecking: isCheckingAccess, hasAccess } = useMenuAccess("cart")
   const router = useRouter()
   const { cart, updateQuantity, removeFromCart, clearCart, total, isLoaded } = useCart()
   const { getReferralCode } = useReferralCode()
@@ -187,6 +189,14 @@ export default function CartPage() {
       setIsCheckingOut(false) // 出错时恢复正常状态
       showToast(err instanceof Error ? err.message : "创建订单失败", "error")
     }
+  }
+
+  if (isCheckingAccess) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="text-center">加载中...</div>
+      </div>
+    )
   }
 
   if (!isLoaded) {

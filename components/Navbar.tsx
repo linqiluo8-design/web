@@ -13,8 +13,28 @@ export function Navbar() {
   const { itemCount } = useCart()
   const [permissions, setPermissions] = useState<Record<string, string>>({})
   const [isAnimating, setIsAnimating] = useState(false)
+  const [menuConfig, setMenuConfig] = useState({
+    products: true,
+    cart: true,
+    membership: true,
+    membershipOrders: true,
+    myOrders: true,
+    distribution: true
+  })
 
   const isActive = (path: string) => pathname === path
+
+  // 获取菜单配置
+  useEffect(() => {
+    fetch('/api/menu-config')
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          setMenuConfig(data.config)
+        }
+      })
+      .catch(err => console.error('获取菜单配置失败:', err))
+  }, [])
 
   // 获取用户权限
   useEffect(() => {
@@ -62,54 +82,66 @@ export function Navbar() {
               知识付费平台
             </Link>
             <div className="hidden md:flex items-center space-x-2 lg:space-x-4 flex-shrink-0">
-              <Link
-                href="/products"
-                className={`${isActive("/products") ? "px-3 py-2 rounded-md text-sm font-medium text-blue-600 bg-blue-50" : "px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50"} whitespace-nowrap`}
-              >
-                商品列表
-              </Link>
-              <Link
-                href="/cart"
-                className={`${isActive("/cart") ? "px-3 py-2 rounded-md text-sm font-medium text-blue-600 bg-blue-50" : "px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50"} relative whitespace-nowrap`}
-              >
-                购物车
-                {itemCount > 0 && (
-                  <span
-                    className={`absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center transition-transform ${
-                      isAnimating ? 'animate-bounce' : ''
-                    }`}
-                  >
-                    {itemCount > 99 ? '99+' : itemCount}
+              {menuConfig.products && (
+                <Link
+                  href="/products"
+                  className={`${isActive("/products") ? "px-3 py-2 rounded-md text-sm font-medium text-blue-600 bg-blue-50" : "px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50"} whitespace-nowrap`}
+                >
+                  商品列表
+                </Link>
+              )}
+              {menuConfig.cart && (
+                <Link
+                  href="/cart"
+                  className={`${isActive("/cart") ? "px-3 py-2 rounded-md text-sm font-medium text-blue-600 bg-blue-50" : "px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50"} relative whitespace-nowrap`}
+                >
+                  购物车
+                  {itemCount > 0 && (
+                    <span
+                      className={`absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center transition-transform ${
+                        isAnimating ? 'animate-bounce' : ''
+                      }`}
+                    >
+                      {itemCount > 99 ? '99+' : itemCount}
+                    </span>
+                  )}
+                </Link>
+              )}
+              {menuConfig.membership && (
+                <Link
+                  href="/membership"
+                  className={`${isActive("/membership") ? "px-3 py-2 rounded-md text-sm font-medium text-blue-600 bg-blue-50" : "px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50"} whitespace-nowrap`}
+                >
+                  购买会员
+                </Link>
+              )}
+              {menuConfig.membershipOrders && (
+                <Link
+                  href="/membership-orders"
+                  className={`${isActive("/membership-orders") ? "px-3 py-2 rounded-md text-sm font-medium text-blue-600 bg-blue-50" : "px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50"} whitespace-nowrap`}
+                >
+                  会员订单
+                </Link>
+              )}
+              {menuConfig.myOrders && (
+                <Link
+                  href="/my-orders"
+                  className={`${isActive("/my-orders") ? "px-3 py-2 rounded-md text-sm font-medium text-blue-600 bg-blue-50" : "px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50"} whitespace-nowrap`}
+                >
+                  我的订单
+                </Link>
+              )}
+              {menuConfig.distribution && (
+                <Link
+                  href="/distribution"
+                  className={`${isActive("/distribution") ? "px-3 py-2 rounded-md text-sm font-medium text-blue-600 bg-blue-50" : "px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50"} relative whitespace-nowrap`}
+                >
+                  <span className="flex items-center gap-1">
+                    💰 推广赚钱
+                    <span className="text-xs bg-gradient-to-r from-orange-500 to-red-500 text-white px-1.5 py-0.5 rounded-full">HOT</span>
                   </span>
-                )}
-              </Link>
-              <Link
-                href="/membership"
-                className={`${isActive("/membership") ? "px-3 py-2 rounded-md text-sm font-medium text-blue-600 bg-blue-50" : "px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50"} whitespace-nowrap`}
-              >
-                购买会员
-              </Link>
-              <Link
-                href="/membership-orders"
-                className={`${isActive("/membership-orders") ? "px-3 py-2 rounded-md text-sm font-medium text-blue-600 bg-blue-50" : "px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50"} whitespace-nowrap`}
-              >
-                会员订单
-              </Link>
-              <Link
-                href="/my-orders"
-                className={`${isActive("/my-orders") ? "px-3 py-2 rounded-md text-sm font-medium text-blue-600 bg-blue-50" : "px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50"} whitespace-nowrap`}
-              >
-                我的订单
-              </Link>
-              <Link
-                href="/distribution"
-                className={`${isActive("/distribution") ? "px-3 py-2 rounded-md text-sm font-medium text-blue-600 bg-blue-50" : "px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50"} relative whitespace-nowrap`}
-              >
-                <span className="flex items-center gap-1">
-                  💰 推广赚钱
-                  <span className="text-xs bg-gradient-to-r from-orange-500 to-red-500 text-white px-1.5 py-0.5 rounded-full">HOT</span>
-                </span>
-              </Link>
+                </Link>
+              )}
               {hasAnyPermission() && (
                 <Link
                   href="/backendmanager"

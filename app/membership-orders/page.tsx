@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
+import { useMenuAccess } from "@/hooks/useMenuAccess"
 
 interface Plan {
   id: string
@@ -71,6 +72,7 @@ const paymentMethodMap: Record<string, string> = {
 }
 
 export default function MembershipOrdersPage() {
+  const { isChecking: isCheckingAccess, hasAccess } = useMenuAccess("membershipOrders")
   const [orders, setOrders] = useState<MembershipOrder[]>([])
   const [loading, setLoading] = useState(true)
   const [pagination, setPagination] = useState<Pagination>({
@@ -305,6 +307,14 @@ export default function MembershipOrdersPage() {
 
     // 调用后端API导出
     await exportOrdersViaAPI(membershipCodes, format)
+  }
+
+  if (isCheckingAccess) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="text-center">加载中...</div>
+      </div>
+    )
   }
 
   if (loading) {

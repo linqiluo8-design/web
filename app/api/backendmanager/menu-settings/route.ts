@@ -67,22 +67,41 @@ export async function POST(req: Request) {
     }
 
     const configKey = MENU_KEYS[menuKey as keyof typeof MENU_KEYS]
+    const now = new Date()
 
-    // 使用 upsert 更新或创建配置
-    await prisma.systemConfig.upsert({
-      where: { key: configKey },
-      update: {
-        value: enabled.toString(),
-        updatedAt: new Date()
-      },
-      create: {
-        key: configKey,
-        value: enabled.toString(),
-        type: "boolean",
-        category: "menu",
-        description: `菜单项 ${menuKey} 是否启用`
-      }
-    })
+    // 使用事务同时更新配置和时间戳
+    await prisma.$transaction([
+      // 更新菜单配置
+      prisma.systemConfig.upsert({
+        where: { key: configKey },
+        update: {
+          value: enabled.toString(),
+          updatedAt: now
+        },
+        create: {
+          key: configKey,
+          value: enabled.toString(),
+          type: "boolean",
+          category: "menu",
+          description: `菜单项 ${menuKey} 是否启用`
+        }
+      }),
+      // 更新菜单配置的最后更新时间戳
+      prisma.systemConfig.upsert({
+        where: { key: "menu_config_updated_at" },
+        update: {
+          value: now.getTime().toString(),
+          updatedAt: now
+        },
+        create: {
+          key: "menu_config_updated_at",
+          value: now.getTime().toString(),
+          type: "string",
+          category: "menu",
+          description: "菜单配置最后更新时间戳"
+        }
+      })
+    ])
 
     return NextResponse.json({
       success: true,

@@ -14,11 +14,11 @@ const MENU_KEYS = {
 // GET - 获取菜单配置（公开接口，无需登录）
 export async function GET() {
   try {
-    // 获取所有菜单配置
+    // 获取所有菜单配置和时间戳
     const configs = await prisma.systemConfig.findMany({
       where: {
         key: {
-          in: Object.values(MENU_KEYS)
+          in: [...Object.values(MENU_KEYS), "menu_config_updated_at"]
         }
       },
       select: {
@@ -35,9 +35,14 @@ export async function GET() {
       menuConfig[menuKey] = config ? config.value === "true" : true
     })
 
+    // 获取更新时间戳
+    const timestampConfig = configs.find(c => c.key === "menu_config_updated_at")
+    const updatedAt = timestampConfig ? parseInt(timestampConfig.value) : Date.now()
+
     return NextResponse.json({
       success: true,
-      config: menuConfig
+      config: menuConfig,
+      updatedAt
     })
   } catch (error: any) {
     console.error("获取菜单配置失败:", error)
@@ -51,7 +56,8 @@ export async function GET() {
         membershipOrders: true,
         myOrders: true,
         distribution: true
-      }
+      },
+      updatedAt: Date.now()
     })
   }
 }

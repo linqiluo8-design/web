@@ -21,20 +21,49 @@ export function Navbar() {
     myOrders: true,
     distribution: true
   })
+  const [lastUpdatedAt, setLastUpdatedAt] = useState<number>(0)
 
   const isActive = (path: string) => pathname === path
 
-  // 获取菜单配置
-  useEffect(() => {
-    fetch('/api/menu-config')
-      .then(res => res.json())
-      .then(data => {
-        if (data.success) {
-          setMenuConfig(data.config)
+  // 获取菜单配置的函数
+  const fetchMenuConfig = async () => {
+    try {
+      const res = await fetch('/api/menu-config')
+      const data = await res.json()
+      if (data.success) {
+        setMenuConfig(data.config)
+        if (data.updatedAt) {
+          setLastUpdatedAt(data.updatedAt)
         }
-      })
-      .catch(err => console.error('获取菜单配置失败:', err))
+      }
+    } catch (err) {
+      console.error('获取菜单配置失败:', err)
+    }
+  }
+
+  // 初始加载菜单配置
+  useEffect(() => {
+    fetchMenuConfig()
   }, [])
+
+  // 定期检查菜单配置是否有更新（每10秒检查一次）
+  useEffect(() => {
+    const checkInterval = setInterval(async () => {
+      try {
+        const res = await fetch('/api/menu-config')
+        const data = await res.json()
+        if (data.success && data.updatedAt && data.updatedAt !== lastUpdatedAt) {
+          // 配置有更新，重新获取
+          setMenuConfig(data.config)
+          setLastUpdatedAt(data.updatedAt)
+        }
+      } catch (err) {
+        // 静默失败，不影响用户体验
+      }
+    }, 10000) // 10秒检查一次
+
+    return () => clearInterval(checkInterval)
+  }, [lastUpdatedAt])
 
   // 获取用户权限
   useEffect(() => {
